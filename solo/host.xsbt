@@ -1,0 +1,3 @@
+unmanagedSources / excludeFilter := "CthulhuWarsSolo.scala" || "utils.canvas.scala" || "Stats.scala" || "Serialize.scala"
+
+libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"

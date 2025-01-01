@@ -1,0 +1,588 @@
+<html>
+    <head>
+        <title id="cws-options" data-delay="1" data-xmenu="2222" data-scroll="true" data-online="true">Cthulhu Wars Solo DEV</title>
+        <style>
+            html { 
+                height: 100%; 
+            }
+
+            body {
+                font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, sans-serif;
+                font-size: 20px;
+                font-size: 2.05vh;
+                line-height: 1.2;
+                color: #707070;
+                background-color: black;
+            }
+
+            * {
+                scrollbar-width: thin;
+                scrollbar-color: gray transparent;
+            }
+
+            *::-webkit-scrollbar {
+                width: 10px;
+                width: 1vmin;
+            }
+
+            *::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            *::-webkit-scrollbar-thumb {
+                background-color: gray;
+                border-radius: 20px;
+                border-radius: 2vmin;
+                border: 3px solid black;
+                border: 0.3vmin solid black;
+            }
+
+            a {
+                text-decoration: none; 
+            }
+
+            img {
+                display: none;
+            }
+            
+            @font-face {
+                font-family: "Bohemian Typewriter";
+                src:              
+                    url("fonts/bohemian-typewriter.woff2") format("woff2"),
+                    url("fonts/bohemian-typewriter.woff")  format("woff");
+            }
+
+            .bohemian-typewriter {
+                font-family: "Bohemian Typewriter", san-serif;
+                font-size: 20px;
+                font-size: 2.05vh;
+            }
+
+            .unselectable {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+
+            .region {
+                color: #eecccc; 
+            }
+    
+            .sea {
+                color: #ccccee; 
+            }
+    
+            .kill {
+                color: crimson;
+            }
+    
+            .pain {
+                color: orange; 
+            }
+            
+            .miss {
+                color: darkturquoise; 
+            }
+    
+            .power {
+                color: white; 
+            }
+    
+            .highlight {
+                color: lightgray; 
+            }
+            
+            .doom {
+                color: #9F2344; 
+            }
+            
+            .str {
+                color: crimson;
+            }
+            
+            .es {
+                color: olive; 
+            }
+    
+            .hibernate {
+                color: #485b6a !important;
+                color: #36434a !important;
+                color: #6c8694 !important;
+            }
+            
+            .nt {
+                color: #ffffff;
+            }
+    
+            .gc {
+                color: #008000;
+                xcolor: #a3ca50;
+                xcolor: #51a528;
+            }
+    
+            .cc {
+                color: #3344ff;
+                xcolor: #6ca0d2;
+                xcolor: #5072e9;
+            }
+    
+            .bg {
+                color: #ff0000; 
+                xcolor: #dc494a;
+                xcolor: #ed2425;
+            }
+    
+            .ys {
+                color: #cccc00;
+                xcolor: #f7d757;
+            }
+            
+            .sl {
+                color: #ef764b;
+                xcolor: #d5a07e;
+                xcolor: #e48e65;
+            }
+    
+            .ww {
+                color: #90b7d4;
+                color: #b9dfee;
+                color: #a5cbe1;
+            }
+            
+            .ow {
+                color: #6b4499;
+                color: #995593;
+            }
+
+            /* implement colors */
+            .an {
+                color: #30d5c8;
+            }
+            
+            .gc-background {
+                background-color: #002b00 !important;
+            }
+    
+            .cc-background {
+                background-color: #111755 !important;
+            }
+    
+            .bg-background {
+                background-color: #550000 !important;
+            }
+    
+            .ys-background {
+                background-color: #444400 !important;
+            }
+            
+            .sl-background {
+                background-color: #502719 !important;
+            }
+            
+            .ww-background {
+                background-color: #485b6a !important;
+                background-color: #36434a !important;
+            }
+            
+            .ow-background {
+                background-color: #241633 !important;
+                background-color: #331d31 !important;
+            }
+
+            /* implement colors */
+            .an-background {
+                background-color: #3c5c5c !important;
+            }
+            
+            .gc-border {
+                border-color: #002b00 !important;
+            }
+    
+            .cc-border {
+                border-color: #111755 !important;
+            }
+    
+            .bg-border {
+                border-color: #550000 !important;
+            }
+    
+            .ys-border {
+                border-color: #444400 !important;
+            }
+            
+            .sl-border {
+                border-color: #502719 !important;
+            }
+            
+            .ww-border {
+                border-color: #485b6a !important;
+                border-color: #36434a !important;
+            }
+            
+            .ow-border {
+                border-color: #241633 !important;
+                border-color: #331d31 !important;
+            }
+
+            /* implement colors */
+            .an-border {
+                border-color: #3c5c5c !important;
+            }
+            
+            .p8 {
+                padding-left: 40px;
+                padding-left: 8ch;
+                text-indent: -40px;
+                text-indent: -8ch;
+            }
+    
+            .p2 {
+                padding-left: 10px;
+                padding-left: 2ch;
+                text-indent: -10px;
+                text-indent: -2ch;
+            }
+    
+            .indent1 {
+                padding-left: 4ch;
+                text-indent: 0ch;
+            }
+            
+            .active {
+                font-style: italic;
+            }
+    
+            .outer {
+                border: #111111 solid 5px;
+                border: #111111 solid 0.5vmin;
+                width: 100%;
+                height: 100%;
+                box-sizing: border-box;
+            }
+            
+            .inner {
+                border: #222222 solid 10px;
+                border: #222222 solid 1vmin;
+                width: 100%;
+                height: 100%;
+                background-color: #222222;
+                overflow-y: hidden;
+                overflow-x: hidden;
+                box-sizing: border-box;
+                position: relative;
+            }
+            
+            .option {
+                border: #333333 solid 4px;
+                border: #333333 solid 0.4vmin;
+                padding: 4px;
+                padding: 0.4vh;
+                margin: 5px;
+                margin: 0.5vh;
+                background-color: #111111;
+                cursor: pointer;
+            }
+     
+            .spellbook {
+                border: #333333 solid 2px;
+                border: #333333 solid 0.2vmin;
+                padding: 1px;
+                padding: 0.1vh;
+                margin: 2px;
+                margin: 0.2vh;
+                background-color: #111111;
+                font-size: 90%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+     
+            .expl {
+                font-size: 75%;
+            }
+    
+            .action {
+                text-align: center; 
+                font-size: 110%;
+                overflow-y: auto;
+            }
+            
+            .log {
+                font-size: 100%;
+                overflow-y: auto;
+            }
+            
+            .status {
+                border-width: 4px;
+                border-width: 0.4vmin;
+                text-align: center; 
+                font-size: 90%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            canvas {
+                position: absolute;
+                top: 0px;
+                left: 0px;
+            }
+            
+            .name {
+                font-size: 120%;
+                font-weight: bold;
+            }
+            
+            .used {
+                text-decoration: line-through;
+            }
+            
+            .map {
+                font-size: 100%;
+                z-index: 1000;
+            }
+    
+            .top {
+                z-index: 500;
+                position: relative;
+            }
+            
+            .right {
+                text-align: right; 
+            }
+    
+            .center {
+                text-align: center; 
+            }
+            
+            .smaller {
+                font-size: 90%;
+            }
+    
+            #replay {
+                display: none;
+            }
+        </style>
+        <link id="icon" type="image/x-icon" rel="shortcut icon" href="data:image/png;base64,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" />
+    </head>
+    <body class="bohemian-typewriter">
+        <img id="earth35" src="images/earth35-dark.png" />
+        <img id="earth35-place" src="images/earth35-place.png" />
+    
+        <img id="gate" src="images/gate.png" />
+        <img id="kill" src="images/kill.png" />
+        <img id="pain" src="images/pain.png" />
+
+        <img id="bg-glyph"          src="images/bg-glyph.png" />
+        <img id="bg-acolyte"        src="images/bg-acolyte.png" />
+        <img id="bg-ghoul"          src="images/bg-ghoul.png" />
+        <img id="bg-fungi"          src="images/bg-fungi.png" />
+        <img id="bg-dark-young"     src="images/bg-dark-young.png" />
+        <img id="bg-shub"           src="images/bg-shub.png" />
+    
+        <img id="cc-glyph"          src="images/cc-glyph.png" />
+        <img id="cc-acolyte"        src="images/cc-acolyte.png" />
+        <img id="cc-nightgaunt"     src="images/cc-nightgaunt.png" />
+        <img id="cc-flying-polyp"   src="images/cc-flying-polyp.png" />
+        <img id="cc-hunting-horror" src="images/cc-hunting-horror.png" />
+        <img id="cc-nyarly"         src="images/cc-nyarly.png" />
+        
+        <img id="gc-glyph"          src="images/gc-glyph.png" />
+        <img id="gc-acolyte"        src="images/gc-acolyte.png" />
+        <img id="gc-deep-one"       src="images/gc-deep-one.png" />
+        <img id="gc-shoggoth"       src="images/gc-shoggoth.png" />
+        <img id="gc-starspawn"      src="images/gc-starspawn.png" />
+        <img id="gc-cthulhu"        src="images/gc-cthulhu.png" />
+    
+        <img id="ys-glyph"          src="images/ys-glyph.png" />
+        <img id="ys-acolyte"        src="images/ys-acolyte.png" />
+        <img id="ys-undead"         src="images/ys-undead.png" />
+        <img id="ys-byakhee"        src="images/ys-byakhee.png" />
+        <img id="ys-king-in-yellow" src="images/ys-king-in-yellow.png" />
+        <img id="ys-hastur"         src="images/ys-hastur.png" />
+        <img id="ys-desecration"    src="images/ys-desecration.png" />
+        
+        <img id="sl-glyph"          src="images/sl-glyph.png" />
+        <img id="sl-acolyte"        src="images/sl-acolyte.png" />
+        <img id="sl-wizard"         src="images/sl-wizard.png" />
+        <img id="sl-serpent-man"    src="images/sl-serpent-man.png" />
+        <img id="sl-formless-spawn" src="images/sl-formless-spawn.png" />
+        <img id="sl-tsathoggua"     src="images/sl-tsathoggua.png" />
+        
+        <img id="ww-glyph"          src="images/ww-glyph.png" />
+        <img id="ww-acolyte"        src="images/ww-acolyte.png" />
+        <img id="ww-wendigo"        src="images/ww-wendigo.png" />
+        <img id="ww-gnoph-keh"      src="images/ww-gnoph-keh.png" />
+        <img id="ww-rhan-tegoth"    src="images/ww-rhan-tegoth.png" />
+        <img id="ww-ithaqua"        src="images/ww-ithaqua.png" />
+        <img id="ww-ice-age"        src="images/ww-ice-age.png" />
+        
+        <img id="ow-glyph"                src="images/ow-glyph.png" />
+        <img id="ow-acolyte"              src="images/ow-acolyte.png" />
+        <img id="ow-mutant"               src="images/ow-mutant.png" />
+        <img id="ow-abomination"          src="images/ow-abomination.png" />
+        <img id="ow-spawn-of-yog-sothoth" src="images/ow-spawn-of-yog-sothoth.png" />
+        <img id="ow-yog-sothoth"          src="images/ow-yog-sothoth.png" />
+
+        <img id="an-glyph"          src="images/an-glyph.png" />
+        <img id="an-acolyte"        src="images/an-acolyte.png" />
+        <img id="an-un-man"         src="images/an-un-man.png" />
+        <img id="an-reanimated"     src="images/an-reanimated.png" />
+        <img id="an-yothan"         src="images/an-yothan.png" />
+        <img id="an-cathedral"      src="images/an-cathedral.png" />
+    
+        <div style="position: absolute; left: 0%; top: 0%; width: 60%; height: 60%; left: 0vw; top: 0vh; width: 60vw; height: 60vh;">
+            <div class="outer">
+                <div class="inner map" id="map-small" style="border: 2px;">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 60%; top: 0%; width: 20%; height: 30%; left: 60vw; top: 0vh; width: 20vw; height: 30vh;">
+            <div class="outer">
+                <div class="inner status" id="status-1">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 80%; top: 0%; width: 20%; height: 30%; left: 80vw; top: 0vh; width: 20vw; height: 30vh;">
+            <div class="outer">
+                <div class="inner status" id="status-2">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 60%; top: 30%; width: 20%; height: 30%; left: 60vw; top: 30vh; width: 20vw; height: 30vh;">
+            <div class="outer">
+                <div class="inner status" id="status-4">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 80%; top: 30%; width: 20%; height: 30%; left: 80vw; top: 30vh; width: 20vw; height: 30vh;">
+            <div class="outer">
+                <div class="inner status" id="status-3">
+                </div>
+            </div>
+        </div>
+    
+        <div style="position: absolute; left: 0%; top: 60%; width: 40%; height: 40%; left: 0vw; top: 60vh; width: 40vw; height: 40vh">
+            <div class="outer">
+                <div class="inner action unselectable" id="action">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 40%; top: 60%; width: 30%; height: 40%; left: 40vw; top: 60vh; width: 30vw; height: 40vh;">
+            <div class="outer">
+                <div class="inner map" id="map-west" style="z-index: 0">
+                </div>
+            </div>
+        </div>
+        <div style="position: absolute; left: 70%; top: 60%; width: 30%; height: 40%; left: 70vw; top: 60vh; width: 30vw; height: 40vh;">
+            <div class="outer" >
+                <div class="inner map" id="map-east" style="z-index: 0">
+                </div>
+            </div>
+        </div>
+        
+        <div style="position: absolute; left: 40%; top: 60%; width: 60%; height: 40%; left: 40vw; top: 60vh; width: 60vw; height: 40vh;">
+            <div class="outer" >
+                <div class="inner log" id="log">
+                </div>
+            </div>
+        </div>
+    
+        <div style="position: absolute; left: 80%; top: 60%; width: 20%; height: 30%; left: 80vw; top: 60vh; width: 20vw; height: 30vh; display: none">
+            <div class="outer" >
+                <div class="inner status" id="status-5">
+                </div>
+            </div>
+        </div>
+    
+        <div id="to-cw">
+            <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(15vh - 2vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-left: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+            <div style="position: absolute; left: calc(90vw - 2vmin); top: calc(30vh - 0.4vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-top: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+            
+            <div id="to-cw4">
+                <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(45vh - 2vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-right: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="position: absolute; left: calc(70vw - 2vmin); top: calc(30vh - 0.4vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-bottom: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+
+            <div id="to-cw6">
+                <div style="position: absolute; left: calc(90vw - 2vmin); top: calc(60vh - 0.4vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-top: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                    </div>
+                </div>
+                <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(75vh - 2vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-right: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="position: absolute; left: calc(70vw - 2vmin); top: calc(60vh - 0.4vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-bottom: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="to-ccw">
+            <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(15vh - 2vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-right: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+            <div style="position: absolute; left: calc(90vw - 2vmin); top: calc(30vh - 0.4vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-bottom: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+
+            <div id="to-ccw4">
+                <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(45vh - 2vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-left: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="position: absolute; left: calc(70vw - 2vmin); top: calc(30vh - 0.4vmin); width: 0; height: 0; ">
+                <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-top: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                </div>
+            </div>
+
+            <div id="to-ccw6">
+                <div style="position: absolute; left: calc(90vw - 2vmin); top: calc(60vh - 0.4vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-bottom: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                    </div>
+                </div>
+                <div style="position: absolute; left: calc(80vw - 0.4vmin); top: calc(75vh - 2vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-top: 2vmin solid transparent; border-left: 0.8vmin solid #ccc; border-bottom: 2vmin solid transparent; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="position: absolute; left: calc(70vw - 2vmin); top: calc(60vh - 0.4vmin); width: 0; height: 0; ">
+                    <div style="width: 0; height: 0; border-right: 2vmin solid transparent; border-top: 0.8vmin solid #ccc; border-left: 2vmin solid transparent; box-sizing: border-box;"> 
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="position: absolute; left: 0%; top: 0%; width: 100%; height: 100%; left: 0vw; top: 0vh; width: 100vw; height: 100vh;">
+            <div class="outer" >
+                <div class="inner map" id="map-big" style="border: #111111 solid 0px">
+                </div>
+            </div>
+        </div>
+    
+        <div id="replay"></div>
+    
+        <script id="script" type="text/javascript" src="./target/scala-2.13/cthulhu-wars-solo-hrf-fastopt.js"></script>
+    </body>
+</html>
