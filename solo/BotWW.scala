@@ -303,8 +303,8 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                 d.enemyGate |=> 50 -> "enemy gate"
                 d.allies.cultists.any |=> 25 -> "hug cultist"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MoveAction(_, Ithaqua, o, d) =>
                 true |=> 100 -> "walk"
@@ -322,8 +322,8 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                 o.ownGate && o.foes.active.goos.none && d.ownGate && d.allies.goos.none && d.foes.active.goos.any |=> 1300 -> "protect gate"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case ArcticWindAction(_, o, Acolyte, r) =>
                 true |=> 100 -> "move a"

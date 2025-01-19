@@ -953,6 +953,24 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
             // }
             // if (of(self).has(BeyondOne)) {
             //     place(self, YogSothoth, r)
+            //     place(self, Abomination, r)
+            //     place(self, Abomination, r)
+            //     place(self, Abomination, r)
+            //     place(self, SpawnOW, r)
+            //     place(self, SpawnOW, r)
+            //     satisfy(self, AwakenYogSothoth, "Awaken Yog-Sothoth")
+            // }
+            // if (of(self).has(Feast)) {
+            //     place(self, KingInYellow, r)
+            //     place(self, Hastur, r)
+            // }
+            // if (of(self).has(Dematerialization)) {
+            //     place(self, Yothan, r)
+            //     place(self, Reanimated, r)
+            //     place(self, UnMan, r)
+            // }
+            // if (of(self).has(Harbinger)) {
+            //     place(self, Nyarlathotep, r)
             // }
 
             gates :+= r
@@ -1403,10 +1421,20 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
                 options :+= BuildGateMainAction(self, _)
             }
 
-            if (player.faction == AN && cathedrals.num < 4)
-                board.regions.%(nx).%!(cathedrals.contains).%(afford(r => getCathedralCost(r))).%(r => hasCultistOrRSDY(self, r)).some.foreach {
-                    options :+= BuildCathedralMainAction(self, _)
+            if (player.faction == AN && cathedrals.num < 4) {
+                val existingGlyphs = cathedrals.map(_.glyph).toSet
+
+                val validRegions = board.regions.filter { r =>
+                    !cathedrals.contains(r) &&
+                    afford(getCathedralCost(r))(r) &&
+                    hasCultistOrRSDY(self, r) &&
+                    !existingGlyphs.contains(r.glyph)
                 }
+
+                if (validRegions.nonEmpty) {
+                    options :+= BuildCathedralMainAction(self, validRegions.toList)
+                }
+            }
 
             if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).none && player.gates.%(nx).%(_.glyph.onMap).any)
                 options :+= CursedSlumberSaveMainAction(self)

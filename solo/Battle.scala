@@ -623,11 +623,6 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 }
 
                 sides.foreach { s =>
-                    if (s.player.has(UnholyGround))
-                        s.add(UnholyGround)
-                }
-
-                sides.foreach { s =>
                     s.units.%(_.health == Killed).foreach(eliminate)
                 }
 
@@ -653,11 +648,12 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
             case UnholyGroundPhase =>
                 sides.foreach { s =>
-                    if (s.has(UnholyGround)) {
-                        s.remove(UnholyGround)
-                        val goos = s.opponent.units.%(_.uclass.utype == GOO)
-                        if (goos.any && game.cathedrals.contains(goos.head.region)) {
-                            return QAsk(game.cathedrals./(r => UnholyGroundAction(s.faction, s.opponent.faction, r)) :+ UnholyGroundIgnoreAction(s.faction))
+                    if (s.player.has(UnholyGround)) {
+                        if (s.opponent.units.%(_.uclass.utype == GOO).any) {
+                            val goos = s.opponent.units.%(_.uclass.utype == GOO)
+                            if (goos.any && game.cathedrals.contains(goos.head.region)) {
+                                return QAsk(game.cathedrals./(r => UnholyGroundAction(s.faction, s.opponent.faction, r)) :+ UnholyGroundIgnoreAction(s.faction))
+                            }
                         }
                     }
                 }
@@ -1066,7 +1062,14 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             val u = game.unit(ur)
             eliminate(u)
             log("" + u.uclass.name + " was eliminated with " + f.styled(UnholyGround))
-            proceed()
+
+            if (side(self).units.%(_.uclass.utype == GOO).any) {
+                QAsk(game.cathedrals./(r => UnholyGroundAction(f, self, r)) :+ UnholyGroundIgnoreAction(f))
+            }
+            else {
+                proceed()
+            }
+
 
         // SHRIVELING
         case ShrivelingPreBattleAction(self) =>
