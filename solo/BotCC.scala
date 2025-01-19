@@ -175,8 +175,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 d.enemyGate && d.owner.gates.num >= others./(_.gates.num).max |=> 100 -> "maxgater"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MoveAction(_, Acolyte, o, d) =>
                 WW.exists && game.board.starting(WW).contains(d) && d.noGate |=> -10000000 -> "starting ww"

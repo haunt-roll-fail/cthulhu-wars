@@ -336,8 +336,8 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                 o.near.%(_.allies(Hastur).any).any && d.allies(Hastur).none && d.near.%(_.allies(Hastur).any).none |=> -1000000 -> "hastur shadow"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case ScreamingDeadAction(_, o, d) =>
                 val undead = o.allies(Undead).num
@@ -469,8 +469,8 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                 !oncePerRound.contains(ScreamingDead) && d.allies(KingInYellow).any |=> 100 -> "hastur shadow kiy"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case AttackAction(_, r, f) =>
                 val allies = self.at(r)

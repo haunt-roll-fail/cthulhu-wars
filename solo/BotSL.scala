@@ -149,8 +149,8 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 others.%(_.power > 0).any && d.ownGate |=> 50 -> "own gate"
                 others.%(_.power > 0).any && d.allies.cultists.any |=> 25 -> "hug cultist"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MoveAction(_, Acolyte, o, d) =>
                 if (have(Burrow) && self.all.%(_.has(Moved)).num == 1) {
