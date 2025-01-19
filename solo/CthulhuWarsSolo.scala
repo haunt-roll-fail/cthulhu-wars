@@ -182,7 +182,7 @@ object CthulhuWarsSolo {
         val cwsOptions = Option(getElem("cws-options"))
         val delay = cwsOptions./~(_.getAttribute("data-delay").?)./~(_.toIntOption).|(30)
         val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(5)
-        //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(5) // temp for Test (change before deploying)
+        //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // temp for Test (change before deploying)
         val scroll = cwsOptions./~(_.getAttribute("data-scroll").?)./(_ == "true").|(false)
         val server = cwsOptions./~(_.getAttribute("data-server").?).|("###SERVER-URL###")
         //val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
@@ -1430,12 +1430,12 @@ object CthulhuWarsSolo {
                     })
                     case 5 =>
                         //val setup = new Setup(randomSeating(List(GC, CC, BG, AN)), Normal)
-                        //val setup = new Setup(randomSeating(List(SL, WW, OW, AN)), Normal)
-                        val setup = new Setup(randomSeating(List(OW, CC, BG, AN)), Normal)
-                        setup.difficulty += OW -> Debug
-                        // setup.difficulty += CC -> Human
-                        // setup.difficulty += GC -> Human
-                        // setup.difficulty += BG -> Debug
+                        val setup = new Setup(randomSeating(List(WW, GC, CC, AN)), Normal)
+                        //val setup = new Setup(randomSeating(List(OW, SL, BG, AN)), Normal)
+                        setup.difficulty += AN -> Debug
+                        setup.difficulty += WW -> Human
+                        setup.difficulty += GC -> Human
+                        setup.difficulty += CC -> Human
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)

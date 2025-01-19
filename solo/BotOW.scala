@@ -210,8 +210,8 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
             case MoveAction(_, YogSothoth, o, d) =>
                 true |=> -1000 -> "stay"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
                 need(GooMeetsGoo) && d.foes.goos.any && d.foes.goos.active.none |=> 100000 -> "meet up"
                 need(GooMeetsGoo) && d.foes.goos.any |=> 3000 -> "scared meet"

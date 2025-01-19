@@ -235,8 +235,9 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 d.enemyGate |=> 40 -> "enemy gate"
                 d.ownGate |=> 30 -> "own gate"
 
-                o.ocean.not && game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                o.ocean.not && game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                o.ocean && !have(Submerge) && game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case AttackAction(_, r, f) =>
                 val allies = self.at(r)
@@ -475,14 +476,14 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 u.uclass.cost == 2 |=> 300 -> "submerge 2"
                 u.uclass.cost == 1 |=> 300 -> "submerge 1"
 
-                r.ocean && game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 |=> 50000 -> "flee from unholy ground"
+                r.ocean && game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
 
             case UnsubmergeAction(_, r) =>
                 finale(1) && !game.battled.contains(r) |=> others./(f => f.strength(game, f.at(r), self)).max * 100000 -> "finale unsubmerge attack"
 
                 result = eval(MoveAction(self, Cthulhu, GC.deep, r), 1 - game.tax(r, self))
 
-                game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MainDoneAction(_) =>
                 game.battled.any |=> 20000 -> "unlimited battle drains power"

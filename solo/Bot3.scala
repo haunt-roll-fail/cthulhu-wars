@@ -315,8 +315,8 @@ case class Bot3(faction : Faction) {
                     r.foes.goos.any |=> -500 -> "enemy gate and no goos"
                     shub.region.foes.goos.any |=> 500 -> "flee from goo"
 
-                    game.cathedrals.contains(shub.region) && AN.has(UnholyGround) && AN.strength(game, AN.at(shub.region), self) > 0 |=> 50000 -> "flee from unholy ground"
-                    game.cathedrals.contains(r) && AN.has(UnholyGround) && AN.strength(game, AN.at(r), self) > 0 |=> -50000 -> "beware unholy ground"
+                    game.cathedrals.contains(shub.region) && AN.has(UnholyGround) && AN.strength(game, AN.at(shub.region), self) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                    game.cathedrals.contains(r) && AN.has(UnholyGround) && AN.strength(game, AN.at(r), self) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
                 case MoveAction(_, uc, o, d) =>
                     val u = player.at(o, uc).%(!_.has(Moved)).head
@@ -533,8 +533,8 @@ case class Bot3(faction : Faction) {
                     u.goo && !o.gate && d.gate |=> 20 -> "move goo to gate"
                     u.monster && !o.gate && d.gate |=> 10 -> "move monster to gate"
 
-                    u.goo && game.cathedrals.contains(o) && AN.has(UnholyGround) && AN.strength(game, AN.at(o), self) > 0 |=> 50000 -> "flee from unholy ground"
-                    u.goo && game.cathedrals.contains(d) && AN.has(UnholyGround) && AN.strength(game, AN.at(d), self) > 0 |=> -50000 -> "beware unholy ground"
+                    u.goo && game.cathedrals.contains(o) && AN.has(UnholyGround) && AN.strength(game, AN.at(o), self) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                    u.goo && game.cathedrals.contains(d) && AN.has(UnholyGround) && AN.strength(game, AN.at(d), self) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
                 case AttackAction(_, r, f) =>
                     val attackers = self.at(r)
