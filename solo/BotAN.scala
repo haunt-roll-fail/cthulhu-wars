@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object BotAN extends BotX(g => new GameEvaluationAN(g))
 
@@ -15,8 +15,6 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
         def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
             val igh = others.%(_.has(Necrophagy))./(_.all(Ghoul).diff(foes).num).sum
             r.ownGate && allies.num < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
-
-            val ep = f.player
 
             var ac = allies(Acolyte).num
             var um = allies(UnMan).num
@@ -107,7 +105,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     val ownStr = ra * 2 + yo * 7
 
-                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1))
+                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1))
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -198,7 +196,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
-                abs(game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
+                (game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
                 f == CC && !CC.allSB |=> 1 -> "cc first"
                 CC.allSB |=> 1000 -> "first, cc allsb"
 
@@ -1176,7 +1174,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
         true |=> -((1 + math.random() * 4).round.toInt) -> "random"
 
-        result.sortBy(v => -abs(v.weight))
+        result.sortBy(v => -v.weight.abs)
     }
 
 }

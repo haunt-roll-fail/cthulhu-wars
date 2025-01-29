@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case object Nightgaunt extends FactionUnitClass(CC, "Nightgaunt", Monster, 1)
 case object FlyingPolyp extends FactionUnitClass(CC, "Flying Polyp", Monster, 2)
@@ -34,16 +34,16 @@ case object CC extends Faction {
     val poolR = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
-    override def abilities : List[Spellbook] = List(Flight, Harbinger)
-    override def spellbooks : List[Spellbook] = List(Abduct, Invisibility, SeekAndDestroy, Madness, Emissary, ThousandForms)
-    override def requirements : List[Requirement] = List(Pay4Power, Pay6Power, Gates3Power12, Gates4Power15, CaptureCultist, AwakenNyarlathotep)
+    override def abilities = $(Flight, Harbinger)
+    override def spellbooks = $(Abduct, Invisibility, SeekAndDestroy, Emissary, ThousandForms, Madness)
+    override def requirements(options : $[GameOption]) = $(Pay4Power, Pay6Power, Gates3Power12, Gates4Power15, CaptureCultist, AwakenNyarlathotep)
 
     val allUnits =
-        List.fill(1)(Nyarlathotep) ++
-        List.fill(2)(HuntingHorror) ++
-        List.fill(3)(FlyingPolyp) ++
-        List.fill(3)(Nightgaunt) ++
-        List.fill(6)(Acolyte)
+        1.times(Nyarlathotep) ++
+        2.times(HuntingHorror) ++
+        3.times(FlyingPolyp) ++
+        3.times(Nightgaunt) ++
+        6.times(Acolyte)
 
     override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
         case Nyarlathotep => g.of(this).gates.contains(r).?(10).|(999)

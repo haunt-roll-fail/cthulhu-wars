@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 import scala.collection.parallel.CollectionConverters._
 
@@ -17,16 +17,16 @@ object Host {
                 askFaction(g, c)
 
             case RollD6(question, roll) =>
-                roll((1::2::3::4::5::6).maxBy(_ => random()))
+                roll((1::2::3::4::5::6).shuffle.first)
 
             case RollBattle(_, n, roll) =>
-                roll(List.fill(n)(BattleRoll.roll()))
+                roll(1.to(n)./(_ => BattleRoll.roll()))
 
             case DrawES(_, 0, 0, 0, draw) =>
                 draw(0, true)
 
             case DrawES(_, es1, es2, es3, draw) =>
-                draw((List.fill(es1)(1) ++ List.fill(es2)(2) ++ List.fill(es3)(3)).maxBy(_ => random()), false)
+                draw((es1.times(1) ++ es2.times(2) ++ es3.times(3)).maxBy(_ => random()), false)
 
             case Ask(_, List(action)) =>
                 action
@@ -46,28 +46,29 @@ object Host {
     }
 
     def main(args:Array[String]) {
-        val allFactions = List(GC, CC, BG, YS, SL, WW, OW, AN)
-        val allComb = allFactions.combinations(4).toList
-        val sixComb = allFactions.but(OW).combinations(4).toList
-        val factions = List(GC, BG, CC, OW)
-        val repeat = 0.to(15).map(_ => factions)
+        val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN)
+        val allComb = allFactions.combinations(4).$
+        val sixComb = allFactions.but(OW).combinations(4).$
+        val factions = $(YS, OW, WW, SL)
+        val repeat = 1.to(20).map(_ => factions)
 
-        def allSeatings(factions : List[Faction]) = factions.permutations.toList.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
-        def randomSeating(factions : List[Faction]) = allSeatings(factions).sortBy(s => random()).head
+        def allSeatings(factions : $[Faction]) = factions.permutations.$.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
+        def randomSeating(factions : $[Faction]) = allSeatings(factions).sortBy(s => random()).first
 
-        var results : List[List[Faction]] = Nil
+        var results : $[$[Faction]] = $
 
-        val base = allComb
+        val base = repeat
+        // val base = allComb
 
         1.to(100).foreach { i =>
             results ++= base.par.map { ff =>
-                var log : List[String] = Nil
+                var log : $[String] = Nil
                 def writeLog(s : String) {
                     log = s :: log
                 }
 
                 try {
-                    val game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, Nil)
+                    val game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, $(Opener4P10Gates))
                     val (l, cc) = game.perform(StartAction)
                     var c = cc
                     l.foreach(writeLog)

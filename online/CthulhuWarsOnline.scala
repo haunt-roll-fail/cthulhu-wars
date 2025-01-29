@@ -28,7 +28,7 @@ object CthulhuWarsOnline {
             new String(Files.readAllBytes(Paths.get(path)), UTF_8)
         }
 
-        def full = readFile("CthulhuWarsSoloHRF_1_9.html").replace("###SERVER-URL###", url)
+        def full = readFile("../solo/index.html").replace("###SERVER-URL###", url)
 
         implicit class Ascii(val s : String) {
             def ascii = s.filter(c => c >= 32 && c < 128)
@@ -111,6 +111,9 @@ object CthulhuWarsOnline {
         val route =
             (get & path("")) {
                 htm(full)
+            } ~
+            pathPrefix("hrf") {
+                getFromDirectory("../solo")
             } ~
             (get & path("play" / Segment)) { name =>
                 rdr("/#" + name)

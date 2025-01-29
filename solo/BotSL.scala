@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object BotSL extends BotX(g => new GameEvaluationSL(g))
 
@@ -19,7 +19,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
-                abs(game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
+                (game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
                 f == YS |=> 1 -> "ys first"
 
             case PlayDirectionAction(_, order) =>
@@ -883,7 +883,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
         result.none |=> 0 -> "none"
 
-        result.sortBy(v => -abs(v.weight))
+        result.sortBy(v => -v.weight.abs)
     }
 
 }

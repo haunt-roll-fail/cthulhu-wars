@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case object DeepOne extends FactionUnitClass(GC, "Deep One", Monster, 1)
 case object Shoggoth extends FactionUnitClass(GC, "Shoggoth", Monster, 2)
@@ -38,14 +38,14 @@ case object GC extends Faction {
 
     override def abilities : List[Spellbook] = List(Immortal, Devour)
     override def spellbooks : List[Spellbook] = List(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)
-    override def requirements : List[Requirement] = List(FirstDoomPhase, KillDevour1, KillDevour2, AwakenCthulhu, OceanGates, FiveSpellbooks)
+    override def requirements(options : $[GameOption]) = $(FirstDoomPhase, KillDevour1, KillDevour2, AwakenCthulhu, OceanGates, FiveSpellbooks)
 
     val allUnits =
-        List.fill(1)(Cthulhu) ++
-        List.fill(2)(Starspawn) ++
-        List.fill(2)(Shoggoth) ++
-        List.fill(4)(DeepOne) ++
-        List.fill(6)(Acolyte)
+        1.times(Cthulhu) ++
+        2.times(Starspawn) ++
+        2.times(Shoggoth) ++
+        4.times(DeepOne) ++
+        6.times(Acolyte)
 
     override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
         case Cthulhu => (r == g.starting(this) && g.gates.contains(r)).?(g.of(this).needs(AwakenCthulhu).?(10).|(4)).|(999)

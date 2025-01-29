@@ -1,8 +1,8 @@
 name := "Cthulhu Wars Solo HRF"
 
-version := "1.9"
+version := "1.10"
 
-scalaVersion := "2.13.15"
+scalaVersion := "2.13.16"
 
 scalacOptions := Seq(
     "-unchecked",
@@ -14,12 +14,7 @@ scalacOptions := Seq(
     "-Wconf:" + List(
         "will become a keyword",
         "procedure syntax",
-    //     "a number and a",
-    //     "outer reference in this type test",
         "match may not be exhaustive",
-    //     "unreachable code",
-    //     "analysis reached max recursion depth",
-    //     "definition should have explicit type"
     ).map("msg=" + _ + ":s").mkString(",")
 )
 
