@@ -12,4 +12,4 @@ Compile / sourceGenerators += Def.task {
     Seq(file)
 }
 
-libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.1.0"
+libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.0"

@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object BotGC extends BotX(g => new GameEvaluationGC(g))
 
@@ -598,7 +598,7 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
 
         true |=> (math.random() * 4).round.toInt -> "random"
 
-        result.sortBy(v => -abs(v.weight))
+        result.sortBy(v => -v.weight.abs)
     }
 
 }

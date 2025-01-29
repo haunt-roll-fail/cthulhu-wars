@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object BotOW extends BotX(g => new GameEvaluationOW(g))
 
@@ -132,14 +132,15 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 r.near2.%!(_.empty).none |=> 100 -> "empty near 2"
                 r.near2.%!(_.empty).num == 1 |=> 90 -> "1 non-empty near 2"
                 r.near2.%!(_.empty).num == 2 |=> 80 -> "2 non-empty near 2"
-                r.ocean && game.factions.contains(GC) |=> -1 -> "gc no ocean"
+                game.factions.contains(GC) && r.ocean |=> -1 -> "gc no ocean"
+                game.factions.contains(WW) && game.board.starting(WW).has(r) |=> -1 -> "ww no pole"
 
             case FirstPlayerAction(_, f) =>
                 f == self && game.board.regions.%(_.allies.goos.any).%(_.foes.goos.any).any |=> 100 -> "play first goos together"
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
-                abs(game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
+                (game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
                 f == CC && !CC.allSB |=> 1 -> "cc first"
                 CC.allSB |=> 1000 -> "first, cc allsb"
 
@@ -260,9 +261,9 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                 power > 4 && need(EightGates) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsters.none && d.foes.goos.none && d.allies.none |=> 300 -> "go more gates 8"
 
-                power > 4 && need(TwelweGates) && need(AwakenYogSothoth) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsters.none && d.foes.goos.none && d.allies.none |=> 200 -> "go more gates 12 no ygs"
+                power > 4 && (need(TwelveGates) || need(TenGates)) && need(AwakenYogSothoth) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsters.none && d.foes.goos.none && d.allies.none |=> 200 -> "go more gates 12 no ygs"
 
-                power > 4 && need(TwelweGates) && !need(AwakenYogSothoth) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsters.none && d.foes.goos.none && d.allies.none |=> 300 -> "go more gates 12"
+                power > 4 && (need(TwelveGates) || need(TenGates)) && !need(AwakenYogSothoth) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsters.none && d.foes.goos.none && d.allies.none |=> 300 -> "go more gates 12"
 
                 power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && active.none |=> 450 -> "ic free gate 2 steps"
                 power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && self.all.%(_.has(Moved)).none |=> 1100 -> "ic free gate and goo 2 steps"
@@ -312,7 +313,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -800 -> "shub in play and lone cultist"
                 GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -700 -> "cthulhu ygs dreams"
                 power >= 3 + maxEnemyPower && maxEnemyPower < 10 && r.capturers.none && !canStrikeCC(r) && !canStrikeGC(r) |=> 150 -> "building gates is ok"
-                need(TwelweGates) && r.capturers.none && !canStrikeCC(r) && !canStrikeGC(r) |=> 500 -> "building gates is good"
+                (need(TwelveGates) || need(TenGates)) && r.capturers.none && !canStrikeCC(r) && !canStrikeGC(r) |=> 500 -> "building gates is good"
                 r.capturers.none && r.allies.cultists.num >= 3 |=> 1500 -> "building gates is very good"
 
             case RecruitAction(_, Acolyte, r) =>
@@ -401,6 +402,9 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 r.foes.none |=> 100 -> "free"
                 r.allies.none && r.foes.monsters.none && r.foes.goos.none && r.foes.cultists.any |=> 1000 -> "hi cultist"
                 r.allies.none && r.foes.monsters.none && r.foes.goos.none && r.foes.cultists.num >= 2 |=> 1200 -> "hi cultists"
+
+                game.factions.contains(GC) && GC.needs(OceanGates) && r.ocean |=> -1000000 -> "gc no ocean"
+                game.factions.contains(WW) && game.board.starting(WW).has(r) && (WW.needs(OppositeGate) || uc == YogSothoth) |=> -1000000 -> "ww no pole"
 
             case DreadCurseAction(_, n, r) =>
                 val v1 = others./(_.at(r)./(_.uclass.cost).sorted.take(1).sum).max
@@ -656,7 +660,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
         true |=> -((1 + math.random() * 4).round.toInt) -> "random"
 
-        result.sortBy(v => -abs(v.weight))
+        result.sortBy(v => -v.weight.abs)
     }
 
 }

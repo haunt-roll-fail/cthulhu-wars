@@ -1,10 +1,11 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case object UnMan extends FactionUnitClass(AN, "Un-Man", Monster, 3)
 case object Reanimated extends FactionUnitClass(AN, "Reanimated", Monster, 4)
 case object Yothan extends FactionUnitClass(AN, "Yothan", Terror, 6)
+case object Cathedral extends FactionUnitClass(AN, "Cathedral", Building, 4)
 
 case object Dematerialization extends FactionSpellbook(AN, "Dematerialization")
 
@@ -32,15 +33,15 @@ case object AN extends Faction {
 
     def extinct = Region("Extinct", Extinct)
 
-    override def abilities : List[Spellbook] = List(Dematerialization)
-    override def spellbooks : List[Spellbook] = List(Brainless, Consecration, Extinction, Festival, UnholyGround, WorshipServices)
-    override def requirements : List[Requirement] = List(CathedralWW, CathedralOO, CathedralAA, CathedralNG, GiveWorstMonster, GiveBestMonster)
+    override def abilities = $(Dematerialization)
+    override def spellbooks = $(Brainless, Festival, Extinction, UnholyGround, Consecration, WorshipServices)
+    override def requirements(options : $[GameOption]) = $(CathedralAA, CathedralOO, CathedralWW, CathedralNG, GiveWorstMonster, GiveBestMonster)
 
     val allUnits =
-        List.fill(3)(Yothan) ++
-        List.fill(3)(Reanimated) ++
-        List.fill(3)(UnMan) ++
-        List.fill(6)(Acolyte)
+        3.times(Yothan) ++
+        3.times(Reanimated) ++
+        3.times(UnMan) ++
+        6.times(Acolyte)
 
     override def summonCost(g : Game, u : UnitClass, r : Region) = u match {
         case UnMan => g.of(this).has(Festival).?(0).|(3)

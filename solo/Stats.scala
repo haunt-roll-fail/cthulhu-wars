@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 import java.util.concurrent._
 

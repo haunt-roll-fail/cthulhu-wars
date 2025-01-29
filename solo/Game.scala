@@ -1,6 +1,7 @@
 package cws
 
-import colmat._
+import hrf.colmat._
+
 import Html._
 
 import scala.util._
@@ -48,6 +49,7 @@ case object Monster extends UnitType
 case object Terror extends UnitType
 case object GOO extends UnitType
 case object Token extends UnitType
+case object Building extends UnitType
 
 @EnableReflectiveInstantiation
 abstract class UnitClass(val name : String, val utype : UnitType, val cost : Int) {
@@ -121,7 +123,7 @@ trait Faction {
     def poolR : Region
     def prison : Region
 
-    def full = name.styled(style)
+    def full = name.styled(style, "inline-block")
     def ss = short.styled(style)
 
     override def toString = full
@@ -129,7 +131,7 @@ trait Faction {
     def allUnits : List[UnitClass]
     def abilities : List[Spellbook]
     def spellbooks : List[Spellbook]
-    def requirements : List[Requirement]
+    def requirements(options : $[GameOption]) : $[Requirement]
     def recruitCost(g : Game, u : UnitClass, r : Region) = u.cost
     def summonCost(g : Game, u : UnitClass, r : Region) = u.cost
     def awakenCost(g : Game, u : UnitClass, r : Region) = u.cost
@@ -206,7 +208,7 @@ abstract class OptionFactionAction(val option : Game => String) extends FactionA
 
 case class StartingRegionAction(self : Faction, r : Region) extends BaseFactionAction("" + self + " starts in", r)
 case class FirstPlayerAction(self : Faction, f : Faction) extends BaseFactionAction("First player", f)
-case class PlayDirectionAction(self : Faction, order : List[Faction]) extends BaseFactionAction("Order of play", order.mkString(", "))
+case class PlayDirectionAction(self : Faction, order : List[Faction]) extends BaseFactionAction("Order of play", order.mkString(" > "))
 
 trait MainQuestion extends FactionAction {
     def question = (g : Game) => g.nexus./(n => "" + EnergyNexus + " in " + n.region).|("" + self + " action") + " (" + (g.of(self).power > 0).?(g.of(self).power.power).|("0 power") + ")"
@@ -220,7 +222,14 @@ trait ExtraQuestion extends FactionAction {
     def question = (g : Game) => "<hr/>"
 }
 
-case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Recieve spellbook").|("Recieve " + g.of(self).unclaimedSB + " spellbooks"), sb)
+case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Recieve spellbook").|("Recieve " + g.of(self).unclaimedSB + " spellbooks"), {
+    val p = "'" + self.short + "', '" + sb.name.replace("\\", "\\\\") + "'" // "
+    s"""<div class=sbdiv xonpointerover="onExternalOver(${p})" xonpointerout="onExternalOut(${p})" >""" +
+        sb.full +
+        s"""<img class=explain src='info/question-mark.png' onclick="event.stopPropagation(); onExternalClick(${p})" />""" +
+    "</div>"
+})
+
 case class ElderSignAction(f : Faction, n : Int, value : Int, public : Boolean, next : Action) extends ForcedAction
 
 
@@ -402,7 +411,7 @@ case class BeyondOneAction(self : Faction, o : Region, uc : UnitClass, r : Regio
 case class DreadCurseMainAction(self : Faction, n : Int, l : List[Region]) extends OptionFactionAction(self.styled(DreadCurse)) with MainQuestion with Soft
 case class DreadCurseAction(self : Faction, n : Int, r : Region) extends BaseFactionAction(self.styled(DreadCurse), g => r + g.ia(r, self))
 case class DreadCurseRollAction(f : Faction, r : Region, x : List[BattleRoll]) extends ForcedAction
-case class DreadCurseSplitAction(self : Faction, r : Region, x : List[BattleRoll], e : List[Faction], k : List[Faction], p : List[Faction]) extends BaseFactionAction(self.styled(DreadCurse) + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (Kill.times(k.count(f)) ++ Pain.times(p.count(f))).mkString(" ")).mkString("<br/>"))
+case class DreadCurseSplitAction(self : Faction, r : Region, x : List[BattleRoll], e : List[Faction], k : List[Faction], p : List[Faction]) extends BaseFactionAction(self.styled(DreadCurse) + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
 case class DreadCurseAssignAction(f : Faction, r : Region, e : List[Faction], k : List[Faction], p : List[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, self.styled(uc))
 case class DreadCurseRetreatAction(self : Faction, r : Region, e : List[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, self.styled(uc))
 case class DreadCurseRetreatToAction(self : Faction, r : Region, e : List[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + f.styled(uc) + " from " + r + " to", d)
@@ -475,7 +484,7 @@ case object UnlimitedSummonOff extends UnlimitedSummonOption("Off")
 case object UnlimitedSummonOn extends UnlimitedSummonOption("On".hl)
 case object UnlimitedSummonEnemyGOO extends UnlimitedSummonOption("Enemy " + "GOO".hl)
 
-class Player(val faction : Faction) {
+class Player(val faction : Faction)(options : $[GameOption]) {
     var gates : List[Region] = Nil
     var cathedrals : List[Region] = Nil
 
@@ -496,7 +505,7 @@ class Player(val faction : Faction) {
     var ignoreOptions : List[IgnoreOption] = Nil
     var ignoreOptionsNew : List[IgnoreOption] = Nil
 
-    var requirements : List[Requirement] = faction.requirements
+    var requirements : $[Requirement] = faction.requirements(options)
 
     var power : Int = 8
     var doom : Int = 0
@@ -546,15 +555,20 @@ case class IceAges(list : List[Faction]) {
     override def toString = list./(" (" + _.styled(IceAge) + ")").mkString("")
 }
 
-object NoIceAges extends IceAges(Nil)
+object NoIceAges extends IceAges($)
 
 @EnableReflectiveInstantiation
 sealed trait GameOption
 case object NeutralSpellbooks extends GameOption
 case object IceAgeAffectsLethargy extends GameOption
+case object Opener4P10Gates extends GameOption
+case object DemandTsathoggua extends GameOption
 
-class Game(val board : Board, val ritualTrack : List[Int], val factions : List[Faction], val logging : Boolean, val options : List[GameOption]) {
-    val players = factions./(f => f -> new Player(f)).toMap
+case class PlayerCount(n : Int) extends GameOption
+
+class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction], val logging : Boolean, val providedOptions : $[GameOption]) {
+    val options = providedOptions ++ $(PlayerCount(factions.num))
+    val players = factions./(f => f -> new Player(f)(options)).toMap
 
     var starting = Map[Faction, Region]()
     var turn = 1
@@ -877,14 +891,11 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
             }
 
             satisfyIf(f, EightGates, "Eight Gates on the map", (gates ++ ugates).%(_.glyph.onMap).num >= 8)
-
-            if (factions.num <= 3)
-                satisfyIf(f, TwelweGates, "Ten Gates on the map", (gates ++ ugates).%(_.glyph.onMap).num >= 10)
-            else
-                satisfyIf(f, TwelweGates, "Twelwe Gates on the map", (gates ++ ugates).%(_.glyph.onMap).num >= 12)
+            satisfyIf(f, TenGates, "Ten Gates on the map", (gates ++ ugates).%(_.glyph.onMap).num >= 10)
+            satisfyIf(f, TwelveGates, "Twelve Gates on the map", (gates ++ ugates).%(_.glyph.onMap).num >= 12)
 
             satisfyIf(f, GooMeetsGoo, "GOO shares Area with another GOO", board.regions.%(r => of(f).at(r, GOO).any && factions.but(f).%(e => of(e).at(r, GOO).any).any).any)
-            satisfyIf(f, UnitsAtEnemyGates, "Units at 2 enemy Gates", board.regions.%(r => of(f).at(r).any && factions.but(f).%(e => of(e).gates.contains(r)).any).num >= 2)
+            satisfyIf(f, UnitsAtEnemyGates, "Units at two enemy Gates", board.regions.%(r => of(f).at(r).any && factions.but(f).%(e => of(e).gates.contains(r)).any).num >= 2)
         }
     }
 
@@ -1180,14 +1191,6 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
             if (fs.any) {
                 val f = fs(0)
                 val bs = (f.spellbooks.%!(of(f).has) ++ neutralSpellbooks).diff(of(f).ignorePerInstant)
-                if (bs.none) {
-                    println(f)
-                    println(f.spellbooks)
-                    println(f.spellbooks.%!(of(f).has))
-                    println(f.spellbooks.%!(of(f).has) ++ neutralSpellbooks)
-                    println(of(f).ignorePerInstant)
-                    println(bs)
-                }
                 bs./(SpellbookAction(f, _, next))
             }
             else
@@ -1382,7 +1385,7 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
             var options : List[FactionAction] = Nil
 
             if (player.has(Lethargy) && player.has(Tsathoggua) && nexus.none && others.%(f => of(f).power > 0 && !of(f).hibernating).any)
-                if (!options.contains(IceAgeAffectsLethargy) || afford(0)(player.goo(Tsathoggua).region))
+                if (!this.options.has(IceAgeAffectsLethargy) || afford(0)(player.goo(Tsathoggua).region))
                     options :+= LethargyMainAction(self)
 
             if (player.has(Hibernate))
@@ -1421,20 +1424,10 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
                 options :+= BuildGateMainAction(self, _)
             }
 
-            if (player.faction == AN && cathedrals.num < 4) {
-                val existingGlyphs = cathedrals.map(_.glyph).toSet
-
-                val validRegions = board.regions.filter { r =>
-                    !cathedrals.contains(r) &&
-                    afford(getCathedralCost(r))(r) &&
-                    hasCultistOrRSDY(self, r) &&
-                    !existingGlyphs.contains(r.glyph)
+            if (player.faction == AN && cathedrals.num < 4)
+                board.regions.%(nx).%!(cathedrals.contains).%(afford(r => getCathedralCost(r))).%(r => hasCultistOrRSDY(self, r)).some.foreach {
+                    options :+= BuildCathedralMainAction(self, _)
                 }
-
-                if (validRegions.nonEmpty) {
-                    options :+= BuildCathedralMainAction(self, validRegions.toList)
-                }
-            }
 
             if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).none && player.gates.%(nx).%(_.glyph.onMap).any)
                 options :+= CursedSlumberSaveMainAction(self)
@@ -1889,7 +1882,7 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
         case AwakenMainAction(self, uc, locations) if uc == ShubNiggurath =>
             val cultists = board.regions./~(r => of(self).at(r, Cultist).take(2))
             val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a.region, b.region))).distinct
-            QAsk(pairs./(p => AwakenEliminate2CultistsAction(self, uc, locations, p._1, p._2)) :+ MainCancelAction(self))
+            QAsk(pairs./((a, b) => AwakenEliminate2CultistsAction(self, uc, locations, a, b)) :+ MainCancelAction(self))
 
         case AwakenEliminate2CultistsAction(self, uc, locations, a, b) =>
             val q = locations./(r => AwakenAction(self, uc, r, self.awakenCost(this, uc, r)))
@@ -2170,7 +2163,7 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
         case Eliminate2CultistsMainAction(self) =>
             val cultists = board.regions./~(r => of(self).at(r, Cultist).take(2))
             val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a.region, b.region))).distinct
-            QAsk(pairs./(p => Eliminate2CultistsAction(self, p._1, p._2)) :+ MainCancelAction(self))
+            QAsk(pairs./((a, b) => Eliminate2CultistsAction(self, a, b)) :+ MainCancelAction(self))
 
         case Eliminate2CultistsAction(self, a, b) =>
             List(a, b).foreach { r =>
@@ -2305,7 +2298,7 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
             }
 
         case GhrothSplitAction(self, x, ff) =>
-            val split = ff./~(f => f.times(x - ff.num)).combinations(x - ff.num).toList./(_ ++ ff)./(l => ff./~(f => f.times(l.count(f))))
+            val split = ff./~(f => (x - ff.num).times(f)).combinations(x - ff.num).toList./(_ ++ ff)./(l => ff./~(f => l.count(f).times(f)))
             val valid = split.%(s => ff.%(f => of(f).onMap(Cultist).num < s.%(_ == f).num).none)
             QAsk(valid./(l => GhrothSplitNumAction(self, x, ff, l)))
 
@@ -2473,7 +2466,7 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
 
         // LETHARGY
         case LethargyMainAction(self) =>
-            if (options.contains(IceAgeAffectsLethargy))
+            if (options.has(IceAgeAffectsLethargy))
                 payTax(self, of(self).goo(Tsathoggua).region)
 
             log("" + self + " was sleeping")
@@ -2677,9 +2670,9 @@ class Game(val board : Board, val ritualTrack : List[Int], val factions : List[F
 
                 val kvb = e./~(f => List.fill(min(k, of(f).at(r).num))(f)).combinations(k).toList
                 val pvb = e./~(f => List.fill(min(p, of(f).at(r).num))(f)).combinations(p).toList
-                val kpvb = kvb./~(kk => pvb./(pp => (kk, pp))).%(v => e.%(f => of(f).at(r).num < (v._1 ++ v._2).count(f)).none)
+                val kpvb = kvb./~(kk => pvb./(pp => (kk, pp))).%((a, b) => e.%(f => of(f).at(r).num < (a ++ b).count(f)).none)
 
-                QAsk(kpvb./(v => DreadCurseSplitAction(self, r, x, e.%(f => v._1.contains(f) || v._2.contains(f)), v._1, v._2)))
+                QAsk(kpvb./((a, b) => DreadCurseSplitAction(self, r, x, e.%(f => a.contains(f) || b.contains(f)), a, b)))
             }
 
         case DreadCurseSplitAction(self, r, x, e, k, p) =>

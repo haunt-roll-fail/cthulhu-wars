@@ -8,7 +8,7 @@ import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
 import org.scalajs.dom
 import org.scalajs.dom.html
 
-import colmat._
+import hrf.colmat._
 
 import Html._
 
@@ -125,7 +125,7 @@ object CthulhuWarsSolo {
 
     def post(url : String, data : String)(then : String => Unit) {
         var xhr = new dom.XMLHttpRequest()
-        xhr.onerror = (e : dom.ErrorEvent) => fail(url)
+        xhr.onerror = (e : dom.ProgressEvent) => fail(url)
         xhr.onload = (e : dom.Event) => then(xhr.response.asInstanceOf[String])
         xhr.open("POST", url, true)
         xhr.responseType = "text"
@@ -134,7 +134,7 @@ object CthulhuWarsSolo {
 
     def postF(url : String, data : String)(then : => Unit) {
         var xhr = new dom.XMLHttpRequest()
-        xhr.onerror = (e : dom.ErrorEvent) => then
+        xhr.onerror = (e : dom.ProgressEvent) => then
         xhr.onload = (e : dom.Event) => then
         xhr.open("POST", url, true)
         xhr.responseType = "text"
@@ -143,7 +143,7 @@ object CthulhuWarsSolo {
 
     def get(url : String)(then : String => Unit) {
         var xhr = new dom.XMLHttpRequest()
-        xhr.onerror = (e : dom.ErrorEvent) => fail(url)
+        xhr.onerror = (e : dom.ProgressEvent) => fail(url)
         xhr.onload = (e : dom.Event) => then(xhr.response.asInstanceOf[String])
         xhr.open("GET", url, true)
         xhr.responseType = "text"
@@ -152,7 +152,7 @@ object CthulhuWarsSolo {
 
     def getF(url : String)(then : String => Unit) {
         var xhr = new dom.XMLHttpRequest()
-        xhr.onerror = (e : dom.ErrorEvent) => then("")
+        xhr.onerror = (e : dom.ProgressEvent) => then("")
         xhr.onload = (e : dom.Event) => then(xhr.response.asInstanceOf[String])
         xhr.open("GET", url, true)
         xhr.responseType = "text"
@@ -176,8 +176,14 @@ object CthulhuWarsSolo {
         }
     }
 
+
+
     def setupUI() {
-        val hash = dom.window.location.hash.drop(1)
+        val (hash, quick) = dom.window.location.hash.drop(1) @@ {
+            case "quick" => ("", true)
+            case h => (h, false)
+        }
+
         val location = dom.window.location.href.take(dom.window.location.href.length - dom.window.location.hash.length)
         val cwsOptions = Option(getElem("cws-options"))
         val delay = cwsOptions./~(_.getAttribute("data-delay").?)./~(_.toIntOption).|(30)
@@ -241,7 +247,7 @@ object CthulhuWarsSolo {
                 var q = qq
 
                 if (q == null)
-                    q = qos.take(n - 1).reverse./(_._1).dropWhile(_ == null).headOption.|(null)
+                    q = qos.take(n - 1).reverse.lefts.dropWhile(_ == null).headOption.|(null)
 
                 if (q != null && q != prev) {
                     actionDiv.appendChild(newDiv("", q))
@@ -335,6 +341,12 @@ object CthulhuWarsSolo {
             else {
                 hide(getElem("to-cw4"))
                 hide(getElem("to-ccw4"))
+            }
+
+            statuses.lazyZip(setup.seating).foreach { (s, f) =>
+                s.as[html.Element].get.style.backgroundImage = "url(info/" + f.style + "-header.png)"
+                s.as[html.Element].get.style.backgroundImage = "url(info/" + f.style + "-background.jpg)"
+                s.as[html.Element].get.style.backgroundSize = "cover"
             }
 
             var game = new Game(EarthMap4v35, 5 :: 6 :: 7 :: 7 :: 8 :: 8 :: 9 :: 10 :: 999, seating, true, setup.options)
@@ -703,12 +715,12 @@ object CthulhuWarsSolo {
                         case Token => 0
                         case Cultist => 1
                         case Monster => 2
-                        case Terror => 3 // Test implementation for Terror
+                        case Terror => 3
                         case GOO => 4
                     }
 
                     free.sortBy(d => -rank(d)).foreach { d =>
-                        sticking +:= Array.tabulate(40)(n => findAnother(px, py)).sortBy { case (x, y) => (abs(x - px) * 5 + abs(y - py)) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, x, y) }.minBy { dd =>
+                        sticking +:= Array.tabulate(40)(n => findAnother(px, py)).sortBy { case (x, y) => ((x - px).abs * 5 + (y - py).abs) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, x, y) }.minBy { dd =>
                             (draws ++ fixed ++ sticking).map { oo =>
                                 val d = dd.rect
                                 val o = oo.rect
@@ -737,7 +749,6 @@ object CthulhuWarsSolo {
                         g.drawImage(getAsset(d.icon.get.key), d.icon.get.x, d.icon.get.y)
                 }
             }
-
 
             mapSmall.onclick = (e) => {
                 hide(mapSmall.parentNode.parentNode.asInstanceOf[html.Element])
@@ -776,9 +787,17 @@ object CthulhuWarsSolo {
                 val doomL = div()(("" + p.doom + " Doom").styled("doom") + p.es.any.?(" + " + (p.es.num == 1).?("Elder Sign").|("" + p.es.num + " Elder Signs").styled("es")).|(""))
                 val doomS = div()(("" + p.doom + "D").styled("doom") + p.es.any.?("+" + ("" + p.es.num + "ES").styled("es")).|(""))
 
-                val sb = p.spellbooks./(sb => p.can(sb).?(sb.full).|(sb.full.styled("used")))./(div("spellbook")).mkString("") +
+                val sb = p.spellbooks./{ sb =>
+                    val full = sb.full
+                    val s = sb.name.replace("\\", "\\\\") // "
+                    val d = "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + full + "</div>"
+                    p.can(sb).?(d).|(d.styled("used"))
+                }.mkString("") +
                 (1.to(6 - p.spellbooks.num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
-                p.requirements./(_.text)./(s => (s == "12 gates on the map" && game.factions.num < 4).?("10 gates on the map").|(s))./(div("spellbook")).mkString("")
+                p.requirements./{ r =>
+                    val s = r.text.replace("\\", "\\\\") // "
+                    "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + r.text + "</div>"
+                }.mkString("")
 
                 val h = 450
                 val scale = b.node.clientHeight / h.toDouble
@@ -796,10 +815,11 @@ object CthulhuWarsSolo {
                 else
                     r(nameS) + r(powerS) + r(doomS)
 
-                b.node.innerHTML = div("top")(s) + sb
+                b.node.innerHTML = div("top")("<div onclick=onExternalClick('" + f.short + "') onpointerover=onExternalOver('" + f.short + "') onpointerout=onExternalOut('" + f.short + "')>" + s + "</div>") + sb
 
                 val bitmap = b.get(w, h)
 
+                bitmap.canvas.style.pointerEvents = "none"
                 bitmap.canvas.style.width = "" + b.node.clientWidth + "px"
                 bitmap.canvas.style.height = "" + b.node.clientHeight + "px"
 
@@ -923,7 +943,7 @@ object CthulhuWarsSolo {
             }
 
             def updateUI() : Option[(Boolean, Int)] = {
-                queue match {
+                queue.@@ {
                     case head :: rest =>
                         queue = rest
                         head match {
@@ -961,7 +981,7 @@ object CthulhuWarsSolo {
                                 Some((false, 30))
                             }
                             case UIPerform(g, a) if hash != "" && Explode.isRecorded(a) => {
-                                postF("write/" + hash + "/" + (actions.num + 3), serializer.write(a)) {
+                                postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a)) {
                                     queue :+= UIRead(g)
 
                                     processUI()
@@ -970,7 +990,7 @@ object CthulhuWarsSolo {
                                 None
                             }
                             case UIRead(g) => {
-                                getF("read/" + hash + "/" + (actions.num + 3)) { ll =>
+                                getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
                                     queue :+= UIParse(g, ll.split("\n").toList.filter(_ != ""))
 
                                     processUI()
@@ -1058,8 +1078,8 @@ object CthulhuWarsSolo {
                                 })
                             }
                             case UIDrawES(g, q, es1, es2, es3, draw) =>
-                                val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%(_._2 > 0)
-                                ask(q(g), options./(e => "[" + e._1.styled("es") + "]" + " of " + e._2), n => perform(draw(options(n)._1, true)))
+                                val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%>(_ > 0)
+                                ask(q(g), options./((e, q) => "[" + e.styled("es") + "]" + " of " + q), n => perform(draw(options(n)._1, true)))
 
                             case UIQuestion(f, g, actions) if f != null && hash != "" && Some(f) != self => {
                                 ask("Waiting for " + f, Nil, n => {})
@@ -1184,6 +1204,9 @@ object CthulhuWarsSolo {
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     List("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     List("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                    List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                    List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+
                     List("Done" -> "Start game".styled("power")),
                     nn => {
                         var n = nn
@@ -1204,6 +1227,16 @@ object CthulhuWarsSolo {
                         n -= 1
                         if (n == 0) {
                             setup.toggle(IceAgeAffectsLethargy)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(Opener4P10Gates)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(DemandTsathoggua)
                             setupQuestions()
                         }
                         n -= 1
@@ -1230,6 +1263,8 @@ object CthulhuWarsSolo {
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     List("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     List("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                    List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                    List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
                     List("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
                     List("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++
                     List("Options" -> ("Forced moves (" + setup.confirm.?("confirm").|("perform").hl + ")")) ++
@@ -1253,6 +1288,16 @@ object CthulhuWarsSolo {
                         n -= 1
                         if (n == 0) {
                             setup.toggle(IceAgeAffectsLethargy)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(Opener4P10Gates)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(DemandTsathoggua)
                             setupQuestions()
                         }
                         n -= 1
@@ -1299,7 +1344,7 @@ object CthulhuWarsSolo {
         }
         else
         if (hash != "") {
-            get("role/" + hash) { role =>
+            get(server + "role/" + hash) { role =>
                 val self = Serialize.parseFaction(role)
 
                 self match {
@@ -1308,7 +1353,7 @@ object CthulhuWarsSolo {
                 }
 
                 if (role != "$") {
-                    get("read/" + hash + "/0") { read =>
+                    get(server + "read/" + hash + "/0") { read =>
                         val logs = read.split("\n").toList
 
                         if (logs(0) != version)
@@ -1321,7 +1366,7 @@ object CthulhuWarsSolo {
                         val factions = logs(2).split(" ")(0).split("/").toList./(_.split(":"))./(s => Serialize.parseFaction(s(0)).get -> Serialize.parseDifficulty(s(1)).get)
                         val options = logs(2).split(" ").toList.drop(1)./(Serialize.parseGameOption)./(_.get)
 
-                        val setup = new Setup(factions./(_._1), Recorded)
+                        val setup = new Setup(factions.lefts, Recorded)
                         factions.foreach { case (f, d) => setup.difficulty += f -> d }
                         setup.options = options
 
@@ -1333,7 +1378,7 @@ object CthulhuWarsSolo {
         else {
             def topMenu() {
                 ask("Cthulhu Wars", List("Quick game".hl, "Hotseat game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online game".hl), "Extra", "About", "Test").take(menu), {
-                    case 0 =>
+                    case 999_0 =>
                         val n = 1
                         val pn = n + 3
                         ask("Play as", allFactions./(_.toString) :+ "Back", nf => {
@@ -1354,6 +1399,13 @@ object CthulhuWarsSolo {
                             else
                                 topMenu()
                         })
+                    case 0 =>
+                        val faction = allFactions.shuffle.first
+                        val combinations = allFactions.but(faction).combinations(3).$
+                        val opponents = combinations.shuffle.first
+                        val setup = new Setup(randomSeating(faction +: opponents), Normal)
+                        setup.difficulty += faction -> Human
+                        startGame(setup)
                     case 1 =>
                         ask("Players", ("3 Players" :: "4 Players" :: "5 Players") :+ "Back", n => {
                             if (n < 3) {
@@ -1459,6 +1511,16 @@ object CthulhuWarsSolo {
             }
 
             topMenu()
+
+            if (quick) {
+                val faction = allFactions.shuffle.first
+                val combinations = allFactions.but(faction).combinations(3).$
+                val opponents = combinations.shuffle.first
+                val setup = new Setup(randomSeating(faction +: opponents), Normal)
+                setup.difficulty += faction -> Human
+                startGame(setup)
+            }
+
         }
     }
 }

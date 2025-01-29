@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case object Mutant extends FactionUnitClass(OW, "Mutant", Monster, 2)
 case object Abomination extends FactionUnitClass(OW, "Abomination", Monster, 3)
@@ -10,15 +10,16 @@ case object YogSothoth extends FactionUnitClass(OW, "Yog-Sothoth", GOO, 6)
 case object BeyondOne extends FactionSpellbook(OW, "The Beyond One")
 case object KeyAndGate extends FactionSpellbook(OW, "The Key and the Gate")
 
-case object DreadCurse extends FactionSpellbook(OW, "Dread Curse of Azathoth")
-case object MillionFavoredOnes extends FactionSpellbook(OW, "The Million Favored Ones")
 case object TheyBreakThrough extends FactionSpellbook(OW, "They Break Through")
+case object MillionFavoredOnes extends FactionSpellbook(OW, "The Million Favored Ones")
+case object ChannelPower extends FactionSpellbook(OW, "Channel Power")
+case object DreadCurse extends FactionSpellbook(OW, "Dread Curse of Azathoth")
 case object DragonAscending extends FactionSpellbook(OW, "Dragon Ascending")
 case object DragonDescending extends FactionSpellbook(OW, "Dragon Descending")
-case object ChannelPower extends FactionSpellbook(OW, "Channel Power")
 
 case object EightGates extends Requirement("8 gates on the map")
-case object TwelweGates extends Requirement("12 gates on the map")
+case object TenGates extends Requirement("10 gates on the map")
+case object TwelveGates extends Requirement("12 gates on the map")
 case object UnitsAtEnemyGates extends Requirement("Units at 2 enemy gates")
 case object LoseUnitInBattle extends Requirement("Lose unit in battle")
 case object GooMeetsGoo extends Requirement("GOO in area with enemy GOO")
@@ -32,16 +33,18 @@ case object OW extends Faction {
     val poolR = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
-    override def abilities : List[Spellbook] = List(BeyondOne, KeyAndGate)
-    override def spellbooks : List[Spellbook] = List(DreadCurse, MillionFavoredOnes, TheyBreakThrough, DragonAscending, DragonDescending, ChannelPower)
-    override def requirements : List[Requirement] = List(EightGates, TwelweGates, UnitsAtEnemyGates, LoseUnitInBattle, GooMeetsGoo, AwakenYogSothoth)
+    override def abilities = $(BeyondOne, KeyAndGate)
+    override def spellbooks = $(TheyBreakThrough, DreadCurse, MillionFavoredOnes, ChannelPower, DragonAscending, DragonDescending)
+    override def requirements(options : $[GameOption]) = $(EightGates) ++
+        $((options.has(PlayerCount(3)) || (options.has(PlayerCount(4)) && options.has(Opener4P10Gates))).?(TenGates).|(TwelveGates)) ++
+        $(UnitsAtEnemyGates, LoseUnitInBattle, GooMeetsGoo, AwakenYogSothoth)
 
     val allUnits =
-        List.fill(1)(YogSothoth) ++
-        List.fill(2)(SpawnOW) ++
-        List.fill(3)(Abomination) ++
-        List.fill(4)(Mutant) ++
-        List.fill(6)(Acolyte)
+        1.times(YogSothoth) ++
+        2.times(SpawnOW) ++
+        3.times(Abomination) ++
+        4.times(Mutant) ++
+        6.times(Acolyte)
 
     override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
         case YogSothoth => g.of(this).at(r, SpawnOW).any.?(6).|(999)

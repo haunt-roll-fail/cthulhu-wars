@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object EarthMap4v35 extends Board {
     val name = "Earth Map (4 players 3/5 variant)"

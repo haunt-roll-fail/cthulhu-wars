@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case object Ghoul extends FactionUnitClass(BG, "Ghoul", Monster, 1)
 case object Fungi extends FactionUnitClass(BG, "Fungi from Yuggoth", Monster, 2)
@@ -10,12 +10,12 @@ case object ShubNiggurath extends FactionUnitClass(BG, "Shub-Niggurath", GOO, 8)
 case object Fertility extends FactionSpellbook(BG, "Fertility Cult")
 case object Avatar extends FactionSpellbook(BG, "Avatar")
 
-case object BloodSacrifice extends FactionSpellbook(BG, "Blood Sacrifice")
 case object ThousandYoung extends FactionSpellbook(BG, "The Thousand Young")
+case object Frenzy extends FactionSpellbook(BG, "Frenzy")
+case object Necrophagy extends FactionSpellbook(BG, "Necrophagy")
 case object Ghroth extends FactionSpellbook(BG, "Ghroth")
 case object RedSign extends FactionSpellbook(BG, "The Red Sign")
-case object Necrophagy extends FactionSpellbook(BG, "Necrophagy")
-case object Frenzy extends FactionSpellbook(BG, "Frenzy")
+case object BloodSacrifice extends FactionSpellbook(BG, "Blood Sacrifice")
 
 case object Spread4 extends Requirement("Units in 4 Areas")
 case object Spread6 extends Requirement("Units in 6 Areas")
@@ -32,16 +32,16 @@ case object BG extends Faction {
     val poolR = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
-    override def abilities : List[Spellbook] = List(Fertility, Avatar)
-    override def spellbooks : List[Spellbook] = List(Frenzy, Ghroth, Necrophagy, RedSign, BloodSacrifice, ThousandYoung)
-    override def requirements : List[Requirement] = List(Spread4, Spread6, Spread8, SpreadSocial, Eliminate2Cultists, AwakenShubNiggurath)
+    override def abilities = $(Fertility, Avatar)
+    override def spellbooks = $(Frenzy, Ghroth, Necrophagy, RedSign, BloodSacrifice, ThousandYoung)
+    override def requirements(options : $[GameOption]) = $(Spread4, Spread6, Spread8, SpreadSocial, Eliminate2Cultists, AwakenShubNiggurath)
 
     val allUnits =
-        List.fill(1)(ShubNiggurath) ++
-        List.fill(3)(DarkYoung) ++
-        List.fill(4)(Fungi) ++
-        List.fill(2)(Ghoul) ++
-        List.fill(6)(Acolyte)
+        1.times(ShubNiggurath) ++
+        3.times(DarkYoung) ++
+        4.times(Fungi) ++
+        2.times(Ghoul) ++
+        6.times(Acolyte)
 
     override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
         case ShubNiggurath => (g.of(this).gates.contains(r)).?((g.of(this).all(Cultist).num >= 2).?(8).|(998)).|(999)

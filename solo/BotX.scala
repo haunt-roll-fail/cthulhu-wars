@@ -1,13 +1,13 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case class Evaluation(weight : Int, desc : String)
 case class ActionEval(action : Action, evaluations : List[Evaluation])
 
 class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
     def sortByAbs(a : List[Int]) : List[Int] =
-        a.sortBy(v => -abs(v))
+        a.sortBy(v => -v.abs)
 
     def compareEL(aaa : List[Int], bbb : List[Int]) : Int =
         (aaa, bbb) match {
@@ -59,7 +59,7 @@ class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
     }
 }
 
-object NoPlayer extends Player(SL)
+object NoPlayer extends Player(SL)($)
 
 abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
     val others = game.factions.%(_ != self)

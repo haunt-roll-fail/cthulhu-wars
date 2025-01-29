@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 case class Bot3(faction : Faction) {
     def cost(g : Game, a : Action) : Int = a match {

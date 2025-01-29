@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object BotWW extends BotX(g => new GameEvaluationWW(g))
 
@@ -197,7 +197,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
-                abs(game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
+                (game.factions.indexOf(f) - game.factions.indexOf(self)).abs == 2 |=> 10 -> "stall opposite"
                 f == CC && !CC.allSB |=> 1 -> "cc first"
                 CC.allSB |=> 1000 -> "first, cc allsb"
 
@@ -721,7 +721,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
         true |=> -((1 + math.random() * 4).round.toInt) -> "random"
 
-        result.sortBy(v => -abs(v.weight))
+        result.sortBy(v => -v.weight.abs)
     }
 
 }

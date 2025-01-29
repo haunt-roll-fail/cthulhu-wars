@@ -1,10 +1,10 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 object Html {
     implicit class HtmlString(val s : String) extends AnyVal {
-        def styled(c : String) = "<span class='" + c  + "'>" + s + "</span>"
+        def styled(l : String*) = "<span class='" + l.mkString(" ")  + "'>" + s + "</span>"
         def power = (s + " Power").styled("power")
         def hl = s.styled("highlight")
     }

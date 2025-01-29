@@ -1,6 +1,6 @@
 package cws
 
-import colmat._
+import hrf.colmat._
 
 import Html._
 
@@ -331,7 +331,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         if (s.player.has(Invisibility) && s.units.%(_.uclass == FlyingPolyp).%(!_.has(Invised)).any)
             options :+= InvisibilityPreBattleAction(s.faction)
 
-        if (s.player.has(DemandSacrifice) && s.player.has(Tsathoggua) && !s.has(DemandSacrifice) && !s.opponent.has(KillsArePains))
+        if (s.player.has(DemandSacrifice) && s.player.has(Tsathoggua) && !s.has(DemandSacrifice) && !s.opponent.has(KillsArePains) && (game.options.has(DemandTsathoggua).not || s.units.%(_.uclass == Tsathoggua).any))
             options :+= DemandSacrificePreBattleAction(s.faction)
 
         return Ask(s.faction, options :+ PreBattleDoneAction(s.faction, next))
