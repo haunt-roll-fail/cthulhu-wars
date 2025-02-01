@@ -2,7 +2,6 @@ package cws
 
 import scala.scalajs._
 import scala.scalajs.js.annotation._
-import scala.scalajs.js.timers._
 
 import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
 
@@ -149,7 +148,7 @@ object Overlays {
             case $("GC", YhaNthlei.name) => spellbook(YhaNthlei.name, "Gather Power Phase", "During Gather Power, if Cthulhu is in play, gain 1 Power for each enemy-controlled Gate in an ocean or sea Area.")
 
 
-            case $("CC") => faction(CC, "info/cc-background.jpg", Immortal, "Ongoing", "Once Cthulhu has Awakened, he costs only 4 Power each subsequent time he is Awakened. Whenever you Awaken any Great Old One, gain <span class=es>1 Elder Sign.</span>", $(
+            case $("CC") => faction(CC, "info/cc-background.jpg", Flight, "Ongoing", "All your units can fly (even Cultists). When moved, they can travel 2 Areas. They can fly over Areas containing enemy Units.", $(
                 (Acolyte,       6, "1", "0", ""),
                 (Nightgaunt,    3, "1", "0", s"""<div class=p>Spellbook: ${reference(CC, Abduct)}</div>"""),
                 (FlyingPolyp,   3, "2", "1", s"""<div class=p>Spellbook: ${reference(CC, Invisibility)}</div>"""),
@@ -288,7 +287,7 @@ object Overlays {
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(WW, Cannibalism)}</div>"""),
                 (Wendigo,   4, "1", "1", s"""<div class=p>Spellbooks: ${reference(WW, Cannibalism)}, ${reference(WW, Howl)}</div>"""),
                 (GnophKeh,  2, "?", "3", s"""
-                    <div class=p>${cost("Cost:")} Equals the number of Gnoph-Kehs in your Unit pool (i.e. if only one Gnoph-Keh is in your pool, the Cost is 1).</div>
+                    <div class=p>${cost("Cost:")} Equals the number of Gnoph-Kehs in your Unit pool.</div>
                     <div class=p>${reference(WW, Berserkergang)}</div>"""
                 ),
                 (RhanTegoth, 1, "6", "3", s"""
