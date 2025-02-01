@@ -789,14 +789,17 @@ object CthulhuWarsSolo {
 
                 val sb = p.spellbooks./{ sb =>
                     val full = sb.full
-                    val s = sb.name.replace("\\", "\\\\") // "
-                    val d = "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + full + "</div>"
+                    val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
+                    // val d = "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + full + "</div>"
+                    val d = s"""<div class='spellbook' onclick='onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
                     p.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
                 (1.to(6 - p.spellbooks.num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
                 p.requirements./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
-                    "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + r.text + "</div>"
+                    val d = s"""<div class='spellbook' onclick='onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
+                    // "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + r.text + "</div>"
+                    d
                 }.mkString("")
 
                 val h = 450
