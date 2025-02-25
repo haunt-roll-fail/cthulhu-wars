@@ -582,11 +582,30 @@ object CthulhuWarsSolo {
 
             var oldPositions : List[DrawItem] = Nil
             var oldGates : List[Region] = Nil
+            var horizontal = true
 
             def drawMap() {
+                val upscale = 2
+
+                val width = map.node.clientWidth * dom.window.devicePixelRatio
+                val height = map.node.clientHeight * dom.window.devicePixelRatio
+
+                val bitmap = map.get(width.~ * upscale, height.~ * upscale)
+
+                bitmap.canvas.style.width = "100%"
+                bitmap.canvas.style.height = "100%"
+
+                if (bitmap.height <= bitmap.width != horizontal) {
+                    horizontal = !horizontal
+                    oldPositions = $
+                    oldGates = $
+                }
+
                 import EarthMap4v35._
 
-                def gateXY(r : Region) = r match {
+                val mp = getAsset("earth35")
+
+                def gateXYO(r : Region) = r match {
                     case ArcticOcean => (933, 77)
                     case Scandinavia => (1135, 165)
                     case Europe => (1110, 255)
@@ -607,16 +626,30 @@ object CthulhuWarsSolo {
                     case _ => throw new Error("Unknown region " + r)
                 }
 
-                val bitmap = map.get(map.node.clientWidth, map.node.clientHeight)
+                def gateXY(r : Region) =
+                    if (horizontal)
+                        gateXYO(r)
+                    else {
+                        val (x, y) = gateXYO(r)
+                        (mp.height - y, x)
+                    }
+
+                def find(ox : Int, oy : Int) =
+                    if (horizontal)
+                        findAnother(ox, oy)
+                    else {
+                        val (x, y) = findAnother(oy, mp.height - ox)
+                        (mp.height - y, x)
+                    }
 
                 val g = bitmap.context
+
                 g.setTransform(1, 0, 0, 1, 0, 0)
 
                 g.clearRect(0, 0, bitmap.width, bitmap.height)
 
-                if (bitmap.height < bitmap.width)
+                if (horizontal)
                 {
-                    val mp = getAsset("earth35")
                     val dw = 12
                     val dh = 12
                     if ((dw + mp.width + dw) * bitmap.height < bitmap.width * (dh + mp.height + dh)) {
@@ -634,7 +667,6 @@ object CthulhuWarsSolo {
                     g.translate(bitmap.width, 0)
                     g.rotate(math.Pi / 2)
 
-                    val mp = getAsset("earth35")
                     val dw = 12
                     val dh = 12
                     if ((dw + mp.width + dw) * bitmap.width < bitmap.height * (dh + mp.height + dh)) {
@@ -647,6 +679,8 @@ object CthulhuWarsSolo {
                     }
                     g.translate(dw, dh)
                     g.drawImage(mp, 0, 0)
+                    g.rotate(-math.Pi / 2)
+                    g.translate(-mp.width/2, 0)
                 }
 
                 var saved = oldPositions
@@ -720,7 +754,7 @@ object CthulhuWarsSolo {
                     }
 
                     free.sortBy(d => -rank(d)).foreach { d =>
-                        sticking +:= Array.tabulate(40)(n => findAnother(px, py)).sortBy { case (x, y) => ((x - px).abs * 5 + (y - py).abs) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, x, y) }.minBy { dd =>
+                        sticking +:= Array.tabulate(40)(n => find(px, py)).sortBy { case (x, y) => ((x - px).abs * 5 + (y - py).abs) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, x, y) }.minBy { dd =>
                             (draws ++ fixed ++ sticking).map { oo =>
                                 val d = dd.rect
                                 val o = oo.rect
@@ -1485,12 +1519,12 @@ object CthulhuWarsSolo {
                     })
                     case 5 =>
                         //val setup = new Setup(randomSeating(List(GC, CC, BG, AN)), Normal)
-                        val setup = new Setup(randomSeating(List(WW, GC, CC, AN)), Normal)
-                        //val setup = new Setup(randomSeating(List(OW, SL, BG, AN)), Normal)
-                        setup.difficulty += AN -> Debug
-                        setup.difficulty += WW -> Human
-                        setup.difficulty += GC -> Human
-                        setup.difficulty += CC -> Human
+                        //val setup = new Setup(randomSeating(List(SL, WW, OW, AN)), Normal)
+                        val setup = new Setup(randomSeating(List(OW, CC, BG, AN)), Normal)
+                        setup.difficulty += OW -> Debug
+                        // setup.difficulty += CC -> Human
+                        // setup.difficulty += GC -> Human
+                        // setup.difficulty += BG -> Debug
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)

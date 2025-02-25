@@ -731,10 +731,9 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                 d.ownGate && d.allies.num >= o.allies.num |=> 10 -> "if nothing else own gate"
 
-
-                d.enemyGate && d.foes.num == 1 && d.foes.cultists == 1 && d.allies.cultists.any && power > 1 |=> 200 -> "get gate"
-
-                d.enemyGate && d.foes.num == 1 && d.foes.cultists == 1 && self.pool.cultists.any && power > 1 |=> 150 -> "get gate"
+                // // apparently detrimental
+                // d.enemyGate && d.foes.num == 1 && d.foes.cultists.num == 1 && d.allies.cultists.any && power > 1 |=> 200 -> "get gate"
+                // d.enemyGate && d.foes.num == 1 && d.foes.cultists.num == 1 && self.pool.cultists.any && power > 1 |=> 150 -> "get gate"
 
                 needRegion(d)
 

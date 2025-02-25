@@ -223,10 +223,10 @@ trait ExtraQuestion extends FactionAction {
 }
 
 case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Recieve spellbook").|("Recieve " + g.of(self).unclaimedSB + " spellbooks"), {
-    val p = "'" + self.short + "', '" + sb.name.replace("\\", "\\\\") + "'" // "
-    s"""<div class=sbdiv xonpointerover="onExternalOver(${p})" xonpointerout="onExternalOut(${p})" >""" +
+    val p = s""""${self.short}", "${sb.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;") // "
+    "<div class=sbdiv>" +
         sb.full +
-        s"""<img class=explain src='info/question-mark.png' onclick="event.stopPropagation(); onExternalClick(${p})" />""" +
+        s"""<img class=explain src="info/question-mark.png" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 })
 
@@ -441,7 +441,7 @@ case class GiveBestMonsterAskAction(self : Faction, f : Faction, uc : UnitClass,
 case class BuildCathedralMainAction(self : Faction, l : List[Region]) extends OptionFactionAction("Build " + AN.styled("Cathedral")) with MainQuestion with Soft
 case class BuildCathedralAction(self : Faction, r : Region) extends BaseFactionAction("Build cathedral in", g => "" + r + g.forNPowerWithTax(r, self, g.getCathedralCost(r)))
 
-case class FestivalUnManSummonAction(self : Faction, f : Faction) extends BaseFactionAction(None, "" + f + " gets " + 1.power)
+case class FestivalUnManSummonAction(self : Faction, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + "gave power to another faction", "" + f + " gets " + 1.power)
 
 case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization) with DoomQuestion with Soft with PowerNeutral
 case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(self.styled(Dematerialization) + " from", o)
