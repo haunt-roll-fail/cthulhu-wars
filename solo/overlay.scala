@@ -119,7 +119,8 @@ object Overlays {
     def onExternalClick(s : Any*) {
         temp = false
         val info = s.$.@@ {
-            case $("GC") => faction(GC, "info/gc-background.jpg", Immortal, "Ongoing", "Once Cthulhu has Awakened, he costs only 4 Power each subsequent time he is Awakened. Whenever you Awaken any Great Old One, gain <span class=es>1 Elder Sign.</span>", $(
+            case $("GC") => faction(GC, "info/gc-background.jpg", Immortal, "Ongoing", "Once Cthulhu has Awakened, he costs only 4 Power each subsequent time he is Awakened. Whenever you Awaken any Great Old One, gain <span class=es>1 Elder Sign.</span>",
+                $(), $(
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(GC, Dreams)}</div>"""),
                 (DeepOne,   4, "1", "1", s"""<div class=p>Spellbook: ${reference(GC, Devolve)}</div>"""),
                 (Shoggoth,  2, "2", "2", s"""<div class=p>Spellbook: ${reference(GC, Absorb)}</div>"""),
@@ -129,7 +130,8 @@ object Overlays {
                     <div class=p>${cost("1)")} There must be a Gate in Great Cthulhu's starting Area (Can be abandoned or enemy-Controlled).</div>
                     <div class=p>${cost("2)")} If this is the first Awakening, pay <span class=cost-color>10 Power</span>. Otherwise pay <span class=cost-color>4 Power</span>.</div>
                     <div class=p>${cost("3)")} ${Cthulhu.name} appears in its starting Area (Remember to gain <span class=es>1 Elder Sign</span>).</div>
-                    <div class=p>${ref(Devour)} ${cost("(Pre-Battle):")} The enemy player chooses and Eliminates one of his Monsters or Cultists in the Battle.</div>"""
+                    <div class=p>${ref(Devour)} ${cost("(Pre-Battle):")} The enemy player chooses and Eliminates one of his Monsters or Cultists in the Battle.</div>
+                    <div class=p>Spellbooks: ${reference(GC, Submerge)}, ${reference(GC, YhaNthlei)}</div>"""
                 ),
             ))
 
@@ -148,7 +150,8 @@ object Overlays {
             case $("GC", YhaNthlei.name) => spellbook(YhaNthlei.name, "Gather Power Phase", "During Gather Power, if Cthulhu is in play, gain 1 Power for each enemy-controlled Gate in an ocean or sea Area.")
 
 
-            case $("CC") => faction(CC, "info/cc-background.jpg", Flight, "Ongoing", "All your units can fly (even Cultists). When moved, they can travel 2 Areas. They can fly over Areas containing enemy Units.", $(
+            case $("CC") => faction(CC, "info/cc-background.jpg", Flight, "Ongoing", "All your units can fly (even Cultists). When moved, they can travel 2 Areas. They can fly over Areas containing enemy Units.",
+                $(Madness), $(
                 (Acolyte,       6, "1", "0", ""),
                 (Nightgaunt,    3, "1", "0", s"""<div class=p>Spellbook: ${reference(CC, Abduct)}</div>"""),
                 (FlyingPolyp,   3, "2", "1", s"""<div class=p>Spellbook: ${reference(CC, Invisibility)}</div>"""),
@@ -158,7 +161,8 @@ object Overlays {
                     <div class=p>${cost("1)")} You must have a Controlled Gate.</div>
                     <div class=p>${cost("2)")} Pay ${power(10)}. Nyarlathotep appears at the controlled Gate.</div>
                     <div class=p>${combat} Equals the total of your own Faction Spellbooks plus the Faction Spellbooks of your opponent in the Battle.</div>
-                    <div class=p>${ref(Harbinger)} ${cost("(Post-Battle):")} If Nyarlathotep is in a Battle in which one or more enemy Great Old Ones are Pained or Killed, you receive Power equal to half the cost to Awaken those Great Old Ones. Per enemy Great Old One, you may choose to receive 2 Elder Signs instead of Power. Harbringer takes effect even if Nyarlathotep is Killed or Pained in the Battle himself.</div>"""
+                    <div class=p>${ref(Harbinger)} ${cost("(Post-Battle):")} If Nyarlathotep is in a Battle in which one or more enemy Great Old Ones are Pained or Killed, you receive Power equal to half the cost to Awaken those Great Old Ones. Per enemy Great Old One, you may choose to receive 2 Elder Signs instead of Power. Harbringer takes effect even if Nyarlathotep is Killed or Pained in the Battle himself.</div>
+                    <div class=p>Spellbooks: ${reference(CC, Emissary)}, ${reference(CC, ThousandForms)}</div>"""
                 ),
             ))
 
@@ -177,7 +181,8 @@ object Overlays {
             case $("CC", Madness.name) => spellbook(Madness.name, "Post-Battle", "After all Pain results have been assigned, you, rather than the Units' owners, choose the Area(s) to which all Pained Units will go. You may apply these results in any order (rather than the normal 'attacker first, then defender'), but you must still follow all other rules. Do this even for Battles in which you did not participate.")
 
 
-            case $("BG") => faction(BG, "info/bg-background.jpg", Fertility, "Ongoing", "You may Summon Monsters as an Unlimited Action.", $(
+            case $("BG") => faction(BG, "info/bg-background.jpg", Fertility, "Ongoing", "You may Summon Monsters as an Unlimited Action.",
+                $(BloodSacrifice), $(
                 (Acolyte,       6, "1", "0/1", s"""<div class=p>${combat} 1 with ${reference(BG, Frenzy)}</div>"""),
                 (Ghoul,         2, "1/0", "0", s"""
                     <div class=p>${cost("Cost:")} 0 with ${reference(BG, ThousandYoung)}.</div>
@@ -211,12 +216,13 @@ object Overlays {
             case $("BG", ThousandYoung.name) => spellbook(ThousandYoung.name, "Ongoing", "If Shub-Niggurath is in play, Ghouls, Fungi, and Dark Young cost 1 fewer Power each to Summon.")
             case $("BG", Frenzy.name) => spellbook(Frenzy.name, "Battle", "Your Cultists now have 1 Combat.")
             case $("BG", Necrophagy.name) => spellbook(Necrophagy.name, "Post-Battle", "Move any or all Ghouls (who did not partecipate in the Battle) from any Area to the Battle Area, even if your Faction was not involved in the Battle. For each Ghoul so moved, both sides in the Battle suffer an additional Pain result.")
-            case $("BG", Ghroth.name) => spellbook(Ghroth.name, "Action: Cost 1", "Roll a die. If the roll is less than or equal to the number of Areas containing Fungi, your enemies must collectively Eliminate Cultists equal to the die roll. They have 1 minute to decide how to distribute these Eliminations. If time runs out, you choose for them. If the roll is greater than the number of Areas with Fungi, place 1 Acolyte from any Faction's pool anywhere on the map.")
+            case $("BG", Ghroth.name) => spellbook(Ghroth.name, "Action: Cost 2", "Roll a die. If the roll is less than or equal to the number of Areas containing Fungi, your enemies must collectively Eliminate Cultists equal to the die roll. They have 1 minute to decide how to distribute these Eliminations. If time runs out, you choose for them. If the roll is greater than the number of Areas with Fungi, place 1 Acolyte from any Faction's pool anywhere on the map.")
             case $("BG", RedSign.name) => spellbook(RedSign.name, "Ongoing", "Dark Young can Create and Control Gates. Each Dark Young adds 1 to Shub-Niggurath's Combat and each provides 1 Power during the Gather Power Phase. They do not act as Cultists with respect to any other purpose.")
             case $("BG", BloodSacrifice.name) => spellbook(BloodSacrifice.name, "Doom Phase", "If Shub-Niggurath is in play during the Doom Phase, you can choose to Eliminate one of your Cultists (from anywhere on the map). If you do, gain <span class=es>1 Elder Sign.</span>")
 
 
-            case $("YS") => faction(YS, "info/ys-background.jpg", Feast, "Gather Power Phase", "During Gather Power, you gain 1 Power for each Area containing both a Desecration Token and one or more of your units.", $(
+            case $("YS") => faction(YS, "info/ys-background.jpg", Feast, "Gather Power Phase", "During Gather Power, you gain 1 Power for each Area containing both a Desecration Token and one or more of your units.",
+                $(), $(
                 (Acolyte,   6, "1",  "0", s"""<div class=p>Spellbook: ${reference(YS, Passion)}</div>"""),
                 (Undead,    6, "1", "1-", s"""
                     <div class=p>${combat} Roll 1 die less than the total Undead in the area.</div>
@@ -228,14 +234,16 @@ object Overlays {
                     <div class=p>${cost(s"How to Awaken the ${KingInYellow.name}:")}</div>
                     <div class=p>${cost("1)")} You must have a Unit in an Area lacking a Gate.</div>
                     <div class=p>${cost("2)")} Pay ${power(4)}. ${KingInYellow.name} appears in that Area.</div>
-                    <div class=p>${ref(Desecrate)} ${cost("(Action: Cost 2):")} If the King is in an Area with no Desecration Token, roll 1 die and compare to your total units in the Area (including the King). On a roll equal or less than your unit total, place a Desecration Token in the Area. If you succeed or fail, place a Monster or Cultist with a cost of 2 or less in the Area.</div>"""
+                    <div class=p>${ref(Desecrate)} ${cost("(Action: Cost 2):")} If the King is in an Area with no Desecration Token, roll 1 die and compare to your total units in the Area (including the King). On a roll equal or less than your unit total, place a Desecration Token in the Area. If you succeed or fail, place a Monster or Cultist with a cost of 2 or less in the Area.</div>
+                    <div class=p>Spellbook: ${reference(YS, ScreamingDead)}</div>"""
                 ),
                 (Hastur, 1, "10", "?", s"""
                     <div class=p>${cost(s"How to Awaken ${Hastur.name}:")}</div>
                     <div class=p>${cost("1)")} You must have a Controlled Gate and the King in Yellow in the same area.</div>
                     <div class=p>${cost("2)")} Pay ${power(10)}. ${Hastur.name} appears in the King's Area.</div>
                     <div class=p>${combat} Equals the current Cost of a Ritual of Annihilation.</div>
-                    <div class=p>${ref(Vengeance)} ${cost("(Post-Battle):")} If Hastur is involved in a Battle, choose which Combat results are applied to which enemy Unit.</div>"""
+                    <div class=p>${ref(Vengeance)} ${cost("(Post-Battle):")} If Hastur is involved in a Battle, choose which Combat results are applied to which enemy Unit.</div>
+                    <div class=p>Spellbooks: ${reference(YS, ThirdEye)}, ${reference(YS, HWINTBN)}</div>"""
                 ),
             ))
 
@@ -254,7 +262,8 @@ object Overlays {
             case $("YS", HWINTBN.name) => spellbook(HWINTBN.name, "Action: Cost 1", "Move Hastur to any Area containing a Cultist of any Faction. You may then take a second, different Action. You may NOT take The Screaming Dead as your second Action.")
 
 
-            case $("SL") => faction(SL, "info/sl-background.jpg", DeathFromBelow, "Doom Phase", "Place your lowest-cost Monster from your Pool into any Area containing at least 1 of your Units.", $(
+            case $("SL") => faction(SL, "info/sl-background.jpg", DeathFromBelow, "Doom Phase", "Place your lowest-cost Monster from your Pool into any Area containing at least 1 of your Units.",
+                $(Burrow, CursedSlumber), $(
                 (Acolyte,       6, "1", "0", ""),
                 (Wizard,        2, "1", "0", s"""<div class=p>Spellbook: ${reference(SL, EnergyNexus)}</div>"""),
                 (SerpentMan,    3, "2", "1", s"""<div class=p>Spellbook: ${reference(SL, AncientSorcery)}</div>"""),
@@ -264,7 +273,8 @@ object Overlays {
                     <div class=p>${cost("1)")} You must have a Formless Spawn on the map.</div>
                     <div class=p>${cost("2)")} Pay ${power(8)}. Place Tsathoggua in the Area with the Formless Spawn.</div>
                     <div class=p>${combat} Equals the opponent's current Power or 2, whichever is greater.</div>
-                    <div class=p>${ref(Lethargy)} ${cost("(Action: Cost 0):")} If Tsathoggua is in play, do nothing. This counts as an Action.</div>"""
+                    <div class=p>${ref(Lethargy)} ${cost("(Action: Cost 0):")} If Tsathoggua is in play, do nothing. This counts as an Action.</div>
+                    <div class=p>Spellbooks: ${reference(SL, DemandSacrifice)}, ${reference(SL, CaptureMonster)}</div>"""
                 ),
             ))
 
@@ -283,7 +293,8 @@ object Overlays {
             case $("SL", CursedSlumber.name) => spellbook(CursedSlumber.name, "Action: Cost 1", "Remove your Controlled Gate and its Cultist from the map and place it on your Faction Card. This Gate and Cultist still provide Power and Doom points, but are immune to enemy abilities. As a Cost 1 Action, return the Gate and Cultist to any Area lacking a Gate. You may only have one Gate on your Faction Card at a time.")
 
 
-            case $("WW") => faction(WW, "info/ww-background.jpg", Hibernate, "Action: Cost 0", "Add +1 Power to your total for each enemy Great Old One in play (but not more than your current Power). You can take no further Actions during this Action Phase. At the start of the next Gather Power Phase, do NOT lose your Power, but add it to your total.", $(
+            case $("WW") => faction(WW, "info/ww-background.jpg", Hibernate, "Action: Cost 0", "Add +1 Power to your total for each enemy Great Old One in play (but not more than your current Power). You can take no further Actions during this Action Phase. At the start of the next Gather Power Phase, do NOT lose your Power, but add it to your total.",
+                $(IceAge, Herald), $(
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(WW, Cannibalism)}</div>"""),
                 (Wendigo,   4, "1", "1", s"""<div class=p>Spellbooks: ${reference(WW, Cannibalism)}, ${reference(WW, Howl)}</div>"""),
                 (GnophKeh,  2, "?", "3", s"""
@@ -302,7 +313,8 @@ object Overlays {
                     <div class=p>${cost("2)")} A Gate must exist in an Area marked with your Glyph. You need not control the Gate.</div>
                     <div class=p>${cost("3)")} Pay ${power(6)} and replace the Gate with ${Ithaqua.name}.</div>
                     <div class=p>${combat} Equal to half of your opponent's Doom, rounded up.</div>
-                    <div class=p>${ref(Ferox)} ${cost("(Ongoing):")} While ${Ithaqua.name} is in play, your Cultists cannot be captured by enemy Monsters or Terrors. They are still vulnerable to enemy Great Old Ones.</div>"""
+                    <div class=p>${ref(Ferox)} ${cost("(Ongoing):")} While ${Ithaqua.name} is in play, your Cultists cannot be captured by enemy Monsters or Terrors. They are still vulnerable to enemy Great Old Ones.</div>
+                    <div class=p>Spellbook: ${reference(WW, ArcticWind)}</div>"""
                 ),
             ))
 
@@ -321,7 +333,8 @@ object Overlays {
             case $("WW", Herald.name) => spellbook(Herald.name, "Doom Phase", "Pay 5 Power for Windwalker's Ritual of Annihilation, regardless of the number indicated on the Ritual track.")
 
 
-            case $("OW") => faction(OW, "info/ow-background.jpg", BeyondOne, "Action: Cost 1", "Select one of your your Units with a Cost of 3+ in an Area that contains a Gate and no enemy Great Old Ones. Move that Unit, the Gate, and any Controlling Unit to any Area on the map that does not already have a Gate.", $(
+            case $("OW") => faction(OW, "info/ow-background.jpg", BeyondOne, "Action: Cost 1", "Select one of your your Units with a Cost of 3+ in an Area that contains a Gate and no enemy Great Old Ones. Move that Unit, the Gate, and any Controlling Unit to any Area on the map that does not already have a Gate.",
+                $(TheyBreakThrough, ChannelPower, DragonAscending, DragonDescending), $(
                 (Acolyte,     6, "1", "0", s"""<div class=p>Spellbook: ${reference(OW, MillionFavoredOnes)}</div>"""),
                 (Mutant,      4, "2", "1", s"""<div class=p>Spellbook: ${reference(OW, MillionFavoredOnes)}</div>"""),
                 (Abomination, 3, "3", "2", s"""<div class=p>Spellbooks: ${reference(OW, MillionFavoredOnes)}, ${reference(OW, DreadCurse)}</div>"""),
@@ -350,7 +363,9 @@ object Overlays {
             case $("OW", DragonAscending.name) => spellbook(DragonAscending.name, "Once Only", "Once during the game (at any time), set your Power to be equal to the current Power of one chosen enemy Faction.")
             case $("OW", DragonDescending.name) => spellbook(DragonDescending.name, "Once Only", "Once during the game when you perform a Ritual of Annihilation, you receive twice the normal Doom points.")
 
-            case $("AN") => faction(AN, "info/an-background.jpg", Dematerialization, "Doom Phase", "Relocate any or all of your own Units from one Area to a single other Area, anywhere on the Map.", $(
+
+            case $("AN") => faction(AN, "info/an-background.jpg", Dematerialization, "Doom Phase", "Relocate any or all of your own Units from one Area to a single other Area, anywhere on the Map.",
+                $, $(
                 (Acolyte,    6,   "1",   "0", s""""""),
                 (UnMan,      3, "3/0",   "0", s"""<div class=p><span class=cost-color>Cost:</span> 0 with ${reference(AN, Festival)}</div>"""),
                 (Reanimated, 3, "4/1",   "2", s"""<div class=p><span class=cost-color>Cost:</span> 1 with ${reference(AN, Brainless)}</div>"""),
@@ -362,7 +377,6 @@ object Overlays {
                     <div class=p>${cost("Special:")} If all 4 Cathedrals are in play, you may Awaken and Independent Great Old One without your own Great Old One (when Awakening Cthugha this way, just pay 6 Power).</div>"""
                 )
             ))
-
 
             case $("AN", CathedralAA.text) => requirement("A Cathedral is in an Area marked with this Glyph: <img src='info/sign-aa.png' class=inline-glyph />")
             case $("AN", CathedralOO.text) => requirement("A Cathedral is in an Area marked with this Glyph: <img src='info/sign-oo.png' class=inline-glyph />")
@@ -491,7 +505,7 @@ object Overlays {
 
     def reference(f : Faction, spellbook : Spellbook) = s"""<span class="ability-color pointer" onclick="onExternalClick('${f.short}', '${spellbook.name}')">${spellbook.name}</span>"""
 
-    def faction(f : Faction, background : String, unique : Spellbook, uniquePhase : String, uniqueText : String, units : $[(UnitClass, Int, String, String, String)]) = s"""
+    def faction(f : Faction, background : String, unique : Spellbook, uniquePhase : String, uniqueText : String, miscSpellbooks : $[Spellbook], units : $[(UnitClass, Int, String, String, String)]) = s"""
         <table class="faction-table" style="background-image:url(${background})">
             <thead>
                 <tr>
@@ -524,6 +538,24 @@ object Overlays {
                         </div>
                     </td>
                 </tr>
+                ${
+                    if (miscSpellbooks.any) { s"""
+                        <tr>
+                            <td colspan=6>
+                                <div style="padding-left: 3ex; padding-right: 3ex; padding-bottom: 1ex;">
+                                    Spellbooks:
+                                    ${
+                                        miscSpellbooks./{ sb =>
+                                            s"""${reference(f, sb)}"""
+                                        }.join(", ")
+                                    }
+                                </div>
+                            </td>
+                        </tr>"""
+                    }
+                    else
+                        ""
+                }
                 <tr>
                     <td colspan=2>
                         <div class=h3>Unit<sup><span class="deh3">(Total)</span></sup></div>

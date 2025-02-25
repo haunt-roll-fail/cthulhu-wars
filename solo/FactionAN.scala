@@ -9,11 +9,11 @@ case object Cathedral extends FactionUnitClass(AN, "Cathedral", Building, 4)
 
 case object Dematerialization extends FactionSpellbook(AN, "Dematerialization")
 
-case object Brainless extends FactionSpellbook(AN, "Brainless")
-case object Consecration extends FactionSpellbook(AN, "Consecration")
-case object Extinction extends FactionSpellbook(AN, "Extinction")
 case object Festival extends FactionSpellbook(AN, "Festival")
+case object Brainless extends FactionSpellbook(AN, "Brainless")
+case object Extinction extends FactionSpellbook(AN, "Extinction")
 case object UnholyGround extends FactionSpellbook(AN, "Unholy Ground")
+case object Consecration extends FactionSpellbook(AN, "Consecration")
 case object WorshipServices extends FactionSpellbook(AN, "Worship Services")
 
 case object CathedralWW extends Requirement("Cathedral in Area with ||| Glyph")
@@ -34,7 +34,7 @@ case object AN extends Faction {
     def extinct = Region("Extinct", Extinct)
 
     override def abilities = $(Dematerialization)
-    override def spellbooks = $(Brainless, Festival, Extinction, UnholyGround, Consecration, WorshipServices)
+    override def spellbooks = $(Festival, Brainless, Extinction, UnholyGround, Consecration, WorshipServices)
     override def requirements(options : $[GameOption]) = $(CathedralAA, CathedralOO, CathedralWW, CathedralNG, GiveWorstMonster, GiveBestMonster)
 
     val allUnits =

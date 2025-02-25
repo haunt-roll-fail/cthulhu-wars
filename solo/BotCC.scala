@@ -939,7 +939,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         }
 
                         true |=> 2000 -> "seek seek destroy destroy"
-                        r.ownGate && r.allies.goos.none && r.allies.monsters == 1 && r.foes.monsters.%(_.faction.power > 0).any |=> -2500 -> "dont lose gate"
+                        r.ownGate && r.allies.goos.none && r.allies.monsters.num == 1 && r.foes.monsters.%(_.faction.power > 0).any |=> -2500 -> "dont lose gate"
                         true |=> r.allies.cultists.num -> "more cultists"
                         nya && !emissary && allies.num == 1 && battle.enemyStr > 0 |=> 3000 -> "shield nya"
                         nya && !emissary && allies.num == 2 && battle.enemyStr > 6 |=> 3500 -> "shield nya"

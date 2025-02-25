@@ -44,11 +44,15 @@ class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
         }
 
         var v = o
-        while (error > 0 && random() < error) {
-            v = v.drop(1)
-            if (v.none)
-                v = o
-        }
+        val e = error * (1 - 2.0 /:/ actions.num)
+
+        if (e > 0)
+            while (random() < e) {
+                v = v.drop(1)
+
+                if (v.none)
+                    v = o
+            }
 
         v.head.action
     }
