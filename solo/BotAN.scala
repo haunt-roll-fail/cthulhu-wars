@@ -91,6 +91,9 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                     f.has(Invisibility) && fp == foes.num |=> -1000000 -> "invis"
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
 
+                    // If neutral goos are ever introduced, this needs adjusting (along with a whole lot of other things, of course).
+                    nya && yo > 0 && shield < 3 |=> -500000 -> "dont risk yothans vs unkillable nya"
+
                     hh == foes.num && enough && ownStr > 3 |=> 11000/d -> "attack hh"
                     hh + fp == foes.num && enough && ownStr > 4 |=> 10000/d -> "attack hhfp"
 
@@ -245,8 +248,8 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 self.numSB >= 3 && aprxDoomGain / cost > 0.75 |=> 400 -> "sweet deal"
                 self.numSB >= 4 && aprxDoomGain / cost > 0.5 |=> 200 -> "ok deal"
                 cost == 5 |=> 100 -> "ritual first"
-                !AN.has(Consecration) || game.cathedrals.num == 0 |=> -200 -> "no cathedrals or consecration"
-                AN.has(Consecration) && game.cathedrals.num == 4 |=> 400 -> "all cathedrals"
+                !AN.has(Consecration) || game.cathedrals.num == 0 |=> -600 -> "no cathedrals or no consecration"
+                AN.has(Consecration) && game.cathedrals.num == 4 |=> 400 -> "consecration and all cathedrals"
 
                 true |=> -250 -> "don't ritual unless have reasons"
 
@@ -373,10 +376,10 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d.near.all(_.empty) |=> 909 -> "crowded cultists 6 explore all empty around"
                 o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d.near.all(_.foes.none) |=> 908 -> "crowded cultists 6 explore all friendly around"
                 // SL has these, but not CC. Should AN? Should CC?
-                o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
-                o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
-                o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
-                o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
+                //o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
+                //o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
+                //o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
+                //o.allies.cultists.num == 6 && !self.all.monsters.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
 
                 !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
                 !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate"
@@ -566,7 +569,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 !need(CathedralWW) && !need(CathedralOO) && !need(CathedralAA) && !need(CathedralNG) |=> 400 -> "have all cathedral spellbooks"
 
                 needGlyph && !expensiveCathedral |=> 480 -> "cheap new glyph"
-                needGlyph && expensiveCathedral |=> 180 -> "expensive new glyph"
+                needGlyph && expensiveCathedral |=> 90 -> "expensive new glyph"
 
                 game.starting(self) == r && game.cathedrals.num == 0 && numSB == 0 |=> -480 -> "not start region first"
 
@@ -904,7 +907,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                     d.ownGate && destHasEnemyMonsterOrGOO |=> 150 -> "enemies at gate"
                 }
 
-            case DematerializationMoveUnitAction(_, o, d, uc, l) =>
+            case DematerializationMoveUnitAction(_, o, d, uc) =>
                 true |=> -10 -> "base"
 
                 val demCase = game.demCaseMap.getOrElse(o, 0)

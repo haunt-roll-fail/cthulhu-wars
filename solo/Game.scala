@@ -441,12 +441,12 @@ case class GiveBestMonsterAskAction(self : Faction, f : Faction, uc : UnitClass,
 case class BuildCathedralMainAction(self : Faction, l : List[Region]) extends OptionFactionAction("Build " + AN.styled("Cathedral")) with MainQuestion with Soft
 case class BuildCathedralAction(self : Faction, r : Region) extends BaseFactionAction("Build cathedral in", g => "" + r + g.forNPowerWithTax(r, self, g.getCathedralCost(r)))
 
-case class FestivalUnManSummonAction(self : Faction, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + "gave power to another faction", "" + f + " gets " + 1.power)
+case class FestivalUnManSummonAction(self : Faction, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + " gave power to another faction", "" + f + " gets " + 1.power)
 
 case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization) with DoomQuestion with Soft with PowerNeutral
 case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(self.styled(Dematerialization) + " from", o)
 case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to", r)
-case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass, l : List[UnitFigure]) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to " + r, self.styled(uc))
+case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to " + r, self.styled(uc))
 case class DematerializationDoneAction(self: Faction) extends BaseFactionAction(None, "Done")
 
 // Neutral
@@ -544,7 +544,9 @@ class Player(val faction : Faction)(options : $[GameOption]) {
 }
 
 object RitualTrack {
+    val for3 = 5 :: 6 :: 7 :: 8 :: 9 :: 10 :: 999
     val for4 = 5 :: 6 :: 7 :: 7 :: 8 :: 8 :: 9 :: 10 :: 999
+    val for5 = 5 :: 6 :: 6 :: 7 :: 7 :: 8 :: 8 :: 9 :: 9 :: 10 :: 999
 }
 
 case class Nexus(region : Region, attacker : Faction, defender : Faction, factions : List[Faction], acted : Boolean, battled : List[Region])
@@ -563,6 +565,7 @@ case object NeutralSpellbooks extends GameOption
 case object IceAgeAffectsLethargy extends GameOption
 case object Opener4P10Gates extends GameOption
 case object DemandTsathoggua extends GameOption
+case object AltMap extends GameOption
 
 case class PlayerCount(n : Int) extends GameOption
 
@@ -2154,7 +2157,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             val c = of(self).at(r, uc).head
             eliminate(c)
             of(self).oncePerTurn :+= BloodSacrifice
-            log("" + self + " sacrifised " + c + " in " + r + " for " + 1.es)
+            log("" + self + " sacrificed " + c + " in " + r + " for " + 1.es)
             giveES(self, 1)
             checkGatesLost()
             CheckSpellbooksAction(DoomAction(self))
@@ -2911,15 +2914,13 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             QAsk(board.regions.but(o)./(r => DematerializationToRegionAction(self, o, r)) :+ DoomCancelAction(self))
 
         case DematerializationToRegionAction(self, o, d) =>
-            val l = List[UnitFigure]();
-            QAsk(of(self).at(o)./(u => DematerializationMoveUnitAction(self, o, d, u.uclass, l)) :+ DematerializationDoneAction(self))
+            QAsk(of(self).at(o)./(u => DematerializationMoveUnitAction(self, o, d, u.uclass)) :+ DematerializationDoneAction(self))
 
-        case DematerializationMoveUnitAction(self, o, d, uc, l) =>
+        case DematerializationMoveUnitAction(self, o, d, uc) =>
             val u = of(self).at(o, uc).head
             move(u, d)
-            val lu:List[UnitFigure] = l :+ u
             log("" + self + " sent " + self.styled(uc) + " from " + o + " to " + d + " with " + Dematerialization.full)
-            QAsk(of(self).at(o)./(u => DematerializationMoveUnitAction(self, o, d, u.uclass, lu)) :+ DematerializationDoneAction(self))
+            QAsk(of(self).at(o)./(u => DematerializationMoveUnitAction(self, o, d, u.uclass)) :+ DematerializationDoneAction(self))
 
         case DematerializationDoneAction(self) =>
             of(self).oncePerTurn :+= Dematerialization
@@ -2934,7 +2935,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             val c = of(self).at(r, uc).head
             eliminate(c)
             of(self).power += 1
-            log("" + self + " sacrifised " + c + " in " + r + " for " + 1.power)
+            log("" + self + " sacrificed " + c + " in " + r + " for " + 1.power)
 
             checkPowerReached()
 
