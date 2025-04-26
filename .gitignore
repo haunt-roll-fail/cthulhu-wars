@@ -1,5 +1,10 @@
+online/cwo*
+online/project/*
+online/target/*
+solo/game-error*
 solo/project/project/*
 solo/project/target/*
 solo/target/*
 solo/images/*
+solo/info/*
 solo/fonts/*

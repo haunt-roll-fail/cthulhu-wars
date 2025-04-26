@@ -1,7 +1,8 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <base href="hrf/" />
+        <base href="hrf/" /> <!-- Need this for online mode to work -->
+        <!-- <base href="" /> --> <!-- Temp for test (comment out before deploying) -->
         <title id="cws-options" data-server="###SERVER-URL###" data-delay="1" data-xmenu="2222" data-scroll="true" data-online="true">Cthulhu Wars Solo DEV</title>
         <style>
             html {
@@ -660,8 +661,14 @@
             };
         </script>
 
+        <img class="asset" id="earth33" src="images/earth33-dark.png" />
+        <img class="asset" id="earth33-place" src="images/earth33-place.png" />
         <img class="asset" id="earth35" src="images/earth35-dark.png" />
         <img class="asset" id="earth35-place" src="images/earth35-place.png" />
+        <img class="asset" id="earth53" src="images/earth53-dark.png" />
+        <img class="asset" id="earth53-place" src="images/earth53-place.png" />
+        <img class="asset" id="earth55" src="images/earth55-dark.png" />
+        <img class="asset" id="earth55-place" src="images/earth55-place.png" />
 
         <img class="asset" id="gate" src="images/gate.png" />
         <img class="asset" id="kill" src="images/kill.png" />
