@@ -374,7 +374,7 @@ object Overlays {
                     <div class=p>You may use the Create Gate Action to Create Cathedrals instead of Gates.</div>
                     <div class=p>${cost("Cost:")} 1 if built not adjacent to another Cathedral</div>
                     <div class=p>Spellbooks: ${reference(AN, WorshipServices)}, ${reference(AN, Consecration)}, ${reference(AN, UnholyGround)}</div>
-                    <div class=p>${cost("Special:")} If all 4 Cathedrals are in play, you may Awaken and Independent Great Old One without your own Great Old One (when Awakening Cthugha this way, just pay 6 Power).</div>"""
+                    <div class=p>${cost("Special:")} If all 4 Cathedrals are in play, you may Awaken an Independent Great Old One without your own Great Old One (when Awakening Cthugha this way, just pay 6 Power).</div>"""
                 )
             ))
 

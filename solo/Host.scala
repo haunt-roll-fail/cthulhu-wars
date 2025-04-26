@@ -47,19 +47,39 @@ object Host {
 
     def main(args:Array[String]) {
         val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN)
-        val allComb = allFactions.combinations(4).$
-        val sixComb = allFactions.but(OW).combinations(4).$
-        val factions = $(YS, OW, WW, SL)
-        val repeat = 1.to(20).map(_ => factions)
+
+        val numberOfPlayers = 4
+
+        var allComb: List[List[Faction]] = null
+        var customComb: List[List[Faction]] = null
+        var factions: List[Faction] = null
+        
+        if (numberOfPlayers == 3) {
+            allComb = allFactions.combinations(3).$
+            factions = $(YS, OW, WW)
+        }
+        else if (numberOfPlayers == 4) {
+            allComb = allFactions.combinations(4).$
+            customComb = allFactions.but(SL).combinations(4).$
+            factions = $(YS, OW, WW, SL)
+        }
+        else {
+            allComb = allFactions.combinations(5).$
+            factions = $(YS, OW, WW, SL, AN)
+        }
+
+        //val repeat = 1.to(20).map(_ => factions)
 
         def allSeatings(factions : $[Faction]) = factions.permutations.$.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
         def randomSeating(factions : $[Faction]) = allSeatings(factions).sortBy(s => random()).first
 
         var results : $[$[Faction]] = $
 
-        val base = repeat
-        // val base = allComb
+        //val base = repeat
+        val base = allComb
+        //val base = customComb
 
+        //1.to(2).foreach { i =>
         1.to(100).foreach { i =>
             results ++= base.par.map { ff =>
                 var log : $[String] = Nil
@@ -68,7 +88,19 @@ object Host {
                 }
 
                 try {
-                    val game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, $(Opener4P10Gates))
+                    var game: Game = null
+                    if (numberOfPlayers == 3) {
+                        game = new Game(EarthMap3, RitualTrack.for3, randomSeating(ff), true, Nil)
+                    }
+                    else if (numberOfPlayers == 4) {
+                        //game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, $(Opener4P10Gates))
+                        game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, Nil)
+                        //game = new Game(EarthMap4v53, RitualTrack.for4, randomSeating(ff), true, $(AltMap))
+                    }
+                    else {
+                        game = new Game(EarthMap5, RitualTrack.for5, randomSeating(ff), true, Nil)
+                    }
+
                     val (l, cc) = game.perform(StartAction)
                     var c = cc
                     l.foreach(writeLog)
@@ -82,7 +114,6 @@ object Host {
                         val (l, cc) = game.perform(a)
                         c = cc
                         l.foreach(writeLog)
-
 
                         k *= (c match {
                             case Ask(_, actions) if actions.num > 1 => min(3, actions.num)
@@ -112,7 +143,8 @@ object Host {
                 }
             }
 
-            val wins = results.groupBy(w => w).mapValues(_.size)
+            //val wins = results.groupBy(w => w).mapValues(_.size)
+            val wins = results.groupBy(w => w).view.mapValues(_.size).toMap
 
             println()
 
@@ -123,13 +155,17 @@ object Host {
             println()
 
             allFactions.map { f =>
-                val ww = wins.filterKeys(_.contains(f))
-                val solo = ww.filterKeys(_.size == 1).values.sum
-                val tie = ww.filterKeys(_.size > 1).values.sum
+                // val ww = wins.filterKeys(_.contains(f))
+                // val solo = ww.filterKeys(_.size == 1).values.sum
+                // val tie = ww.filterKeys(_.size > 1).values.sum
+                val ww = wins.view.filterKeys(_.contains(f))
+                val solo = ww.view.filterKeys(_.size == 1).values.sum
+                val tie = ww.view.filterKeys(_.size > 1).values.sum
                 (solo + tie) -> (f.name + ": " + solo + "+" + tie + " " + "%6.0f".format((solo + tie) * 100.0 / wins.values.sum) + "%")
             }.sortBy(_._1).map(_._2).reverse.foreach(println)
 
-            println("Humanity" + ": " + wins.filterKeys(_.size == 0).values.sum + " " + "%6.0f".format(wins.filterKeys(_.size == 0).values.sum * 100.0 / wins.values.sum) + "%")
+            //println("Humanity" + ": " + wins.filterKeys(_.size == 0).values.sum + " " + "%6.0f".format(wins.filterKeys(_.size == 0).values.sum * 100.0 / wins.values.sum) + "%")
+            println("Humanity" + ": " + wins.view.filterKeys(_.size == 0).values.sum + " " + "%6.0f".format(wins.view.filterKeys(_.size == 0).values.sum * 100.0 / wins.values.sum) + "%")
             println("Total: " + results.num)
             println()
         }
@@ -145,6 +181,5 @@ object Host {
         println("IMPORTANT")
         val important = Stats.important.asScala.toList.sortBy(r => min(r._2._1, r._2._2))
         important.foreach { case (k, (on, off)) => println(k + " : " + on + " / " + off) }
-
     }
 }

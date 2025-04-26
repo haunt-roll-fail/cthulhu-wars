@@ -87,7 +87,7 @@ object CthulhuWarsSolo {
     val original = dom.document.documentElement.outerHTML
 
     def main(args : Array[String]) {
-        if (dom.document.readyState == "complete")
+        if (dom.document.readyState == dom.DocumentReadyState.complete)
             setupUI()
         else
             dom.window.onload = (e) => setupUI()
@@ -188,7 +188,7 @@ object CthulhuWarsSolo {
         val cwsOptions = Option(getElem("cws-options"))
         val delay = cwsOptions./~(_.getAttribute("data-delay").?)./~(_.toIntOption).|(30)
         val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(5)
-        //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // temp for Test (change before deploying)
+        //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // Temp for test (comment out before deploying)
         val scroll = cwsOptions./~(_.getAttribute("data-scroll").?)./(_ == "true").|(false)
         val server = cwsOptions./~(_.getAttribute("data-server").?).|("###SERVER-URL###")
         //val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
@@ -349,7 +349,21 @@ object CthulhuWarsSolo {
                 s.as[html.Element].get.style.backgroundSize = "cover"
             }
 
-            var game = new Game(EarthMap4v35, 5 :: 6 :: 7 :: 7 :: 8 :: 8 :: 9 :: 10 :: 999, seating, true, setup.options)
+            var game: Game = null
+            if (seating.num == 3) {
+                game = new Game(EarthMap3, RitualTrack.for3, seating, true, setup.options)
+            }
+            else if (seating.num == 4) {
+                if (setup.options.has(AltMap)) {
+                    game = new Game(EarthMap4v53, RitualTrack.for4, seating, true, setup.options)
+                }
+                else {
+                    game = new Game(EarthMap4v35, RitualTrack.for4, seating, true, setup.options)
+                }
+            }
+            else {
+                game = new Game(EarthMap5, RitualTrack.for5, seating, true, setup.options)
+            }
 
             var actions : List[Action] = Nil
             var queue : List[UIAction] = Nil
@@ -475,7 +489,22 @@ object CthulhuWarsSolo {
             var map = mapBitmapSmall
 
             val findAnother = {
-                val mplace = getAsset("earth35-place")
+                var mplace: org.scalajs.dom.html.Image = null
+                if (seating.num == 3) {
+                    mplace = getAsset("earth33-place")
+                }
+                else if (seating.num == 4) {
+                    if (setup.options.has(AltMap)) {
+                        mplace = getAsset("earth53-place")
+                    }
+                    else {
+                        mplace = getAsset("earth35-place")
+                    }
+                }
+                else {
+                    mplace = getAsset("earth55-place")
+                }
+                
                 val placeb = new Bitmap(mplace.width, mplace.height)
                 placeb.context.drawImage(mplace, 0, 0)
                 val placed = placeb.context.getImageData(0, 0, placeb.width, placeb.height).data
@@ -601,30 +630,49 @@ object CthulhuWarsSolo {
                     oldGates = $
                 }
 
-                import EarthMap4v35._
-
-                val mp = getAsset("earth35")
-
-                def gateXYO(r : Region) = r match {
-                    case ArcticOcean => (933, 77)
-                    case Scandinavia => (1135, 165)
-                    case Europe => (1110, 255)
-                    case NorthAsia => (1595, 150)
-                    case SouthAsia => (1620, 360)
-                    case Arabia => (1455, 460)
-                    case EastAfrica => (1235, 665)
-                    case WestAfrica => (1115, 525)
-                    case NorthAtlantic => (690, 390)
-                    case SouthAtlantic => (855, 665)
-                    case Antarctica => (950, 820)
-                    case SouthPacific => (540, 830)
-                    case SouthAmerica => (590, 680)
-                    case NorthAmerica => (380, 290)
-                    case NorthPacific => (105, 355)
-                    case IndianOcean => (1568, 660)
-                    case Australia => (215, 707)
-                    case _ => throw new Error("Unknown region " + r)
+                if (seating.num == 3) {
+                    import EarthMap3._
                 }
+                else if (seating.num == 4) {
+                    if (setup.options.has(AltMap)) {
+                        import EarthMap4v53._
+                    }
+                    else {
+                        import EarthMap4v35._
+                    }
+                }
+                else {
+                    import EarthMap5._
+                }
+
+                var mp: org.scalajs.dom.html.Image = null
+                if (seating.num == 3) {
+                    mp = getAsset("earth33")
+                }
+                else if (seating.num == 4) {
+                    if (setup.options.has(AltMap)) {
+                        mp = getAsset("earth53")
+                    }
+                    else {
+                        mp = getAsset("earth35")
+                    }
+                }
+                else {
+                    mp = getAsset("earth55")
+                }
+
+                val gateXYO: Region => (Int, Int) =
+                    if (seating.num == 3)
+                        EarthMap3.gateXYO
+                    else if (seating.num == 4)
+                        if (setup.options.has(AltMap)) {
+                            EarthMap4v53.gateXYO
+                        }
+                        else {
+                            EarthMap4v35.gateXYO
+                        }
+                    else
+                        EarthMap5.gateXYO
 
                 def gateXY(r : Region) =
                     if (horizontal)
@@ -944,8 +992,25 @@ object CthulhuWarsSolo {
                     factionStatus(game.factions(n), statusBitmaps(n))
                 }
 
-                mapWest.innerHTML = (EarthMap4v35.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                mapEast.innerHTML = EarthMap4v35.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                if (seating.num == 3) {
+                    mapWest.innerHTML = (EarthMap3.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                    mapEast.innerHTML = EarthMap3.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                }
+                else if (seating.num == 4) {
+                    if (setup.options.has(AltMap)) {
+                        mapWest.innerHTML = (EarthMap4v53.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                        mapEast.innerHTML = EarthMap4v53.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                    }
+                    else {
+                        mapWest.innerHTML = (EarthMap4v35.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                        mapEast.innerHTML = EarthMap4v35.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                    }
+                }
+                else {
+                    mapWest.innerHTML = (EarthMap5.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                    mapEast.innerHTML = EarthMap5.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                }
+
                 drawMap()
             }
 
@@ -998,7 +1063,7 @@ object CthulhuWarsSolo {
                                     import scala.scalajs.js.typedarray._
                                     import scala.scalajs.js.JSConverters._
 
-                                    new dom.Blob(js.Array(result.getBytes().toTypedArray), dom.BlobPropertyBag("text/html"))
+                                    new dom.Blob(js.Array(result.getBytes().toTypedArray), new dom.BlobPropertyBag { `type` = "text/html" })
                                 }
 
                                 val link = dom.document.createElement("a").asInstanceOf[html.Anchor]
@@ -1244,6 +1309,11 @@ object CthulhuWarsSolo {
                     List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
 
+                    (if (factions.num == 4)
+                        List("Variants" -> ("4P Map Configuration (" + setup.get(AltMap).?("5+3").|("3+5").hl + ")"))
+                    else
+                        Nil) ++
+
                     List("Done" -> "Start game".styled("power")),
                     nn => {
                         var n = nn
@@ -1276,6 +1346,13 @@ object CthulhuWarsSolo {
                             setup.toggle(DemandTsathoggua)
                             setupQuestions()
                         }
+                        if (factions.num == 4) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(AltMap)
+                                setupQuestions()
+                            }
+                        }
                         n -= 1
                         if (n == 0)
                             startOnlineGame(setup)
@@ -1302,6 +1379,12 @@ object CthulhuWarsSolo {
                     List("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+
+                    (if (factions.num == 4)
+                        List("Variants" -> ("4P Map Configuration (" + setup.get(AltMap).?("5+3").|("3+5").hl + ")"))
+                    else
+                        Nil) ++
+
                     List("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
                     List("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++
                     List("Options" -> ("Forced moves (" + setup.confirm.?("confirm").|("perform").hl + ")")) ++
@@ -1337,6 +1420,13 @@ object CthulhuWarsSolo {
                             setup.toggle(DemandTsathoggua)
                             setupQuestions()
                         }
+                        if (factions.num == 4) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(AltMap)
+                                setupQuestions()
+                            }
+                        }
                         n -= 1
                         if (n == 0) {
                             setup.dice = !setup.dice
@@ -1363,7 +1453,12 @@ object CthulhuWarsSolo {
             askTop()
         }
 
-        val board = EarthMap4v35
+        // I don't think we need to define board here. It is not used until later.
+        //val board = EarthMap4v35
+        //val board = EarthMap4v53
+        //val board = EarthMap3
+        //val board = EarthMap5
+
         val allFactions = List(GC, CC, BG, YS, SL, WW, OW, AN)
 
         val replay = getElem("replay").innerHTML
@@ -1518,13 +1613,10 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        //val setup = new Setup(randomSeating(List(GC, CC, BG, AN)), Normal)
-                        //val setup = new Setup(randomSeating(List(SL, WW, OW, AN)), Normal)
-                        val setup = new Setup(randomSeating(List(OW, CC, BG, AN)), Normal)
-                        setup.difficulty += OW -> Debug
-                        // setup.difficulty += CC -> Human
-                        // setup.difficulty += GC -> Human
-                        // setup.difficulty += BG -> Debug
+                        val setup = new Setup(randomSeating(List(GC, BG, CC, AN)), Normal)
+                        setup.difficulty += AN -> Debug
+                        //setup.difficulty += CC -> Human
+                        //setup.toggle(AltMap)
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)
