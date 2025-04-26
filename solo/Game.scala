@@ -1427,10 +1427,20 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
                 options :+= BuildGateMainAction(self, _)
             }
 
-            if (player.faction == AN && cathedrals.num < 4)
-                board.regions.%(nx).%!(cathedrals.contains).%(afford(r => getCathedralCost(r))).%(r => hasCultistOrRSDY(self, r)).some.foreach {
-                    options :+= BuildCathedralMainAction(self, _)
+            if (player.faction == AN && cathedrals.num < 4) {
+                 val existingGlyphs = cathedrals.map(_.glyph).toSet
+ 
+                 val validRegions = board.regions.filter { r =>
+                     !cathedrals.contains(r) &&
+                     afford(getCathedralCost(r))(r) &&
+                     hasCultistOrRSDY(self, r) &&
+                     !existingGlyphs.contains(r.glyph)
                 }
+                
+                if (validRegions.nonEmpty) {
+                     options :+= BuildCathedralMainAction(self, validRegions.toList)
+                }
+            }
 
             if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).none && player.gates.%(nx).%(_.glyph.onMap).any)
                 options :+= CursedSlumberSaveMainAction(self)
