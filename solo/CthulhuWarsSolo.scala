@@ -40,9 +40,13 @@ case object Easy extends Difficulty { def html = "Easy".styled("miss") }
 case object Normal extends Difficulty { def html = "Normal".styled("pain") }
 case object AllVsHuman extends Difficulty { def html = "AllVsHuman".styled("pain") }
 
-class Setup(factions : List[Faction], diff : Difficulty) {
-    var seating : List[Faction] = factions
-    var options : List[GameOption] = Nil
+class Setup(factions : $[Faction], diff : Difficulty) {
+    var seating : $[Faction] = factions
+    var options : $[GameOption] = $(factions.num match {
+        case 3 => MapEarth33
+        case 4 => MapEarth35
+        case 5 => MapEarth55
+    })
 
     def toggle(go : GameOption) {
         options = if (options.contains(go))
@@ -162,11 +166,8 @@ object CthulhuWarsSolo {
     def clipboard(text : String) : Boolean = {
         println(text)
 
-        val cb = getElem("cb").asInstanceOf[html.TextArea]
-        println(cb)
-        println(cb.value)
+        val cb = getElem("clipboard").asInstanceOf[html.TextArea]
         cb.value = text
-        println(cb.value)
         cb.focus()
         cb.select()
         try {
@@ -349,21 +350,20 @@ object CthulhuWarsSolo {
                 s.as[html.Element].get.style.backgroundSize = "cover"
             }
 
-            var game: Game = null
-            if (seating.num == 3) {
-                game = new Game(EarthMap3, RitualTrack.for3, seating, true, setup.options)
+            val board = setup.options.of[MapOption].starting match {
+                case Some(MapEarth33) => EarthMap3
+                case Some(MapEarth35) | None => EarthMap4v35
+                case Some(MapEarth53) => EarthMap4v53
+                case Some(MapEarth55) => EarthMap5
             }
-            else if (seating.num == 4) {
-                if (setup.options.has(AltMap)) {
-                    game = new Game(EarthMap4v53, RitualTrack.for4, seating, true, setup.options)
-                }
-                else {
-                    game = new Game(EarthMap4v35, RitualTrack.for4, seating, true, setup.options)
-                }
+
+            val track = seating.num @@ {
+                case 3 => RitualTrack.for3
+                case 4 => RitualTrack.for4
+                case 5 => RitualTrack.for5
             }
-            else {
-                game = new Game(EarthMap5, RitualTrack.for5, seating, true, setup.options)
-            }
+
+            var game = new Game(board, track, seating, true, setup.options)
 
             var actions : List[Action] = Nil
             var queue : List[UIAction] = Nil
@@ -489,22 +489,8 @@ object CthulhuWarsSolo {
             var map = mapBitmapSmall
 
             val findAnother = {
-                var mplace: org.scalajs.dom.html.Image = null
-                if (seating.num == 3) {
-                    mplace = getAsset("earth33-place")
-                }
-                else if (seating.num == 4) {
-                    if (setup.options.has(AltMap)) {
-                        mplace = getAsset("earth53-place")
-                    }
-                    else {
-                        mplace = getAsset("earth35-place")
-                    }
-                }
-                else {
-                    mplace = getAsset("earth55-place")
-                }
-                
+                var mplace = getAsset(board.id + "-place")
+
                 val placeb = new Bitmap(mplace.width, mplace.height)
                 placeb.context.drawImage(mplace, 0, 0)
                 val placed = placeb.context.getImageData(0, 0, placeb.width, placeb.height).data
@@ -630,49 +616,9 @@ object CthulhuWarsSolo {
                     oldGates = $
                 }
 
-                if (seating.num == 3) {
-                    import EarthMap3._
-                }
-                else if (seating.num == 4) {
-                    if (setup.options.has(AltMap)) {
-                        import EarthMap4v53._
-                    }
-                    else {
-                        import EarthMap4v35._
-                    }
-                }
-                else {
-                    import EarthMap5._
-                }
+                var mp = getAsset(board.id)
 
-                var mp: org.scalajs.dom.html.Image = null
-                if (seating.num == 3) {
-                    mp = getAsset("earth33")
-                }
-                else if (seating.num == 4) {
-                    if (setup.options.has(AltMap)) {
-                        mp = getAsset("earth53")
-                    }
-                    else {
-                        mp = getAsset("earth35")
-                    }
-                }
-                else {
-                    mp = getAsset("earth55")
-                }
-
-                val gateXYO: Region => (Int, Int) =
-                    if (seating.num == 3)
-                        EarthMap3.gateXYO
-                    else if (seating.num == 4)
-                        if (setup.options.has(AltMap)) {
-                            EarthMap4v53.gateXYO
-                        }
-                        else {
-                            EarthMap4v35.gateXYO
-                        }
-                    else
-                        EarthMap5.gateXYO
+                val gateXYO : Region => (Int, Int) = board.gateXYO
 
                 def gateXY(r : Region) =
                     if (horizontal)
@@ -992,24 +938,8 @@ object CthulhuWarsSolo {
                     factionStatus(game.factions(n), statusBitmaps(n))
                 }
 
-                if (seating.num == 3) {
-                    mapWest.innerHTML = (EarthMap3.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                    mapEast.innerHTML = EarthMap3.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                }
-                else if (seating.num == 4) {
-                    if (setup.options.has(AltMap)) {
-                        mapWest.innerHTML = (EarthMap4v53.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                        mapEast.innerHTML = EarthMap4v53.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                    }
-                    else {
-                        mapWest.innerHTML = (EarthMap4v35.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                        mapEast.innerHTML = EarthMap4v35.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                    }
-                }
-                else {
-                    mapWest.innerHTML = (EarthMap5.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                    mapEast.innerHTML = EarthMap5.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                }
+                mapWest.innerHTML = (board.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                mapEast.innerHTML = board.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
 
                 drawMap()
             }
@@ -1304,17 +1234,15 @@ object CthulhuWarsSolo {
                 askM(
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
-                    List("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
-
-                    (if (factions.num == 4)
-                        List("Variants" -> ("4P Map Configuration (" + setup.get(AltMap).?("5+3").|("3+5").hl + ")"))
-                    else
-                        Nil) ++
-
-                    List("Done" -> "Start game".styled("power")),
+                    $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
+                    (factions.has(SL) && factions.has(WW))
+                        .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                    (factions.has(OW) && factions.num == 4)
+                        .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                    (factions.has(SL))
+                        .$("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                    $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
+                    $("Done" -> "Start game".styled("power")),
                     nn => {
                         var n = nn
                         if (n >= 0 && n < factions.num) {
@@ -1331,27 +1259,32 @@ object CthulhuWarsSolo {
                             setup.toggle(NeutralSpellbooks)
                             setupQuestions()
                         }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(IceAgeAffectsLethargy)
-                            setupQuestions()
-                        }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(Opener4P10Gates)
-                            setupQuestions()
-                        }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(DemandTsathoggua)
-                            setupQuestions()
-                        }
-                        if (factions.num == 4) {
+                        if (factions.has(SL) && factions.has(WW)) {
                             n -= 1
                             if (n == 0) {
-                                setup.toggle(AltMap)
+                                setup.toggle(IceAgeAffectsLethargy)
                                 setupQuestions()
                             }
+                        }
+                        if (factions.has(OW) && factions.num == 4) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(Opener4P10Gates)
+                                setupQuestions()
+                            }
+                        }
+                        if (factions.has(SL)) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(DemandTsathoggua)
+                                setupQuestions()
+                            }
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            val all = $(MapEarth33, MapEarth35, MapEarth53, MapEarth55)
+                            setup.options = setup.options.notOf[MapOption] :+ (all.dropWhile(setup.options.of[MapOption].lastOption.has(_).not).drop(1) ++ all).first
+                            setupQuestions()
                         }
                         n -= 1
                         if (n == 0)
@@ -1375,20 +1308,18 @@ object CthulhuWarsSolo {
                 askM(
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
-                    List("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
-                    List("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
-
-                    (if (factions.num == 4)
-                        List("Variants" -> ("4P Map Configuration (" + setup.get(AltMap).?("5+3").|("3+5").hl + ")"))
-                    else
-                        Nil) ++
-
-                    List("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
-                    List("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++
-                    List("Options" -> ("Forced moves (" + setup.confirm.?("confirm").|("perform").hl + ")")) ++
-                    List("Done" -> "Start game".styled("power")),
+                    $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
+                    (factions.has(SL) && factions.has(WW))
+                        .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                    (factions.has(OW) && factions.num == 4)
+                        .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                    (factions.has(SL))
+                        .$("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                    $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
+                    $("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
+                    $("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++
+                    $("Options" -> ("Forced moves (" + setup.confirm.?("confirm").|("perform").hl + ")")) ++
+                    $("Done" -> "Start game".styled("power")),
                     nn => {
                         var n = nn
                         if (n >= 0 && n < factions.num) {
@@ -1405,27 +1336,32 @@ object CthulhuWarsSolo {
                             setup.toggle(NeutralSpellbooks)
                             setupQuestions()
                         }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(IceAgeAffectsLethargy)
-                            setupQuestions()
-                        }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(Opener4P10Gates)
-                            setupQuestions()
-                        }
-                        n -= 1
-                        if (n == 0) {
-                            setup.toggle(DemandTsathoggua)
-                            setupQuestions()
-                        }
-                        if (factions.num == 4) {
+                        if (factions.has(SL) && factions.has(WW)) {
                             n -= 1
                             if (n == 0) {
-                                setup.toggle(AltMap)
+                                setup.toggle(IceAgeAffectsLethargy)
                                 setupQuestions()
                             }
+                        }
+                        if (factions.has(OW) && factions.num == 4) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(Opener4P10Gates)
+                                setupQuestions()
+                            }
+                        }
+                        if (factions.has(SL)) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(DemandTsathoggua)
+                                setupQuestions()
+                            }
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            val all = $(MapEarth33, MapEarth35, MapEarth53, MapEarth55)
+                            setup.options = setup.options.notOf[MapOption] :+ (all.dropWhile(setup.options.of[MapOption].lastOption.has(_).not).drop(1) ++ all).first
+                            setupQuestions()
                         }
                         n -= 1
                         if (n == 0) {
@@ -1452,12 +1388,6 @@ object CthulhuWarsSolo {
             setupQuestions()
             askTop()
         }
-
-        // I don't think we need to define board here. It is not used until later.
-        //val board = EarthMap4v35
-        //val board = EarthMap4v53
-        //val board = EarthMap3
-        //val board = EarthMap5
 
         val allFactions = List(GC, CC, BG, YS, SL, WW, OW, AN)
 
@@ -1613,10 +1543,12 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        val setup = new Setup(randomSeating(List(GC, BG, CC, AN)), Normal)
-                        setup.difficulty += AN -> Debug
-                        //setup.difficulty += CC -> Human
-                        //setup.toggle(AltMap)
+                        val setup = new Setup(randomSeating($(GC, OW, CC)), Normal)
+                        setup.difficulty += OW -> Human
+                        setup.difficulty += CC -> Debug
+                        setup.difficulty += GC -> Human
+                        // setup.difficulty += CC -> Human
+                        // setup.options = $(MapEarth53)
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)

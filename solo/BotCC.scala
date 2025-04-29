@@ -387,6 +387,14 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         emissary && r.enemyGate && r.owner == f && r.owner.has(Passion) && ec > 1 |=> 900 -> "better skirmish ys than capture"
 
                     case SL =>
+                        var ec = foes(Acolyte).num
+                        var wz = foes(Wizard).num
+                        var sm = foes(SerpentMan).num
+                        var fs = foes(FormlessSpawn).num
+                        var tsa = foes.has(Tsathoggua)
+
+                        nya && !tsa && ownStr >= 6 && (fs * 3 + sm * 2 + wz) > 1 |=> 100 -> "ok sl attack"
+
                         0 -> "todo"
 
                     case WW =>
@@ -405,6 +413,14 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         0 -> "todo"
 
                     case OW =>
+                        var ac = foes(Acolyte).num
+                        var mu = foes(Mutant).num
+                        var ab = foes(Abomination).num
+                        val sp = foes(SpawnOW).num
+                        val ygs = allies.has(YogSothoth)
+
+                        nya && !ygs && ownStr >= (mu + ab + sp) * 5 |=> 100 -> "ok ow attack"
+
                         0 -> "todo"
 
                     case AN =>

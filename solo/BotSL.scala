@@ -264,6 +264,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 def emissary = have(Emissary) && nya && foes.goos.none
 
+                f.has(Invisibility) &&            foes(FlyingPolyp).num >= foes.num    |=> -10000000 -> "polyp can invis all"
+                f.has(Invisibility) && tsa.not && foes(FlyingPolyp).num >= allies.num  |=> -10000000 -> "polyp can invis all"
+
                 r.ownGate && allies.num + ihh < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
                 f match {
@@ -626,14 +629,15 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 val uc = f.at(r).actualMonsters.minBy(_.uclass.cost)
 
                 uc.uclass.cost == 1 |=> 600 -> "capture monster 1"
-                uc.uclass.cost == 2 |=> 900 -> "capture monster 2"
+                // uc.uclass.cost == 2 |=> 900 -> "capture monster 2"
+                uc.uclass.cost == 2 |=> 1100 -> "capture monster 2"
                 uc.uclass.cost == 3 |=> 1700 -> "capture monster 3"
 
                 uc.faction.active |=> 100 -> "active"
 
             case AncientSorceryUnitAction(_, Immortal, r, _) =>
                 !have(Tsathoggua) && need(AwakenTsathoggua) && have(FormlessSpawn) && power > 8 |=> 800 -> "get es"
-                !have(Tsathoggua) && !need(AwakenTsathoggua) && have(FormlessSpawn) && power > 4 |=> 1200 -> "resummon cheap"
+                !have(Tsathoggua) && !need(AwakenTsathoggua) && have(FormlessSpawn) && power > 4 |=> 2400 -> "resummon cheap"
                 true |=> 100 -> "move power"
                 r.ownGate && r.allies.goos.none && r.allies.monsters.num == 1 && others.%(_.power > 0).%(_.at(r).goos.none).%(_.at(r).monsters.any).any |=> -2000 -> "dont abandon gate"
                 r.ownGate && r.allies.goos.none && r.allies.monsters.num == 1 && others.%(_.power > 1).any |=> -1000 -> "dont open gate"

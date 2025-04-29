@@ -53,7 +53,7 @@ object Host {
         var allComb: List[List[Faction]] = null
         var customComb: List[List[Faction]] = null
         var factions: List[Faction] = null
-        
+
         if (numberOfPlayers == 3) {
             allComb = allFactions.combinations(3).$
             factions = $(YS, OW, WW)
