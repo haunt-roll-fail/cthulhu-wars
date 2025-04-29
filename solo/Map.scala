@@ -3,6 +3,7 @@ package cws
 import hrf.colmat._
 
 object EarthMap3 extends Board {
+    val id = "earth33"
     val name = "Earth Map (3 players)"
 
     val ArcticOcean = Region("Arctic Ocean", Ocean)
@@ -85,6 +86,7 @@ object EarthMap3 extends Board {
 }
 
 object EarthMap4v35 extends Board {
+    val id = "earth35"
     val name = "Earth Map (4 players 3/5 variant)"
 
     val ArcticOcean = Region("Arctic Ocean", Ocean)
@@ -179,6 +181,7 @@ object EarthMap4v35 extends Board {
 }
 
 object EarthMap4v53 extends Board {
+    val id = "earth53"
     val name = "Earth Map (4 players 5/3 variant)"
 
     val ArcticOcean = Region("Arctic Ocean", Ocean)
@@ -273,6 +276,7 @@ object EarthMap4v53 extends Board {
 }
 
 object EarthMap5 extends Board {
+    val id = "earth55"
     val name = "Earth Map (5 players)"
 
     val ArcticOcean = Region("Arctic Ocean", Ocean)
@@ -379,6 +383,7 @@ object EarthMap5 extends Board {
 }
 
 object EarthMap6 extends Board {
+    val id = "earth66"
     val name = "Earth Map (6 players)"
 
     val BeringSea = Region("Bering Sea", Ocean)

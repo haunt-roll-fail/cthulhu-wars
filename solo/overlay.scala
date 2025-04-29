@@ -227,7 +227,7 @@ object Overlays {
                 (Undead,    6, "1", "1-", s"""
                     <div class=p>${combat} Roll 1 die less than the total Undead in the area.</div>
                     <div class=p>Spellbook: ${reference(YS, Zingaya)}</div>"""),
-                (Byakhee,   4, "1", "1+", s"""
+                (Byakhee,   4, "2", "1+", s"""
                     <div class=p>${combat} Roll 1 die more than the total Byakhee in the area.</div>
                     <div class=p>Spellbook: ${reference(YS, Shriek)}</div>"""),
                 (KingInYellow, 1, "4", "0", s"""

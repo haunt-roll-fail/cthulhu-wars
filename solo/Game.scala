@@ -29,11 +29,16 @@ case class Region(name : String, glyph : Glyph) {
 }
 
 trait Board {
+    def id : String
     def name : String
-    def regions : List[Region]
-    def connected(region : Region) : List[Region]
-    def starting(faction : Faction) : List[Region]
+    def regions : $[Region]
+    def connected(region : Region) : $[Region]
+    def starting(faction : Faction) : $[Region]
     def distance(a : Region, b : Region) : Int
+    def gateXYO(r: Region) : (Int, Int)
+    val nonFactionRegions : $[Region]
+    val west : $[Region]
+    val east : $[Region]
 }
 
 case class ElderSign(value : Int) {
@@ -222,7 +227,7 @@ trait ExtraQuestion extends FactionAction {
     def question = (g : Game) => "<hr/>"
 }
 
-case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Recieve spellbook").|("Recieve " + g.of(self).unclaimedSB + " spellbooks"), {
+case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Receive spellbook").|("Receive " + g.of(self).unclaimedSB + " spellbooks"), {
     val p = s""""${self.short}", "${sb.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;") // "
     "<div class=sbdiv>" +
         sb.full +
@@ -565,7 +570,12 @@ case object NeutralSpellbooks extends GameOption
 case object IceAgeAffectsLethargy extends GameOption
 case object Opener4P10Gates extends GameOption
 case object DemandTsathoggua extends GameOption
-case object AltMap extends GameOption
+
+trait MapOption extends GameOption
+case object MapEarth33 extends MapOption
+case object MapEarth35 extends MapOption
+case object MapEarth53 extends MapOption
+case object MapEarth55 extends MapOption
 
 case class PlayerCount(n : Int) extends GameOption
 
