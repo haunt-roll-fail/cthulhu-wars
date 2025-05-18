@@ -1414,6 +1414,8 @@ object CthulhuWarsSolo {
                     case None =>
                 }
 
+                dom.window.history.pushState("initilaize", "", "/play/" + hash)
+
                 if (role != "$") {
                     get(server + "read/" + hash + "/0") { read =>
                         val logs = read.split("\n").toList

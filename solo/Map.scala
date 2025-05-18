@@ -215,7 +215,7 @@ object EarthMap4v53 extends Board {
         case IndianOcean => List(Antarctica, SouthAtlantic, Africa, Asia, NorthPacific, SouthPacific, Australia, NewZealand)
         case SouthPacific => List(Antarctica, SouthAtlantic, SouthAmericaWest, NorthPacific, IndianOcean, NewZealand)
         case Europe => List(ArcticOcean, NorthAtlantic, Asia)
-        case Asia => List(ArcticOcean, NorthAtlantic, NorthPacific, Europe, Africa)
+        case Asia => List(ArcticOcean, NorthAtlantic, NorthPacific, IndianOcean, Europe, Africa)
         case Africa => List(NorthAtlantic, Asia, SouthAtlantic, IndianOcean)
         case NorthAmericaWest => List(ArcticOcean, NorthAtlantic, NorthPacific, NorthAmericaEast, CentralAmerica)
         case NorthAmericaEast => List(ArcticOcean, NorthAtlantic, NorthAmericaWest)
