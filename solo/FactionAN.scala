@@ -50,8 +50,18 @@ case object AN extends Faction {
         case _ => u.cost
     }
 
-    override def strength(g : Game, units : List[UnitFigure], opponent : Faction) =
+    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
+
+    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
         units.count(_.uclass == Reanimated) * 2 +
         units.count(_.uclass == Yothan) * 7
+
+    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+        strengthFn(g, units, opponent)
+
+    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
+        val current = strengthFn
+        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
+    }
 
 }

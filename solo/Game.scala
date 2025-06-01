@@ -45,6 +45,25 @@ case class ElderSign(value : Int) {
     def short = "[" + value.styled("es") + "]"
 }
 
+abstract class LoyaltyCard(n : String, dc : Int, pc : Int, q : Int, c : Int, cb : Int) {
+    def short = n.styled("nt")
+    def name = n
+    def doomCost = dc
+    def powerCost = pc
+    def quantity = q
+    def cost = c
+    def combat = cb
+}
+
+object LoyaltyCardConfig {
+  val loyaltyCardConditions = List(
+    (UseGhast, GhastCard),
+    (UseGug, GugCard),
+    (UseShantak, ShantakCard),
+    (UseStarVampire, StarVampireCard)
+  )
+}
+
 sealed trait UnitType {
     def name = toString
     def plural = name + "s"
@@ -142,6 +161,7 @@ trait Faction {
     def awakenCost(g : Game, u : UnitClass, r : Region) = u.cost
     def awakenDesc(g : Game, u : UnitClass) : Option[String] = None
     def strength(g : Game, units : List[UnitFigure], oppenent : Faction) = 0
+    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int)
 }
 
 @EnableReflectiveInstantiation
@@ -258,6 +278,19 @@ case class RevealESDoomAction(self : Faction) extends OptionFactionAction("View 
 case class RevealESMainAction(self : Faction) extends OptionFactionAction("View " + "Elder Signs".styled("es")) with MainQuestion with Soft with PowerNeutral
 case class RevealESAction(self : Faction, es : List[ElderSign], power : Boolean, next : Action) extends BaseFactionAction(g => "Elder Signs".styled("es") + " " + g.of(self).es./(_.short).mkString(" "), (es.num == 1).?("Reveal " + es(0).short).|("Reveal all for " + es./(_.value).sum.doom))
 
+case class LoyaltyCardDoomAction(self : Faction) extends OptionFactionAction("Obtain " + "Loyalty Card".styled("nt")) with DoomQuestion with Soft with PowerNeutral
+case class LoyaltyCardAction(self: Faction, lcs: List[LoyaltyCard], next: Action) extends BaseFactionAction(g => "Obtain " + "Loyalty Card".styled("nt"), {
+    lcs.map { lc =>
+        val p = s""""${lc.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;")
+        "<div class=sbdiv>" +
+        lc.short +
+        s"""<img class=explain src="info/question-mark.png" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
+        "</div>"
+    }.mkString("\n")
+}) with PowerNeutral
+case class AddNeutralUnits(self: Faction, lc: LoyaltyCard, next: Action) extends ForcedAction
+case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region, next: Action) extends BaseFactionAction(g => "Place " + self.styled(uc) + " in", g => r + g.ia(r, self))
+
 case class PassAction(self : Faction) extends OptionFactionAction("Pass and lose remaining power") with MainQuestion
 
 case class MoveMainAction(self : Faction) extends OptionFactionAction("Move") with MainQuestion with Soft
@@ -281,6 +314,7 @@ case class RecruitAction(self : Faction, uc : UnitClass, r : Region) extends Bas
 
 case class SummonMainAction(self : Faction, uc : UnitClass, l : List[Region]) extends OptionFactionAction("Summon " + self.styled(uc)) with MainQuestion with Soft
 case class SummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "Summon " + self.styled(uc) + g.forNPowerWithTax(r, self, self.summonCost(g, uc, r)) + " in", g => r + g.ia(r, self))
+case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, next: Action) extends BaseFactionAction(g => "Summon " + self.styled(uc) + " for free in", g => r + g.ia(r, self))
 
 case class AwakenMainAction(self : Faction, uc : UnitClass, l : List[Region]) extends OptionFactionAction("Awaken " + self.styled(uc)) with MainQuestion with Soft
 case class AwakenAction(self : Faction, uc : UnitClass, r : Region, cost : Int = -1) extends BaseFactionAction(g => "Awaken " + self.styled(uc) + g.forNPowerWithTax(r, self, cost) + " in", g => r + g.ia(r, self))
@@ -370,6 +404,7 @@ case class ZingayaAction(self : Faction, r : Region, f : Faction) extends BaseFa
 
 // SL
 case class DeathFromBelowDoomAction(self : Faction) extends OptionFactionAction(DeathFromBelow) with DoomQuestion with Soft with PowerNeutral
+case class DeathFromBelowSelectMonsterAction(self : Faction, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc))
 case class DeathFromBelowAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc) + " in " + r)
 
 case class LethargyMainAction(self : Faction) extends OptionFactionAction(Lethargy) with MainQuestion with PowerNeutral
@@ -437,10 +472,12 @@ case class DragonAscendingNotThisTurnAction(self : Faction, then : Action) exten
 // AN
 case class GiveWorstMonsterMainAction(self : Faction) extends OptionFactionAction("Give enemies lowest cost monster") with MainQuestion
 case class GiveWorstMonsterContinueAction(self : Faction, forum : List[Faction]) extends ForcedAction
+case class GiveWorstMonsterSelectMonsterAction(self : Faction, f : Faction, uc : UnitClass, forum : List[Faction]) extends BaseFactionAction("Summon monster for free", self.styled(uc))
 case class GiveWorstMonsterAskAction(self : Faction, f : Faction, uc : UnitClass, r : Region, forum : List[Faction]) extends BaseFactionAction("Summon a " + uc + " for free at", r)
 
 case class GiveBestMonsterMainAction(self : Faction) extends OptionFactionAction("Give enemies highest cost monster") with MainQuestion
 case class GiveBestMonsterContinueAction(self : Faction, forum : List[Faction]) extends ForcedAction
+case class GiveBestMonsterSelectMonsterAction(self : Faction, f : Faction, uc : UnitClass, forum : List[Faction]) extends BaseFactionAction("Summon monster for free", self.styled(uc))
 case class GiveBestMonsterAskAction(self : Faction, f : Faction, uc : UnitClass, r : Region, forum : List[Faction]) extends BaseFactionAction("Summon a " + uc + " for free at", r)
 
 case class BuildCathedralMainAction(self : Faction, l : List[Region]) extends OptionFactionAction("Build " + AN.styled("Cathedral")) with MainQuestion with Soft
@@ -454,7 +491,11 @@ case class DematerializationToRegionAction(self : Faction, o : Region, r : Regio
 case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to " + r, self.styled(uc))
 case class DematerializationDoneAction(self: Faction) extends BaseFactionAction(None, "Done")
 
-// Neutral
+// Neutral Monsters
+case class ShantakCarryCultistAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction("Carry Cultist to " + r, self.styled(uc) + " from " + o)
+case class ShantakCarryCultistCancelAction(self : Faction) extends BaseFactionAction(None, "Done")
+
+// Neutral Spellbooks
 case class MaoCeremonyAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(MaoCeremony, self.styled(uc) + " in " + r)
 case class MaoCeremonyDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
@@ -516,6 +557,8 @@ class Player(val faction : Faction)(options : $[GameOption]) {
     var doom : Int = 0
     var es : List[ElderSign] = Nil
     var revealed : List[ElderSign] = Nil
+    var loyaltyCards : List[LoyaltyCard] = Nil
+    var obtainedLoyaltyCard : Boolean = false
     var units : List[UnitFigure] = Nil
     var hibernating : Boolean = false
     var iceage : Option[Region] = None
@@ -567,6 +610,7 @@ object NoIceAges extends IceAges($)
 @EnableReflectiveInstantiation
 sealed trait GameOption
 case object NeutralSpellbooks extends GameOption
+case object NeutralMonsters extends GameOption
 case object IceAgeAffectsLethargy extends GameOption
 case object Opener4P10Gates extends GameOption
 case object DemandTsathoggua extends GameOption
@@ -576,6 +620,11 @@ case object MapEarth33 extends MapOption
 case object MapEarth35 extends MapOption
 case object MapEarth53 extends MapOption
 case object MapEarth55 extends MapOption
+
+case object UseGhast extends GameOption
+case object UseGug extends GameOption
+case object UseShantak extends GameOption
+case object UseStarVampire extends GameOption
 
 case class PlayerCount(n : Int) extends GameOption
 
@@ -601,6 +650,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
     var nexusExtra : Option[Faction] = None
     var anyia : Boolean = false
     var neutralSpellbooks : List[Spellbook] = options.contains(NeutralSpellbooks).??(List(MaoCeremony, Recriminations, Shriveling, StarsAreRight, UmrAtTawil, Undimensioned))
+    var loyaltyCards: List[LoyaltyCard] = LoyaltyCardConfig.loyaltyCardConditions.collect {
+        case (opt, card) if options.contains(opt) => card
+    }
     var demCaseMap: Map[Region, Int] = board.regions.map(r => r -> 0).toMap // Solution for keeping track of use cases for dematerialization, for the AN bot.
 
     def ia(r : Region, f : Faction) : IceAges = (!anyia).?(NoIceAges).|(of(f).at(r).%(u => u.has(Moved)).any.?(NoIceAges).|(IceAges(factions.%(of(_).iceage./(_ == r).|(false)).but(f))))
@@ -644,6 +696,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         g.nexusExtra = nexusExtra
         g.anyia = anyia
         g.neutralSpellbooks = neutralSpellbooks
+        g.loyaltyCards = loyaltyCards
 
         factions.foreach { f =>
             val p = g.of(f)
@@ -667,6 +720,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             p.hibernating = o.hibernating
             p.iceage = o.iceage
             p.ugate = o.ugate
+            p.loyaltyCards = o.loyaltyCards
+            p.obtainedLoyaltyCard = o.obtainedLoyaltyCard
         }
 
         g
@@ -800,8 +855,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         if (of(faction).at(r, Terror).any)
             true
         else {
+            val monstersThatAreAbleToCapture = of(faction).at(r, Monster).filterNot(_.uclass == Gug)
             val isBrainlessOnly = of(faction).at(r, Monster).forall(u => isIsolatedBrainless(of(faction), u))
-            !isBrainlessOnly
+            monstersThatAreAbleToCapture.nonEmpty && !isBrainlessOnly
         }
 
     def canAttack(faction: Faction, victim: Faction, r: Region): Boolean = {
@@ -812,6 +868,16 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
     def canAccessGate(f : Faction, r : Region) = of(f).gates.contains(r) || of(f).ugate./(_.region == r).|(false) || (of(f).has(TheyBreakThrough) && gates.contains(r))
 
+    def getControlledGatesRegions(f: Faction): List[Region] = {
+        val gates = if (of(f).gates.%(nx).%(_.glyph.onMap).nonEmpty) of(f).gates.%(nx).%(_.glyph.onMap) else List()
+
+        val yogRegion = if (f == OW && of(f).has(YogSothoth))
+        List(of(f).goo(YogSothoth).region)
+        else List()
+
+        (gates ++ yogRegion).distinct
+    }
+
     def getSummonRegions(f: Faction): List[Region] = {
         val gates = if (of(f).gates.%(nx).%(_.glyph.onMap).nonEmpty) of(f).gates.%(nx).%(_.glyph.onMap) else List()
 
@@ -820,9 +886,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         else List()
 
         val breakThroughRegions = if (f == OW && of(f).has(TheyBreakThrough))
-        factions.but(f).flatMap(of(_).gates)
+        factions.but(f).flatMap(of(_).gates) ++ abandonedGates
         else List()
-
 
         (gates ++ yogRegion ++ breakThroughRegions).distinct
     }
@@ -961,40 +1026,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             1.to(6).foreach(_ => place(self, Acolyte, r))
 
-            // Temp setup with starting goos
+            // Temp starting setup
             // if (of(self).has(Immortal)) {
             //     place(self, Cthulhu, r)
-            // }
-            // if (of(self).has(Hibernate)) {
-            //     place(self, RhanTegoth, r)
-            //     place(self, Ithaqua, r)
-            // }
-            // if (of(self).has(DeathFromBelow)) {
-            //     place(self, Tsathoggua, r)
-            // }
-            // if (of(self).has(Fertility)) {
-            //     place(self, ShubNiggurath, r)
-            // }
-            // if (of(self).has(BeyondOne)) {
-            //     place(self, YogSothoth, r)
-            //     place(self, Abomination, r)
-            //     place(self, Abomination, r)
-            //     place(self, Abomination, r)
-            //     place(self, SpawnOW, r)
-            //     place(self, SpawnOW, r)
-            //     satisfy(self, AwakenYogSothoth, "Awaken Yog-Sothoth")
-            // }
-            // if (of(self).has(Feast)) {
-            //     place(self, KingInYellow, r)
-            //     place(self, Hastur, r)
-            // }
-            // if (of(self).has(Dematerialization)) {
-            //     place(self, Yothan, r)
-            //     place(self, Reanimated, r)
-            //     place(self, UnMan, r)
-            // }
-            // if (of(self).has(Harbinger)) {
-            //     place(self, Nyarlathotep, r)
             // }
 
             gates :+= r
@@ -1274,6 +1308,78 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             Force(next)
 
+
+        // LOYALTY CARDS
+        case LoyaltyCardDoomAction(self) =>
+            (loyaltyCards./(e => List(e))).distinct./(LoyaltyCardAction(self, _ , DoomAction(self))) :+ DoomCancelAction(self)
+
+        case LoyaltyCardAction(self, lcs, next) =>
+            var lc = lcs(0)
+            of(self).loyaltyCards = of(self).loyaltyCards :+ lc
+            of(self).obtainedLoyaltyCard = true
+            loyaltyCards = loyaltyCards.but(lc)
+
+            of(self).doom -= lc.doomCost
+            of(self).power -= lc.powerCost // Only applies for Terrors, if those are added later.
+
+            if (lc.powerCost == 0) {
+                log("" + self + " obtained the " + lc.short + " Loyalty Card".styled("nt") + " for " + lc.doomCost.styled("doom") + " " + "doom".styled("doom"))
+            }
+            else {
+                log("" + self + " obtained the " + lc.short + " Loyalty Card".styled("nt") + " for " + lc.doomCost.styled("doom") + " doom and " + lc.powerCost.styled("power") + " " + "power".styled("power"))
+            }
+
+            AddNeutralUnits(self, lc, next)
+
+        case AddNeutralUnits(self, lc, next) =>
+            val unitClassByName: Map[String, UnitClass] = Map(
+                "Ghast" -> Ghast,
+                "Gug" -> Gug,
+                "Shantak" -> Shantak,
+                "Star Vampire" -> StarVampire
+            )
+
+            unitClassByName.get(lc.name) match {
+                case Some(uc) =>
+                    // Add units to pool.
+                    val unitsToAdd = lc.quantity.times(uc)
+                        unitsToAdd.foreach { u =>
+                        of(self).units :+= new UnitFigure(self, u, of(self).units.%(_.uclass == u).num, self.poolR)
+                    }
+
+                    // Add to strength calculation.
+                    if (lc.combat > 0) {
+                        self.addToStrength((g, units, opp) => units.count(_.uclass == uc) * lc.combat)
+                    }
+
+                    // Place unit(s).
+                    if (getControlledGatesRegions(self).any) {
+                        QAsk(getControlledGatesRegions(self)./(r => LoyaltyCardSummonAction(self, uc, r, next)))
+                    } else {
+                        Force(next)
+                    }
+
+                case None =>
+                    println("Undefined loyalty card name \"" + lc.name + "\"")
+                    Force(next)
+            }
+
+        case LoyaltyCardSummonAction(self, uc, r, next) =>
+            place(self, uc, r)
+            log("" + self + " placed " + self.styled(uc) + " in " + r)
+            //log("" + self + " placed " + uc.name.styled("nt") + " in " + r)
+            CheckSpellbooksAction(DoomAction(self))
+
+            if (uc == Ghast && of(self).inPool(Ghast).any) {
+                // Ghast : Repeat until none left in pool.
+                QAsk(getControlledGatesRegions(self)./(r => LoyaltyCardSummonAction(self, uc, r, next)))
+            }
+            else {
+                // Standard behavior is summoning one unit.
+                Force(next)
+            }
+
+
         // DOOM
         case DoomAction(self) =>
             checkGatesLost()
@@ -1306,6 +1412,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             if (player.es.num > 0)
                 options :+= RevealESDoomAction(self)
 
+            if (loyaltyCards.num > 0 && player.doom >= 2 && !of(self).obtainedLoyaltyCard)
+                options :+= LoyaltyCardDoomAction(self)
+
             if (player.needs(AnytimeGainElderSigns))
                 options :+= AnytimeGainElderSignsDoomAction(self)
 
@@ -1324,6 +1433,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
         case DoomDoneAction(self) =>
             acted = false
+
+            of(self).obtainedLoyaltyCard = false
 
             val next = (order ++ order).dropWhile(_ != self).drop(1).head
 
@@ -1735,6 +1846,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             if (of(self).has(Flight))
                 destinations = destinations ++ destinations.flatMap(board.connected).distinct.but(region).diff(destinations)
 
+            if (uc == Shantak)
+                destinations = board.regions
+
             val arriving = of(self).units.%(_.region.glyph.onMap).%(_.has(Moved))./(_.region).distinct
 
             destinations = destinations.%(arriving.contains) ++ destinations.%!(arriving.contains)
@@ -1769,6 +1883,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             if (u.uclass == Ithaqua && of(self).has(ArcticWind))
                 QAsk(of(self).at(o).%(!_.has(Moved))./(u => ArcticWindAction(self, o, u.uclass, r)) :+ ArcticWindDoneAction(self))
+            else if (u.uclass == Shantak)
+                QAsk(of(self).at(o).%(!_.has(Moved)).%(_.uclass.utype == Cultist)./(u => ShantakCarryCultistAction(self, o, u.uclass, r)) :+ ShantakCarryCultistCancelAction(self))
             else
                 MoveContinueAction(self, true)
 
@@ -1857,7 +1973,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             payTax(self, r)
             summon(self, uc, r)
             log("" + self + " summoned " + self.styled(uc) + " in " + r)
-            if (of(self).has(Fertility) && !of(self).ignored(Fertility)) {
+            if (uc == Ghast && of(self).inPool(Ghast).any) {
+                QAsk(getSummonRegions(self)./(r => FreeSummonAction(self, uc, r, EndAction(self))))
+            }
+            else if (of(self).has(Fertility) && !of(self).ignored(Fertility)) {
                 of(self).oncePerRound :+= Fertility
                 checkGatesOwnership(self)
                 CheckSpellbooksAction(MainAction(self))
@@ -1867,6 +1986,18 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             }
             else
                 EndAction(self)
+
+        case FreeSummonAction(self, uc, r, next) =>
+            place(self, uc, r)
+            log("" + self + " summoned " + self.styled(uc) + " in " + r + " for free")
+            CheckSpellbooksAction(MainAction(self))
+
+            if (uc == Ghast && of(self).inPool(Ghast).any) {
+                QAsk(getSummonRegions(self)./(r => FreeSummonAction(self, uc, r, next)))
+            }
+            else {
+                Force(next)
+            }
 
         case ToggleUnlimitedBattleAction(self, value) =>
             of(self).ignoreOptionsNew :-= value
@@ -2478,8 +2609,19 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
         // DEATH FROM BELOW
         case DeathFromBelowDoomAction(self) =>
-            val m = of(self).inPool(Monster)./(_.uclass).minBy(_.cost)
-            QAsk(board.regions.%(r => of(self).at(r).any).some.|(board.regions)./(r => DeathFromBelowAction(self, r, m)) :+ DoomCancelAction(self))
+            val unitClasses = of(self).inPool(Monster)./(_.uclass)
+            val minCost = unitClasses.map(_.cost).min
+            val ucs = unitClasses.filter(_.cost == minCost).distinct
+
+            if (ucs.num == 1) {
+                QAsk(board.regions.%(r => of(self).at(r).any).some.|(board.regions)./(r => DeathFromBelowAction(self, r, ucs.head)) :+ DoomCancelAction(self))
+            }
+            else {
+                QAsk(ucs./(uc => DeathFromBelowSelectMonsterAction(self, uc)) :+ DoomCancelAction(self))
+            }
+
+        case DeathFromBelowSelectMonsterAction(self, uc) =>
+            QAsk(board.regions.%(r => of(self).at(r).any).some.|(board.regions)./(r => DeathFromBelowAction(self, r, uc)) :+ DoomCancelAction(self))
 
         case DeathFromBelowAction(self, r, uc) =>
             place(self, uc, r)
@@ -2862,19 +3004,30 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
                 val forum = xforum.drop(1)
 
                 if (!of(f).inPool(Monster).any) {
-                    log("" + f + " didn't have any mosters in the pool")
+                    log("" + f + " didn't have any monsters in the pool")
                     Force(GiveWorstMonsterContinueAction(f, forum))
                 }
-                else if (!getSummonRegions(f).any) {
+                else if (!getControlledGatesRegions(f).any) {
                     log("" + f + " had no way of summoning monsters")
                     Force(GiveWorstMonsterContinueAction(f, forum))
                 }
                 else {
-                    val uc = of(f).inPool(Monster)./(_.uclass).minBy(_.cost)
-                    QAsk(getSummonRegions(f)./(r => GiveWorstMonsterAskAction(f, self, uc, r, forum)))
+                    val unitClasses = of(f).inPool(Monster)./(_.uclass)
+                    val minCost = unitClasses.map(_.cost).min
+                    val ucs = unitClasses.filter(_.cost == minCost).distinct
+
+                    if (ucs.num == 1) {
+                        QAsk(getControlledGatesRegions(f)./(r => GiveWorstMonsterAskAction(f, self, ucs.head, r, forum)))
+                    }
+                    else {
+                        QAsk(ucs./(uc => GiveWorstMonsterSelectMonsterAction(f, self, uc, forum)))
+                    }
                 }
             }
         }
+
+        case GiveWorstMonsterSelectMonsterAction(self, f, uc, forum) =>
+            QAsk(board.regions.%(r => of(self).at(r).any).some.|(board.regions)./(r => GiveWorstMonsterAskAction(self, f, uc, r, forum)))
 
         case GiveWorstMonsterAskAction(self, f, uc, r, forum) =>
             place(self, uc, r)
@@ -2899,22 +3052,34 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
                 val forum = xforum.drop(1)
 
                 if (!of(f).inPool(Monster).any) {
-                    log("" + f + " didn't have any mosters in the pool")
+                    log("" + f + " didn't have any monsters in the pool")
                     Force(GiveBestMonsterContinueAction(f, forum))
                 }
-                else if (!getSummonRegions(f).any) {
+                else if (!getControlledGatesRegions(f).any) {
                     log("" + f + " had no way of summoning monsters")
                     Force(GiveBestMonsterContinueAction(f, forum))
                 }
                 else {
-                    val uc = of(f).inPool(Monster)./(_.uclass).maxBy(_.cost)
-                    QAsk(getSummonRegions(f)./(r => GiveBestMonsterAskAction(f, self, uc, r, forum)))
+                    val unitClasses = of(f).inPool(Monster)./(_.uclass)
+                    val maxCost = unitClasses.map(_.cost).max
+                    val ucs = unitClasses.filter(_.cost == maxCost).distinct
+
+                    if (ucs.num == 1) {
+                        QAsk(getControlledGatesRegions(f)./(r => GiveBestMonsterAskAction(f, self, ucs.head, r, forum)))
+                    }
+                    else {
+                        QAsk(ucs./(uc => GiveBestMonsterSelectMonsterAction(f, self, uc, forum)))
+                    }
                 }
             }
         }
 
+        case GiveBestMonsterSelectMonsterAction(self, f, uc, forum) =>
+            QAsk(board.regions.%(r => of(self).at(r).any).some.|(board.regions)./(r => GiveBestMonsterAskAction(self, f, uc, r, forum)))
+
         case GiveBestMonsterAskAction(self, f, uc, r, forum) =>
             place(self, uc, r)
+            //payTax(self, r) // Not sure if Ice Age affects this
             log("" + self + " summoned " + uc + " in " + r + " for free")
             Force(GiveBestMonsterContinueAction(f, forum))
 
@@ -2946,6 +3111,19 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             of(self).oncePerTurn :+= Dematerialization
             demCaseMap = demCaseMap.keys.map(key => key -> 0).toMap
             CheckSpellbooksAction(DoomAction(self))
+
+
+        // NEUTRAL MONSTERS
+
+        case ShantakCarryCultistAction(self, o, uc, r) =>
+            val u = of(self).at(o, uc).%(!_.has(Moved)).head
+            move(u, r)
+            u.add(Moved)
+            log("" + self.styled(Shantak) + " carried " + u + " to " + r)
+            MoveContinueAction(self, true)
+
+        case ShantakCarryCultistCancelAction(self) =>
+            MoveContinueAction(self, true)
 
 
         // NEUTRAL SPELLBOOKS
