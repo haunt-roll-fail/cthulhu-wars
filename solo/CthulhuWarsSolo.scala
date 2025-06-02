@@ -1694,12 +1694,12 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        val setup = new Setup(randomSeating($(GC, OW, CC)), Normal)
-                        setup.difficulty += OW -> Human
-                        setup.difficulty += CC -> Debug
+                        val setup = new Setup(randomSeating($(GC, CC, BG)), Normal)
                         setup.difficulty += GC -> Human
-                        // setup.difficulty += CC -> Human
+                        setup.difficulty += CC -> Debug
+                        setup.difficulty += BG -> Human
                         // setup.options = $(MapEarth53)
+                        setup.options = $(NeutralMonsters, UseGhast, UseGug, UseShantak, UseStarVampire)
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)
