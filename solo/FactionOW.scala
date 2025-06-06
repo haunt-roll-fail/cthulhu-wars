@@ -50,10 +50,19 @@ case object OW extends Faction {
         case YogSothoth => g.of(this).at(r, SpawnOW).any.?(6).|(999)
     }
 
-    override def strength(g : Game, units : List[UnitFigure], opponent : Faction) =
+    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
+
+    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
         units.count(_.uclass == Mutant) * 1 +
         units.count(_.uclass == Abomination) * 2 +
         units.count(_.uclass == SpawnOW) * 3 +
         units.count(_.uclass == YogSothoth) * (2 * g.factions.%(_ != this)./(g.of(_).all(GOO).num).sum)
 
+    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+        strengthFn(g, units, opponent)
+
+    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
+        val current = strengthFn
+        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
+    }
 }

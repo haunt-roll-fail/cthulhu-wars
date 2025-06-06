@@ -814,6 +814,23 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 log("" + f + " rolled " + rolls.mkString(" "))
             if (rolls.num >= 6)
                 game.satisfy(f, Roll6DiceInBattle, "Roll " + rolls.num + " dice in Battle")
+
+            side(f).units.filter(_.uclass == StarVampire).zipWithIndex.foreach { case (_, i) =>
+                rolls(i) match {
+                    case Pain if game.of(opponent(f)).power > 0 =>
+                        game.of(opponent(f)).power -= 1
+                        game.of(f).power += 1
+                        log("" + f.styled(StarVampire) + " drained " + ("1 Power").styled("power") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Pain".styled("pain"))
+
+                    case Kill if game.of(opponent(f)).doom > 0 =>
+                        game.of(opponent(f)).doom -= 1
+                        game.of(f).doom += 1
+                        log("" + f.styled(StarVampire) + " drained " + ("1 Doom").styled("doom") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Kill".styled("kill"))
+
+                    case _ => 
+                }
+            }
+
             proceed(next)
 
         // ASSIGN

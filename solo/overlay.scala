@@ -297,7 +297,7 @@ object Overlays {
                 $(IceAge, Herald), $(
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(WW, Cannibalism)}</div>"""),
                 (Wendigo,   4, "1", "1", s"""<div class=p>Spellbooks: ${reference(WW, Cannibalism)}, ${reference(WW, Howl)}</div>"""),
-                (GnophKeh,  2, "?", "3", s"""
+                (GnophKeh,  4, "?", "3", s"""
                     <div class=p>${cost("Cost:")} Equals the number of Gnoph-Kehs in your Unit pool.</div>
                     <div class=p>${reference(WW, Berserkergang)}</div>"""
                 ),
@@ -392,6 +392,20 @@ object Overlays {
             case $("AN", Consecration.name) => spellbook(Consecration.name, "Doom Phase", "When you perform a Ritual of Annihilation, gain <span style=es>1 Elder Sign</span> if at least one Cathedral is in play. If all four Cathedrals are in play, gain <span style=es>2 Elder Signs</span> instead.")
             case $("AN", WorshipServices.name) => spellbook(WorshipServices.name, "Gather Power Phase", "Gain 1 Power for each Cathedral that shares an Area with an enemy Gate. Those enemies each gain 1 Power.")
 
+
+            case $(_, MaoCeremony.name) => spellbook(MaoCeremony.name, "Ongoing", "At the end of Gather Power, after Power has been added (i.e., before Determine First Player), you may choose to sacrifice 1 or more of your own Cultists, adding 1 Power apiece to your total.")
+            case $(_, Recriminations.name) => spellbook(Recriminations.name, "Action: Cost 1", "Remove any spellbook (including this one) from your Faction Card and replace it with another available spellbook.")
+            case $(_, Shriveling.name) => spellbook(Shriveling.name, "Pre-Battle", "Select an enemy Monster or Cultist in the Battle. That Unit is Eliminated, and the owner receives Power equal to the Unit's cost.")
+            case $(_, StarsAreRight.name) => spellbook(StarsAreRight.name, "Ongoing", "During the Doom Phase, if you turn in Elder Signs for Doom points, you also immediately receive Power equal to their face value.")
+            case $(_, UmrAtTawil.name) => spellbook(UmrAtTawil.name, "Ongoing", "Gates now cost you 2 Power to Build.")
+            case $(_, Undimensioned.name) => spellbook(Undimensioned.name, "Action: Cost 2", "Rearrange your Units among their Areas as you see fit. You may completely empty an Area, but you may not move to any new Areas.")
+
+
+            case $("Ghast") => loyaltyCard(GhastCard.name, GhastCard.quantity, GhastCard.cost, GhastCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place all 4 Ghasts at your controlled Gate(s).", "Hordeling", "Ongoing", "When you spend 2 Power to Summon Ghasts, all Ghasts in your pool are immediately placed on the map at any Gate(s) you control.")
+            case $("Gug") => loyaltyCard(GugCard.name, GugCard.quantity, GugCard.cost, GugCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place 1 Gug at your controlled Gate.", "Clumsy", "Ongoing", "A Gug cannot Capture a Cultist.")
+            case $("Shantak") => loyaltyCard(ShantakCard.name, ShantakCard.quantity, ShantakCard.cost, ShantakCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place 1 Shantak at your controlled Gate.", "Horror Steed", "Ongoing", "When Moving a Shantak, it can reach any Area on the map. In addition, the Shantak may carry one of your Cultists with it for free.")
+            case $("Star Vampire") => loyaltyCard(StarVampireCard.name, StarVampireCard.quantity, StarVampireCard.cost, StarVampireCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place 1 Star Vampire at your controlled Gate.", "Vampirism", "Battle", "Roll the Star Vampire's combat dice separately. Each Pain they roll drains 1 Power from the enemy Faction. Each Kill they roll drains 1 Doom point from the enemy Faction. The drained point(s) are transferred to you immediately. If the enemy Faction lacks Power or Doom points, you get nothing. The Pains and Kills rolled still count towards your Combat Results.")
+
             case _ =>
                 println("onExternalClick " + s.$.mkString(" | "))
                 ""
@@ -429,6 +443,55 @@ object Overlays {
     def cost(s : String) = s"<span class=cost-color>${s}</span>"
 
     def power(n : Int) = cost(s"${n} Power")
+
+    def loyaltyCard(name : String, quantity : Int, cost : Int, combat : Int, obtainText : String, ability: String, phase: String, abilityText : String) = s"""
+        <table class="loyaltycard-table" style="">
+            <thead>
+                <tr>
+                    <th style=width:10%>
+                    </th>
+                    <th style=width:80%>
+                    </th>
+                    <th style=width:10%>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                    </td>
+                    <td>
+                        <div class="h1 black-border" style="margin-right: -3ex; margin-left: -3ex; "><span class="h2 abaddon nt">${name}<sup><span class="deh3 nt">(${quantity.toString})</span></sup></span></div>
+                        <img class="img" src="info/n-${name.toLowerCase.replace(" ", "-")}.svg">
+                        <div>&nbsp;</div>
+                        <div>
+                            <span class="cost-color black-border">Cost: ${cost.toString}</span>
+                        </div>
+                        <div>
+                            <span class="combat-color black-border">Combat: ${combat.toString}</span>
+                        </div>
+                        <div>&nbsp;</div>
+                        <div class="black-border">
+                            <span class="nt">${obtainText}</span>
+                        </div>
+                        <div>&nbsp;</div>
+                        <div class="black-border">
+                            <span class="ability-color">${ability} </span><span class="cost-color">(${phase})</span><span class="nt">: ${abilityText}</span>
+                        </div>
+                    </td>
+                    <td>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                    </td>
+                    <td>
+                    </td>
+                    <td>
+                    </td>
+                </tr>
+            </tbody>
+        </table>"""
 
     def spellbook(name : String, phase : String, text : String) = s"""
         <table class="spellbook-table" style="">

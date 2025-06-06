@@ -30,6 +30,8 @@ class Serialize(val g : Game) {
         case None => "None"
 
         case ss : List[_] => ss./(write).mkString("[", ", ", "]")
+
+        case x => x.getClass.getSimpleName.stripSuffix("$")
     }
 
     trait Expr
@@ -92,7 +94,14 @@ class Serialize(val g : Game) {
     }
 
     def parseExpr(e : Expr) : Any = e match {
-        case ESymbol(s) => parseFaction(s).orElse[Object](parseRegion(s)).orElse(parseSymbol(s)).get
+        //case ESymbol(s) => parseFaction(s).orElse[Object](parseRegion(s)).orElse(parseSymbol(s)).get
+        case ESymbol(s) => 
+            parseFaction(s).map(_.asInstanceOf[Any])
+                .orElse(parseRegion(s).map(_.asInstanceOf[Any]))
+                .orElse(parseLoyaltyCard(s))
+                .orElse(parseSymbol(s))
+                .getOrElse(throw new IllegalArgumentException(s"Unknown symbol: $s"))
+
         case EInt(n) => n
         case EElderSign(v) => ElderSign(v)
         case EBool(b) => b
@@ -110,12 +119,15 @@ class Serialize(val g : Game) {
 
 object Serialize {
     val factions = List(GC, CC, BG, YS, SL, WW, OW, AN)
+    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard)
 
     def parseDifficulty(s : String) : Option[Difficulty] = parseSymbol(s).map(_.asInstanceOf[Difficulty])
 
     def parseFaction(s : String) : Option[Faction] = factions.%(_.short == s).single
 
     def parseGameOption(s : String) : Option[GameOption] = parseSymbol(s).map(_.asInstanceOf[GameOption])
+
+    def parseLoyaltyCard(s: String): Option[LoyaltyCard] = loyaltyCards.find(_.productPrefix == s)
 
     def parseSymbol(s : String) : Option[Any] = Reflect.lookupLoadableModuleClass("cws." + s + "$").map(_.loadModule())
 

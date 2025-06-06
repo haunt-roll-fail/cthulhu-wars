@@ -247,6 +247,9 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                 power - cost > 10 && maxDoomGain > 4 |=> 1200 -> "much"
                 power - cost > 8 && maxDoomGain > 5 |=> 1100 -> "minimuch"
 
+            case LoyaltyCardAction(_, _, _) =>
+                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
 

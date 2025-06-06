@@ -464,6 +464,9 @@ case class Bot3(faction : Faction) {
                     self.pool.goos.any |=> -200 -> "not all goos in play"
                     true |=> -250 -> "don't ritual unless have reasons"
 
+                case LoyaltyCardAction(_, _, _) =>
+                    true |=> -10000 -> "don't obtain loyalty cards (for now)"
+
                 case DoomDoneAction(_) =>
                     true |=> 0 -> "doom done"
 

@@ -61,6 +61,9 @@ class GameEvaluationYSOld(game : Game) extends GameEvaluation(game, YS) {
 
                 !self.allSB |=> -1000 -> "spellbooks first"
 
+            case LoyaltyCardAction(_, _, _) =>
+                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
 
