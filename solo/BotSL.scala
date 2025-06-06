@@ -74,9 +74,11 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 self.pool.goos.any |=> -200 -> "not all goos in play"
                 true |=> -250 -> "dont ritual unless have reasons"
 
+            case LoyaltyCardAction(_, _, _) =>
+                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+
             case DoomDoneAction(_) =>
                 true |=> 0 -> "doom done"
-
 
             case PassAction(_) =>
                 true |=> -500 -> "wasting power bad"

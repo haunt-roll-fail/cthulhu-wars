@@ -49,8 +49,18 @@ case object CC extends Faction {
         case Nyarlathotep => g.of(this).gates.contains(r).?(10).|(999)
     }
 
-    override def strength(g : Game, units : List[UnitFigure], opponent : Faction) =
+    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
+
+    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
         units.count(_.uclass == FlyingPolyp) * 1 +
         units.count(_.uclass == HuntingHorror) * 2 +
         units.count(_.uclass == Nyarlathotep) * (g.of(this).spellbooks.num + g.of(opponent).spellbooks.num)
+
+    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+        strengthFn(g, units, opponent)
+
+    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
+        val current = strengthFn
+        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
+    }
 }

@@ -53,10 +53,19 @@ case object GC extends Faction {
 
     override def awakenDesc(g : Game, u : UnitClass) : Option[String] = None
 
-    override def strength(g : Game, units : List[UnitFigure], opponent : Faction) =
+    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
+
+    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
         units.count(_.uclass == DeepOne) * 1 +
         units.count(_.uclass == Shoggoth) * 2 +
         units.count(_.uclass == Starspawn) * 3 +
         units.count(_.uclass == Cthulhu) * 6
 
+    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+        strengthFn(g, units, opponent)
+
+    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
+        val current = strengthFn
+        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
+    }
 }

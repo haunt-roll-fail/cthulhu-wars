@@ -332,6 +332,13 @@
                 text-overflow: ellipsis;
             }
 
+            .loyalty-card-icon {
+                bottom: 3px;
+                transform: scale(0.8);
+                transform-origin: bottom right;
+                position:absolute;
+            }
+
             .expl {
                 font-size: 75%;
             }
@@ -475,6 +482,25 @@
                 overflow: hidden;
             }
 
+            .loyaltycard-table {
+                background-color: #22222280;
+                background-size: 100%;
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-image: url(info/loyaltycard.png);
+                border-spacing: 0;
+                color: #020202;
+                font-weight: bold;
+                font-size: 100%;
+                table-layout: fixed;
+                width: 100%;
+                min-height: 100%;
+                padding: 1ex;
+                text-align: center;
+                overflow: hidden;
+            }
+
             .border-outer {
                 border-image-source: url(info/faction-board-unique-ability-border.png);
                 border-image-slice: 70;
@@ -493,6 +519,15 @@
             .h1 {
                 font-size: 250%;
                 font-weight: 500;
+                x-font-family: "Abaddon", serif;
+                font-variant: small-caps;
+                line-height: 1;
+                margin-bottom: 0.32ex;
+            }
+
+            .h2 {
+                font-size: 150%;
+                /* font-weight: 500; */
                 x-font-family: "Abaddon", serif;
                 font-variant: small-caps;
                 line-height: 1;
@@ -736,6 +771,17 @@
         <img class="asset" id="an-reanimated"     src="images/an-reanimated.png" />
         <img class="asset" id="an-yothan"         src="images/an-yothan.png" />
         <img class="asset" id="an-cathedral"      src="images/an-cathedral.png" />
+
+        <img class="asset" id="n-ghast"           src="images/n-ghast.png" />
+        <img class="asset" id="n-gug"             src="images/n-gug.png" />
+        <img class="asset" id="n-shantak"         src="images/n-shantak.png" />
+        <img class="asset" id="n-star-vampire"    src="images/n-star-vampire.png" />
+        
+        <img class="asset" id="ghast-icon"        src="info/n-ghast.svg" />
+        <img class="asset" id="gug-icon"          src="info/n-gug.svg" />
+        <img class="asset" id="shantak-icon"      src="info/n-shantak.svg" />
+        <img class="asset" id="star-vampire-icon" src="info/n-star-vampire.svg" />
+
 
         <div style="position: absolute; left: 0%; top: 0%; width: 60%; height: 60%; left: 0vw; top: 0vh; width: 60vw; height: 60vh; left: 0dvw; top: 0dvh; width: 60dvw; height: 60dvh;">
             <div class="outer">
