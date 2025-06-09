@@ -111,6 +111,8 @@ object Overlays {
     val overlay = new InfoOverlay(dom.document.getElementById("overlay").asInstanceOf[html.Element])
     var temp = false
 
+    def imageSource(id : String) = hrf.web.getElem(id).as[dom.html.Image]./(_.src).|!("unknown image source " + id)
+
     implicit class ElementString(val s : String) extends AnyVal {
         def & = "<span style=inline-block>" + s + "</span>"
     }
@@ -119,7 +121,7 @@ object Overlays {
     def onExternalClick(s : Any*) {
         temp = false
         val info = s.$.@@ {
-            case $("GC") => faction(GC, "info/gc-background.jpg", Immortal, "Ongoing", "Once Cthulhu has Awakened, he costs only 4 Power each subsequent time he is Awakened. Whenever you Awaken any Great Old One, gain <span class=es>1 Elder Sign.</span>",
+            case $("GC") => faction(GC, "info:gc-background", Immortal, "Ongoing", "Once Cthulhu has Awakened, he costs only 4 Power each subsequent time he is Awakened. Whenever you Awaken any Great Old One, gain <span class=es>1 Elder Sign.</span>",
                 $(), $(
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(GC, Dreams)}</div>"""),
                 (DeepOne,   4, "1", "1", s"""<div class=p>Spellbook: ${reference(GC, Devolve)}</div>"""),
@@ -150,7 +152,7 @@ object Overlays {
             case $("GC", YhaNthlei.name) => spellbook(YhaNthlei.name, "Gather Power Phase", "During Gather Power, if Cthulhu is in play, gain 1 Power for each enemy-controlled Gate in an ocean or sea Area.")
 
 
-            case $("CC") => faction(CC, "info/cc-background.jpg", Flight, "Ongoing", "All your units can fly (even Cultists). When moved, they can travel 2 Areas. They can fly over Areas containing enemy Units.",
+            case $("CC") => faction(CC, "info:cc-background", Flight, "Ongoing", "All your units can fly (even Cultists). When moved, they can travel 2 Areas. They can fly over Areas containing enemy Units.",
                 $(Madness), $(
                 (Acolyte,       6, "1", "0", ""),
                 (Nightgaunt,    3, "1", "0", s"""<div class=p>Spellbook: ${reference(CC, Abduct)}</div>"""),
@@ -181,7 +183,7 @@ object Overlays {
             case $("CC", Madness.name) => spellbook(Madness.name, "Post-Battle", "After all Pain results have been assigned, you, rather than the Units' owners, choose the Area(s) to which all Pained Units will go. You may apply these results in any order (rather than the normal 'attacker first, then defender'), but you must still follow all other rules. Do this even for Battles in which you did not participate.")
 
 
-            case $("BG") => faction(BG, "info/bg-background.jpg", Fertility, "Ongoing", "You may Summon Monsters as an Unlimited Action.",
+            case $("BG") => faction(BG, "info:bg-background", Fertility, "Ongoing", "You may Summon Monsters as an Unlimited Action.",
                 $(BloodSacrifice), $(
                 (Acolyte,       6, "1", "0/1", s"""<div class=p>${combat} 1 with ${reference(BG, Frenzy)}</div>"""),
                 (Ghoul,         2, "1/0", "0", s"""
@@ -221,7 +223,7 @@ object Overlays {
             case $("BG", BloodSacrifice.name) => spellbook(BloodSacrifice.name, "Doom Phase", "If Shub-Niggurath is in play during the Doom Phase, you can choose to Eliminate one of your Cultists (from anywhere on the map). If you do, gain <span class=es>1 Elder Sign.</span>")
 
 
-            case $("YS") => faction(YS, "info/ys-background.jpg", Feast, "Gather Power Phase", "During Gather Power, you gain 1 Power for each Area containing both a Desecration Token and one or more of your units.",
+            case $("YS") => faction(YS, "info:ys-background", Feast, "Gather Power Phase", "During Gather Power, you gain 1 Power for each Area containing both a Desecration Token and one or more of your units.",
                 $(), $(
                 (Acolyte,   6, "1",  "0", s"""<div class=p>Spellbook: ${reference(YS, Passion)}</div>"""),
                 (Undead,    6, "1", "1-", s"""
@@ -249,9 +251,9 @@ object Overlays {
 
             case $("YS", Provide3Doom.text) => requirement("As your Action for a round, select another player.<br/>That player gains three Doom points.")
             case $("YS", AwakenKing.text) => requirement("Awaken the King in Yellow.")
-            case $("YS", DesecrateAA.text) => requirement("Place a Desecration Token in an Area marked<br/>with the Glyph: <img src='info/sign-aa.png' class=inline-glyph />")
-            case $("YS", DesecrateOO.text) => requirement("Place a Desecration Token in an Area marked<br/>with the Glyph: <img src='info/sign-oo.png' class=inline-glyph />")
-            case $("YS", DesecrateWW.text) => requirement("Place a Desecration Token in an Area marked<br/>with the Glyph: <img src='info/sign-ww.png' class=inline-glyph />")
+            case $("YS", DesecrateAA.text) => requirement(s"Place a Desecration Token in an Area marked<br/>with the Glyph: <img src=${imageSource("sign-aa")} class=inline-glyph />")
+            case $("YS", DesecrateOO.text) => requirement(s"Place a Desecration Token in an Area marked<br/>with the Glyph: <img src=${imageSource("sign-oo")} class=inline-glyph />")
+            case $("YS", DesecrateWW.text) => requirement(s"Place a Desecration Token in an Area marked<br/>with the Glyph: <img src=${imageSource("sign-ww")} class=inline-glyph />")
             case $("YS", AwakenHastur.text) => requirement("Awaken Hastur. Also receive <span class=es>1 Elder Sign</span>.")
 
             case $("YS", Passion.name) => spellbook(Passion.name, "Ongoing", "When one or more of your Cultists are Eliminated by an enemy (Killed, Captured, etc.), gain 1 Power total.")
@@ -262,7 +264,7 @@ object Overlays {
             case $("YS", HWINTBN.name) => spellbook(HWINTBN.name, "Action: Cost 1", "Move Hastur to any Area containing a Cultist of any Faction. You may then take a second, different Action. You may NOT take The Screaming Dead as your second Action.")
 
 
-            case $("SL") => faction(SL, "info/sl-background.jpg", DeathFromBelow, "Doom Phase", "Place your lowest-cost Monster from your Pool into any Area containing at least 1 of your Units.",
+            case $("SL") => faction(SL, "info:sl-background", DeathFromBelow, "Doom Phase", "Place your lowest-cost Monster from your Pool into any Area containing at least 1 of your Units.",
                 $(Burrow, CursedSlumber), $(
                 (Acolyte,       6, "1", "0", ""),
                 (Wizard,        2, "1", "0", s"""<div class=p>Spellbook: ${reference(SL, EnergyNexus)}</div>"""),
@@ -293,7 +295,7 @@ object Overlays {
             case $("SL", CursedSlumber.name) => spellbook(CursedSlumber.name, "Action: Cost 1", "Remove your Controlled Gate and its Cultist from the map and place it on your Faction Card. This Gate and Cultist still provide Power and Doom points, but are immune to enemy abilities. As a Cost 1 Action, return the Gate and Cultist to any Area lacking a Gate. You may only have one Gate on your Faction Card at a time.")
 
 
-            case $("WW") => faction(WW, "info/ww-background.jpg", Hibernate, "Action: Cost 0", "Add +1 Power to your total for each enemy Great Old One in play (but not more than your current Power). You can take no further Actions during this Action Phase. At the start of the next Gather Power Phase, do NOT lose your Power, but add it to your total.",
+            case $("WW") => faction(WW, "info:ww-background", Hibernate, "Action: Cost 0", "Add +1 Power to your total for each enemy Great Old One in play (but not more than your current Power). You can take no further Actions during this Action Phase. At the start of the next Gather Power Phase, do NOT lose your Power, but add it to your total.",
                 $(IceAge, Herald), $(
                 (Acolyte,   6, "1", "0", s"""<div class=p>Spellbook: ${reference(WW, Cannibalism)}</div>"""),
                 (Wendigo,   4, "1", "1", s"""<div class=p>Spellbooks: ${reference(WW, Cannibalism)}, ${reference(WW, Howl)}</div>"""),
@@ -333,7 +335,7 @@ object Overlays {
             case $("WW", Herald.name) => spellbook(Herald.name, "Doom Phase", "Pay 5 Power for Windwalker's Ritual of Annihilation, regardless of the number indicated on the Ritual track.")
 
 
-            case $("OW") => faction(OW, "info/ow-background.jpg", BeyondOne, "Action: Cost 1", "Select one of your your Units with a Cost of 3+ in an Area that contains a Gate and no enemy Great Old Ones. Move that Unit, the Gate, and any Controlling Unit to any Area on the map that does not already have a Gate.",
+            case $("OW") => faction(OW, "info:ow-background", BeyondOne, "Action: Cost 1", "Select one of your your Units with a Cost of 3+ in an Area that contains a Gate and no enemy Great Old Ones. Move that Unit, the Gate, and any Controlling Unit to any Area on the map that does not already have a Gate.",
                 $(TheyBreakThrough, ChannelPower, DragonAscending, DragonDescending), $(
                 (Acolyte,     6, "1", "0", s"""<div class=p>Spellbook: ${reference(OW, MillionFavoredOnes)}</div>"""),
                 (Mutant,      4, "2", "1", s"""<div class=p>Spellbook: ${reference(OW, MillionFavoredOnes)}</div>"""),
@@ -364,7 +366,7 @@ object Overlays {
             case $("OW", DragonDescending.name) => spellbook(DragonDescending.name, "Once Only", "Once during the game when you perform a Ritual of Annihilation, you receive twice the normal Doom points.")
 
 
-            case $("AN") => faction(AN, "info/an-background.jpg", Dematerialization, "Doom Phase", "Relocate any or all of your own Units from one Area to a single other Area, anywhere on the Map.",
+            case $("AN") => faction(AN, "info:an-background", Dematerialization, "Doom Phase", "Relocate any or all of your own Units from one Area to a single other Area, anywhere on the Map.",
                 $, $(
                 (Acolyte,    6,   "1",   "0", s""""""),
                 (UnMan,      3, "3/0",   "0", s"""<div class=p><span class=cost-color>Cost:</span> 0 with ${reference(AN, Festival)}</div>"""),
@@ -378,10 +380,10 @@ object Overlays {
                 )
             ))
 
-            case $("AN", CathedralAA.text) => requirement("A Cathedral is in an Area marked with this Glyph: <img src='info/sign-aa.png' class=inline-glyph />")
-            case $("AN", CathedralOO.text) => requirement("A Cathedral is in an Area marked with this Glyph: <img src='info/sign-oo.png' class=inline-glyph />")
-            case $("AN", CathedralWW.text) => requirement("A Cathedral is in an Area marked with this Glyph: <img src='info/sign-ww.png' class=inline-glyph />")
-            case $("AN", CathedralNG.text) => requirement("A Cathedral is in an Area without<br/>any of these Glyphs: <img src='info/sign-aa.png' class=inline-glyph /><img src='info/sign-oo.png' class=inline-glyph /><img src='info/sign-ww.png' class=inline-glyph />")
+            case $("AN", CathedralAA.text) => requirement(s"A Cathedral is in an Area marked with this Glyph: <img src=${imageSource("sign-aa")} class=inline-glyph />")
+            case $("AN", CathedralOO.text) => requirement(s"A Cathedral is in an Area marked with this Glyph: <img src=${imageSource("sign-oo")} class=inline-glyph />")
+            case $("AN", CathedralWW.text) => requirement(s"A Cathedral is in an Area marked with this Glyph: <img src=${imageSource("sign-ww")} class=inline-glyph />")
+            case $("AN", CathedralNG.text) => requirement(s"A Cathedral is in an Area without<br/>any of these Glyphs: <img src=${imageSource("sign-aa")} class=inline-glyph /><img src=${imageSource("sign-oo")} class=inline-glyph /><img src=${imageSource("sign-ww")} class=inline-glyph />")
             case $("AN", GiveWorstMonster.text) => requirement("As your Action, each enemy Summons their lowest cost Monster at their Controlled Gate for free.")
             case $("AN", GiveBestMonster.text) => requirement("As your Action, each enemy Summons their highest cost Monster at their Controlled Gate for free.")
 
@@ -445,7 +447,7 @@ object Overlays {
     def power(n : Int) = cost(s"${n} Power")
 
     def loyaltyCard(name : String, quantity : Int, cost : Int, combat : Int, obtainText : String, ability: String, phase: String, abilityText : String) = s"""
-        <table class="loyaltycard-table" style="">
+        <table class="loyalty-card-table" style="">
             <thead>
                 <tr>
                     <th style=width:10%>
@@ -462,7 +464,7 @@ object Overlays {
                     </td>
                     <td>
                         <div class="h1 black-border" style="margin-right: -3ex; margin-left: -3ex; "><span class="h2 abaddon nt">${name}<sup><span class="deh3 nt">(${quantity.toString})</span></sup></span></div>
-                        <img class="img" src="info/n-${name.toLowerCase.replace(" ", "-")}.svg">
+                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace(" ", "-"))}">
                         <div>&nbsp;</div>
                         <div>
                             <span class="cost-color black-border">Cost: ${cost.toString}</span>
@@ -569,7 +571,7 @@ object Overlays {
     def reference(f : Faction, spellbook : Spellbook) = s"""<span class="ability-color pointer" onclick="onExternalClick('${f.short}', '${spellbook.name}')">${spellbook.name}</span>"""
 
     def faction(f : Faction, background : String, unique : Spellbook, uniquePhase : String, uniqueText : String, miscSpellbooks : $[Spellbook], units : $[(UnitClass, Int, String, String, String)]) = s"""
-        <table class="faction-table" style="background-image:url(${background})">
+        <table class="faction-table" style="background-image:url(${imageSource(background)})">
             <thead>
                 <tr>
                     <th style=width:9%>
@@ -645,7 +647,7 @@ object Overlays {
                     units./{ case (uc, n, c, b, t) => s"""
                         <tr>
                             <td>
-                                <img class="img" src="info/${f.short.toLowerCase}-${uc.name.toLowerCase.replace(" ", "-")}.svg">
+                                <img class="img" src=${imageSource("info:" + f.short.toLowerCase + "-" + uc.name.toLowerCase.replace(" ", "-"))}>
                             </td>
                             <td>
                                 <div class="unit-desc">
