@@ -810,12 +810,15 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // ROLL
         case BattleRollAction(f, rolls, next) =>
             side(f).rolls = side(f).rolls ++ rolls
-            if (rolls.any)
-                log("" + f + " rolled " + rolls.mkString(" "))
-            if (rolls.num >= 6)
-                game.satisfy(f, Roll6DiceInBattle, "Roll " + rolls.num + " dice in Battle")
 
-            side(f).units.filter(_.uclass == StarVampire).zipWithIndex.foreach { case (_, i) =>
+            val sv = side(f).units.filter(_.uclass == StarVampire).num
+
+            if (rolls.any)
+                log("" + f + " rolled " + rolls.drop(sv).mkString(" "))
+
+            0.until(sv).foreach { i =>
+                log("" + f.styled(StarVampire) + " rolled " + rolls(i))
+
                 rolls(i) match {
                     case Pain if game.of(opponent(f)).power > 0 =>
                         game.of(opponent(f)).power -= 1
@@ -827,9 +830,12 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                         game.of(f).doom += 1
                         log("" + f.styled(StarVampire) + " drained " + ("1 Doom").styled("doom") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Kill".styled("kill"))
 
-                    case _ => 
+                    case _ =>
                 }
             }
+
+            if (rolls.num >= 6)
+                game.satisfy(f, Roll6DiceInBattle, "Roll " + rolls.num + " dice in Battle")
 
             proceed(next)
 
@@ -1073,7 +1079,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             QAsk(side(o).units.%(_.uclass.utype == GOO)./(u => UnholyGroundEliminateAction(o, self, r, u.ref)))
 
         case UnholyGroundIgnoreAction(self) =>
-            proceed()
+            proceed(NecrophagyPhase)
 
         case UnholyGroundEliminateAction(self, f, r, ur) =>
             val u = game.unit(ur)
@@ -1084,7 +1090,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 QAsk(game.cathedrals./(r => UnholyGroundAction(f, self, r)) :+ UnholyGroundIgnoreAction(f))
             }
             else {
-                proceed()
+                proceed(NecrophagyPhase)
             }
 
 

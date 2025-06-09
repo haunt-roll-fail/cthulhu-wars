@@ -67,13 +67,14 @@ object LoyaltyCardConfig {
 sealed trait UnitType {
     def name = toString
     def plural = name + "s"
+    val priority : Int
 }
-case object Cultist extends UnitType
-case object Monster extends UnitType
-case object Terror extends UnitType
-case object GOO extends UnitType
-case object Token extends UnitType
-case object Building extends UnitType
+case object Cultist extends UnitType { val priority = 10 }
+case object Monster extends UnitType { val priority = 20 }
+case object Terror extends UnitType { val priority = 30 }
+case object GOO extends UnitType { val priority = 40 }
+case object Token extends UnitType { val priority = 2 }
+case object Building extends UnitType { val priority = 5 }
 
 @EnableReflectiveInstantiation
 abstract class UnitClass(val name : String, val utype : UnitType, val cost : Int) {
@@ -249,9 +250,10 @@ trait ExtraQuestion extends FactionAction {
 
 case class SpellbookAction(self : Faction, sb : Spellbook, next : Action) extends BaseFactionAction(g => (g.of(self).unclaimedSB == 1).?("Receive spellbook").|("Receive " + g.of(self).unclaimedSB + " spellbooks"), {
     val p = s""""${self.short}", "${sb.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;") // "
+    val qm = Overlays.imageSource("question-mark")
     "<div class=sbdiv>" +
         sb.full +
-        s"""<img class=explain src="info/question-mark.png" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
+        s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 })
 
@@ -628,6 +630,27 @@ case object UseStarVampire extends GameOption
 
 case class PlayerCount(n : Int) extends GameOption
 
+object GameOptions {
+    val all = $(
+        NeutralSpellbooks,
+        NeutralMonsters,
+        IceAgeAffectsLethargy,
+        Opener4P10Gates,
+        DemandTsathoggua,
+        MapEarth33,
+        MapEarth35,
+        MapEarth53,
+        MapEarth55,
+        UseGhast,
+        UseGug,
+        UseShantak,
+        UseStarVampire,
+        PlayerCount(3),
+        PlayerCount(4),
+        PlayerCount(5),
+    )
+}
+
 class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction], val logging : Boolean, val providedOptions : $[GameOption]) {
     val options = providedOptions ++ $(PlayerCount(factions.num))
     val players = factions./(f => f -> new Player(f)(options)).toMap
@@ -892,7 +915,14 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         (gates ++ yogRegion ++ breakThroughRegions).distinct
     }
 
-    def sortAllUnits(p : Player)(a : UnitFigure, b : UnitFigure) = if (a.uclass == b.uclass) board.regions.indexOf(a.region) < board.regions.indexOf(b.region) else p.units.indexOf(a) < p.units.indexOf(b)
+    def sortAllUnits(p : Player)(a : UnitFigure, b : UnitFigure) =
+        if (a.uclass == b.uclass)
+            board.regions.indexOf(a.region) < board.regions.indexOf(b.region)
+        else
+        if (a.uclass.utype != b.uclass.utype)
+            a.uclass.utype.priority > b.uclass.utype.priority
+        else
+            p.units.indexOf(a) < p.units.indexOf(b)
 
     def regionStatus(r : Region) : List[String] = {
         val gate = gates.contains(r)

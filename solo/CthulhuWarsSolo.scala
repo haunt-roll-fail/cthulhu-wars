@@ -99,7 +99,22 @@ object CthulhuWarsSolo {
 
     def getElem(k : String) = dom.document.getElementById(k).asInstanceOf[html.Element]
 
-    def getAsset(k : String) = dom.document.getElementById(k).asInstanceOf[html.Image]
+    def getAsset(k : String) : html.Image = dom.document.getElementById(k).asInstanceOf[html.Image]
+
+    def getTintedAsset(k : String, tint : String) : html.Canvas = {
+        val nmi = dom.document.getElementById(k).asInstanceOf[html.Image]
+
+        val nmt = new Bitmap(nmi.width, nmi.height)
+        nmt.context.drawImage(nmi, 0, 0)
+
+        nmt.context.fillStyle = tint
+        nmt.context.globalCompositeOperation = "color"
+        nmt.context.fillRect(0, 0, nmi.width, nmi.height)
+
+        nmt.context.globalCompositeOperation = "destination-in"
+        nmt.context.drawImage(nmi, 0, 0)
+        nmt.canvas
+    }
 
     def newDiv(cl : String, content : String, click : () => Unit = null) = {
         val p = dom.document.createElement("div").asInstanceOf[html.Div]
@@ -345,8 +360,8 @@ object CthulhuWarsSolo {
             }
 
             statuses.lazyZip(setup.seating).foreach { (s, f) =>
-                s.as[html.Element].get.style.backgroundImage = "url(info/" + f.style + "-header.png)"
-                s.as[html.Element].get.style.backgroundImage = "url(info/" + f.style + "-background.jpg)"
+                // s.as[html.Element].get.style.backgroundImage = "url(info/" + f.style + "-header.png)"
+                s.as[html.Element].get.style.backgroundImage = "url(" + Overlays.imageSource("info:" + f.style + "-background") + ")"
                 s.as[html.Element].get.style.backgroundSize = "cover"
             }
 
@@ -515,93 +530,113 @@ object CthulhuWarsSolo {
             case object Gate extends UnitClass("Gate", Token, 3)
             case object FactionGlyph extends UnitClass("Faction Glyph", Token, 0)
 
-            case class DrawRect(key : String, x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
+            case class DrawRect(key : String, tint : |[String], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
 
             case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
+                // val tint = $(GC, CC, BG, YS, WW, SL, OW, AN).shuffle.first @@ {
+                val tint = faction @@ {
+                    case GC => "#77a055"
+                    case CC => "#4977b3"
+                    case BG => "#cd3233"
+                    case YS => "#cda431" // "#bf9c30"
+                    case WW => "#88a9be"
+                    case SL => "#db6a33"
+                    case OW => "#6c4296"
+                    case AN => "#47a5bc"
+                    case _ => "#ff00ff"
+                }
+
                 val rect : DrawRect = unit match {
-                    case Gate => { DrawRect("gate", x - 38, y - 38, 76, 76) }
+                    case Gate => { DrawRect("gate", None, x - 38, y - 38, 76, 76) }
 
                     case Acolyte => faction match {
-                        case BG => DrawRect("bg-acolyte", x - 17, y - 54, 39, 60)
-                        case CC => DrawRect("cc-acolyte", x - 17, y - 54, 38, 60)
-                        case GC => DrawRect("gc-acolyte", x - 17, y - 54, 40, 59)
-                        case YS => DrawRect("ys-acolyte", x - 17, y - 54, 39, 61)
-                        case SL => DrawRect("sl-acolyte", x - 17, y - 54, 38, 60)
-                        case WW => DrawRect("ww-acolyte", x - 17, y - 52, 40, 58)
-                        case OW => DrawRect("ow-acolyte", x - 17, y - 54, 38, 60)
-                        case AN => DrawRect("an-acolyte", x - 17, y - 54, 39, 60)
+                        case BG => DrawRect("bg-acolyte", None, x - 17, y - 54, 39, 60)
+                        case CC => DrawRect("cc-acolyte", None, x - 17, y - 54, 38, 60)
+                        case GC => DrawRect("gc-acolyte", None, x - 17, y - 54, 40, 59)
+                        case YS => DrawRect("ys-acolyte", None, x - 17, y - 54, 39, 61)
+                        case SL => DrawRect("sl-acolyte", None, x - 17, y - 54, 38, 60)
+                        case WW => DrawRect("ww-acolyte", None, x - 17, y - 52, 40, 58)
+                        case OW => DrawRect("ow-acolyte", None, x - 17, y - 54, 38, 60)
+                        case AN => DrawRect("an-acolyte", None, x - 17, y - 54, 39, 60)
                         case _ => null
                     }
 
                     case FactionGlyph => faction match {
-                        case BG => DrawRect("bg-glyph", x - 50, y - 50, 100, 100)
-                        case CC => DrawRect("cc-glyph", x - 50, y - 50, 100, 100)
-                        case GC => DrawRect("gc-glyph", x - 50, y - 50, 100, 100)
-                        case YS => DrawRect("ys-glyph", x - 51, y - 50, 102, 100)
-                        case SL => DrawRect("sl-glyph", x - 50, y - 50, 100, 102)
-                        case WW => DrawRect("ww-glyph", x - 50, y - 50, 100, 100)
-                        case OW => DrawRect("ow-glyph", x - 50, y - 50, 100, 100)
-                        case AN => DrawRect("an-glyph", x - 50, y - 50, 100, 101)
+                        case BG => DrawRect("bg-glyph", None, x - 50, y - 50, 100, 100)
+                        case CC => DrawRect("cc-glyph", None, x - 50, y - 50, 100, 100)
+                        case GC => DrawRect("gc-glyph", None, x - 50, y - 50, 100, 100)
+                        case YS => DrawRect("ys-glyph", None, x - 51, y - 50, 102, 100)
+                        case SL => DrawRect("sl-glyph", None, x - 50, y - 50, 100, 102)
+                        case WW => DrawRect("ww-glyph", None, x - 50, y - 50, 100, 100)
+                        case OW => DrawRect("ow-glyph", None, x - 50, y - 50, 100, 100)
+                        case AN => DrawRect("an-glyph", None, x - 50, y - 50, 100, 101)
                         case _ => null
                     }
 
-                    case Ghoul         => DrawRect("bg-ghoul", x - 20, y - 40, 39, 47)
-                    case Fungi         => DrawRect("bg-fungi", x - 40, y - 73, 72, 80)
-                    case DarkYoung     => DrawRect("bg-dark-young", x - 53, y - 122, 83, 131)
-                    case ShubNiggurath => DrawRect("bg-shub", x - 69, y - 173, 132, 185, 0, 10)
+                    case Ghoul         => DrawRect("bg-ghoul", None, x - 20, y - 40, 39, 47)
+                    case Fungi         => DrawRect("bg-fungi", None, x - 40, y - 73, 72, 80)
+                    case DarkYoung     => DrawRect("bg-dark-young", None, x - 53, y - 122, 83, 131)
+                    case ShubNiggurath => DrawRect("bg-shub", None, x - 69, y - 173, 132, 185, 0, 10)
 
-                    case Nightgaunt    => DrawRect("cc-nightgaunt", x - 36, y - 82, 69, 90, -1, 0)
-                    case FlyingPolyp   => DrawRect("cc-flying-polyp", x - 36, y - 81, 73, 90, 10, 0)
-                    case HuntingHorror => DrawRect("cc-hunting-horror", x - 86, y - 70, 166, 77)
-                    case Nyarlathotep  => DrawRect("cc-nyarly", x - 50, y - 155, 106, 163)
+                    case Nightgaunt    => DrawRect("cc-nightgaunt", None, x - 36, y - 82, 69, 90, -1, 0)
+                    case FlyingPolyp   => DrawRect("cc-flying-polyp", None, x - 36, y - 81, 73, 90, 10, 0)
+                    case HuntingHorror => DrawRect("cc-hunting-horror", None, x - 86, y - 70, 166, 77)
+                    case Nyarlathotep  => DrawRect("cc-nyarly", None, x - 50, y - 155, 106, 163)
 
-                    case DeepOne       => DrawRect("gc-deep-one", x - 16, y - 25, 36, 31, 0, -5)
-                    case Shoggoth      => DrawRect("gc-shoggoth", x - 31, y - 62, 63, 69)
-                    case Starspawn     => DrawRect("gc-starspawn", x - 35, y - 63, 69, 70)
-                    case Cthulhu       => DrawRect("gc-cthulhu", x - 65, y - 209, 117, 225, 0, 50)
+                    case DeepOne       => DrawRect("gc-deep-one", None, x - 16, y - 25, 36, 31, 0, -5)
+                    case Shoggoth      => DrawRect("gc-shoggoth", None, x - 31, y - 62, 63, 69)
+                    case Starspawn     => DrawRect("gc-starspawn", None, x - 35, y - 63, 69, 70)
+                    case Cthulhu       => DrawRect("gc-cthulhu", None, x - 65, y - 209, 117, 225, 0, 50)
 
-                    case Undead        => DrawRect("ys-undead", x - 27, y - 49, 44, 54, -5, 0)
-                    case Byakhee       => DrawRect("ys-byakhee", x - 32, y - 64, 57, 70)
-                    case KingInYellow  => DrawRect("ys-king-in-yellow", x - 44, y - 111, 85, 116)
-                    case Hastur        => DrawRect("ys-hastur", x - 87, y - 163, 150, 170)
+                    case Undead        => DrawRect("ys-undead", None, x - 27, y - 49, 44, 54, -5, 0)
+                    case Byakhee       => DrawRect("ys-byakhee", None, x - 32, y - 64, 57, 70)
+                    case KingInYellow  => DrawRect("ys-king-in-yellow", None, x - 44, y - 111, 85, 116)
+                    case Hastur        => DrawRect("ys-hastur", None, x - 87, y - 163, 150, 170)
 
-                    case Wizard        => DrawRect("sl-wizard", x - 23, y - 33, 45, 41)
-                    case SerpentMan    => DrawRect("sl-serpent-man", x - 34, y - 76, 70, 85, 3, 0)
-                    case FormlessSpawn => DrawRect("sl-formless-spawn", x - 38, y - 85, 78, 94)
-                    case Tsathoggua    => DrawRect("sl-tsathoggua", x - 75, y - 133, 152, 146)
+                    case Wizard        => DrawRect("sl-wizard", None, x - 23, y - 33, 45, 41)
+                    case SerpentMan    => DrawRect("sl-serpent-man", None, x - 34, y - 76, 70, 85, 3, 0)
+                    case FormlessSpawn => DrawRect("sl-formless-spawn", None, x - 38, y - 85, 78, 94)
+                    case Tsathoggua    => DrawRect("sl-tsathoggua", None, x - 75, y - 133, 152, 146)
 
-                    case Wendigo       => DrawRect("ww-wendigo", x - 26, y - 62, 56, 68)
-                    case GnophKeh      => DrawRect("ww-gnoph-keh", x - 30, y - 88, 61, 95)
-                    case RhanTegoth    => DrawRect("ww-rhan-tegoth", x - 74, y - 128, 153, 135)
-                    case Ithaqua       => DrawRect("ww-ithaqua", x - 112, y - 192, 164, 202)
+                    case Wendigo       => DrawRect("ww-wendigo", None, x - 26, y - 62, 56, 68)
+                    case GnophKeh      => DrawRect("ww-gnoph-keh", None, x - 30, y - 88, 61, 95)
+                    case RhanTegoth    => DrawRect("ww-rhan-tegoth", None, x - 74, y - 128, 153, 135)
+                    case Ithaqua       => DrawRect("ww-ithaqua", None, x - 112, y - 192, 164, 202)
 
-                    case Mutant        => DrawRect("ow-mutant", x - 20, y - 52, 40, 58)
-                    case Abomination   => DrawRect("ow-abomination", x - 30, y - 76, 62, 82)
-                    case SpawnOW       => DrawRect("ow-spawn-of-yog-sothoth", x - 49, y - 94, 91, 100, 3, 3)
-                    case YogSothoth    => DrawRect("ow-yog-sothoth", x - 82, y - 162, 132, 174)
+                    case Mutant        => DrawRect("ow-mutant", None, x - 20, y - 52, 40, 58)
+                    case Abomination   => DrawRect("ow-abomination", None, x - 30, y - 76, 62, 82)
+                    case SpawnOW       => DrawRect("ow-spawn-of-yog-sothoth", None, x - 49, y - 94, 91, 100, 3, 3)
+                    case YogSothoth    => DrawRect("ow-yog-sothoth", None, x - 82, y - 162, 132, 174)
 
-                    case UnMan         => DrawRect("an-un-man", x - 24, y - 60, 48, 65)
-                    case Reanimated    => DrawRect("an-reanimated", x - 28, y - 62, 57, 65)
-                    case Yothan        => DrawRect("an-yothan", x - 61, y - 85, 122, 90)
+                    case UnMan         => DrawRect("an-un-man", None, x - 24, y - 60, 48, 65)
+                    case Reanimated    => DrawRect("an-reanimated", None, x - 28, y - 62, 57, 65)
+                    case Yothan        => DrawRect("an-yothan", None, x - 61, y - 85, 122, 90)
 
-                    case DesecrationToken => DrawRect("ys-desecration", x - 20, y - 20, 41, 40)
-                    case IceAgeToken      => DrawRect("ww-ice-age", x - 44, y - 67, 91, 75)
-                    case Cathedral        => DrawRect("an-cathedral", x - 39, y - 90, 78, 110)
+                    case DesecrationToken => DrawRect("ys-desecration", None, x - 20, y - 20, 41, 40)
+                    case IceAgeToken      => DrawRect("ww-ice-age", None, x - 44, y - 67, 91, 75)
+                    case Cathedral        => DrawRect("an-cathedral", None, x - 39, y - 90, 78, 110)
 
-                    case Ghast         => DrawRect("n-ghast", x - 17, y - 53, 35, 59)
-                    case Gug           => DrawRect("n-gug", x - 36, y - 78, 73, 90)
-                    case Shantak       => DrawRect("n-shantak", x - 39, y - 89, 79, 100)
-                    case StarVampire   => DrawRect("n-star-vampire", x - 35, y - 75, 70, 85)
+                    case Ghast         => DrawRect("n-ghast", |(tint), x - 17, y - 53, 35, 59)
+                    case Gug           => DrawRect("n-gug", |(tint), x - 36, y - 78, 73, 90)
+                    case Shantak       => DrawRect("n-shantak", |(tint), x - 39, y - 89, 79, 100)
+                    case StarVampire   => DrawRect("n-star-vampire", |(tint), x - 35, y - 75, 70, 85)
 
-                    case GhastIcon        => DrawRect("ghast-icon", x - 17, y - 55, 50, 50)
-                    case GugIcon          => DrawRect("gug-icon", x - 17, y - 55, 50, 50)
-                    case ShantakIcon      => DrawRect("shantak-icon", x - 17, y - 55, 50, 50)
-                    case StarVampireIcon  => DrawRect("star-vampire-icon", x - 17, y - 55, 50, 50)
+                    case GhastIcon        => DrawRect("ghast-icon", None, x - 17, y - 55, 50, 50)
+                    case GugIcon          => DrawRect("gug-icon", None, x - 17, y - 55, 50, 50)
+                    case ShantakIcon      => DrawRect("shantak-icon", None, x - 17, y - 55, 50, 50)
+                    case StarVampireIcon  => DrawRect("star-vampire-icon", None, x - 17, y - 55, 50, 50)
 
                     case _ => null
                 }
 
-                def icon = if (health == Killed) Some(DrawRect("kill", x + rect.cx - 30, (rect.y + y) / 2 + rect.cy - 30, 60, 60)) else if (health == Pained) Some(DrawRect("pain", x - 29 + rect.cx, (rect.y + y) / 2 + rect.cy - 30, 60, 60)) else None
+                def icon =
+                    if (health == Killed)
+                        |(DrawRect("kill", None, x + rect.cx - 30, (rect.y + y) / 2 + rect.cy - 30, 60, 60))
+                    else
+                    if (health == Pained)
+                        |(DrawRect("pain", None, x - 29 + rect.cx, (rect.y + y) / 2 + rect.cy - 30, 60, 60))
+                    else
+                        None
             }
 
             var oldPositions : List[DrawItem] = Nil
@@ -777,8 +812,8 @@ object CthulhuWarsSolo {
 
                 oldGates = game.gates
 
-                draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0)).foreach { d =>
-                    g.drawImage(getAsset(d.rect.key), d.rect.x, d.rect.y)
+                draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0))./(_.rect).foreach { d =>
+                    g.drawImage(d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key)), d.x, d.y)
                 }
 
                 draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0)).foreach { d =>
@@ -828,13 +863,13 @@ object CthulhuWarsSolo {
                     val full = sb.full
                     val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
                     // val d = "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + full + "</div>"
-                    val d = s"""<div class='spellbook' onclick='onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
+                    val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
                     p.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
                 (1.to(6 - p.spellbooks.num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
                 p.requirements./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
-                    val d = s"""<div class='spellbook' onclick='onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
+                    val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
                     // "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + r.text + "</div>"
                     d
                 }.mkString("")
@@ -857,9 +892,9 @@ object CthulhuWarsSolo {
                     val right = baseRightOffset + i * iconSpacing
 
                     s"""<img class='loyalty-card-icon'
-                        src='info/n-${lc.name.toLowerCase.replace(" ", "-")}.svg'
+                        src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace(" ", "-"))}'
                         style='right:${right}px;'
-                        onclick='onExternalClick("${unitName}")'
+                        onclick='event.stopPropagation(); onExternalClick("${unitName}")'
                         onpointerover='onExternalOver("${unitName}")'
                         onpointerout='onExternalOut("${unitName}")' />"""
                 }.mkString("")
@@ -880,7 +915,9 @@ object CthulhuWarsSolo {
                 else
                     r(nameS) + r(powerS) + r(doomS)
 
-                b.node.innerHTML = div("top")("<div onclick=onExternalClick('" + f.short + "') onpointerover=onExternalOver('" + f.short + "') onpointerout=onExternalOut('" + f.short + "')>" + s + "</div>") + sb + lcis
+                b.node.innerHTML = "<div class='full-height' onclick=onExternalClick('" + f.short + "') onpointerover=onExternalOver('" + f.short + "') onpointerout=onExternalOut('" + f.short + "')>" +
+                    div("top")(s) + sb + lcis +
+                    "</div>"
 
                 val bitmap = b.get(w, h)
 
@@ -1062,6 +1099,7 @@ object CthulhuWarsSolo {
                                 Some((false, l.contains(".........").?(16).|(5)))
                             }
                             case UIPerform(g, a : GameOverAction) if a.msg == "Save replay" => {
+                            /*
                                 val name = version + " replay from " + (new js.Date()).toLocaleString()
                                 val data = (name +: (g.factions./(_.short).mkString("-") + " " + g.options./(_.toString).mkString(" ")) +: actions.reverse./(serializer.write)).mkString("\n")
                                 val result = original.replace("<div id=\"replay\"></div>", "<div id=\"replay\">\n" + data + "\n</div>")
@@ -1081,6 +1119,17 @@ object CthulhuWarsSolo {
 
                                 val winners = a.winners
                                 queue :+= UIQuestion(null, game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
+                            */
+
+                                val ir = hrf.html.ImageResources(Map(), Map(), hrf.HRF.imageCache)
+                                val resources = hrf.html.Resources(ir, () => Map())
+                                val title = "Cthulhu Wars " + Info.version + " Replay"
+                                val filename = "cthulhu-wars-" + Info.version + "-replay-" + hrf.HRF.startAt.toISOString().take(16).replace("T", "-")
+
+                                hrf.quine.Quine.save(title, g.factions, g.options, resources, actions.reverse, new Serialize(g), filename, true, "", {
+                                    val winners = a.winners
+                                    queue :+= UIQuestion(null, game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
+                                })
 
                                 Some((false, 10))
                             }
@@ -1540,7 +1589,7 @@ object CthulhuWarsSolo {
 
         val allFactions = List(GC, CC, BG, YS, SL, WW, OW, AN)
 
-        val replay = getElem("replay").innerHTML
+        val replay = getElem("replay").?./(_.innerHTML).|("")
 
         if (replay.trim != "") {
             val entries = replay.split("\n").toList./(_.trim).%(_ != "")
@@ -1620,7 +1669,7 @@ object CthulhuWarsSolo {
                         setup.difficulty += faction -> Human
                         startGame(setup)
                     case 1 =>
-                        ask("Players", ("3 Players" :: "4 Players" :: "5 Players") :+ "Back", n => {
+                        ask("Players", ("3 Players".hl :: "4 Players".hl :: "5 Players".hl) :+ "Back", n => {
                             if (n < 3) {
                                 val pn = n + 3
                                 val combinations = allFactions.combinations(pn).toList
@@ -1635,7 +1684,7 @@ object CthulhuWarsSolo {
                                 topMenu()
                         })
                     case 2 =>
-                        ask("Players", ("3 Players" :: "4 Players" :: "5 Players") :+ "Back", n => {
+                        ask("Players", ("3 Players".hl :: "4 Players".hl :: "5 Players".hl) :+ "Back", n => {
                             if (n < 3) {
                                 val pn = n + 3
                                 val combinations = allFactions.combinations(pn).toList
@@ -1649,7 +1698,7 @@ object CthulhuWarsSolo {
                             else
                                 topMenu()
                         })
-                    case 3 => ask("Cthulhu Wars Extra", List("Survival mode".hl, "<a href='https://necronomicon.app/' target='_blank'><div>Necronomicon</div></a>", "<a href='https://cthulhuwars.fandom.com/' target='_blank'><div>Cthulhu Wars Strategy Wiki</div></a>", "Back"), {
+                    case 3 => ask("Cthulhu Wars Extra", $("Survival mode".styled("kill"), "Download Offline Version".hl, "<a href='https://necronomicon.app/' target='_blank'><div>Necronomicon</div></a>", "<a href='https://cthulhuwars.fandom.com/' target='_blank'><div>Cthulhu Wars Strategy Wiki</div></a>", "Back"), {
                         case 0 =>
                             val base = allFactions.take(4)
                             ask("Choose faction", base./(f => f.toString) :+ "Back", nf => {
@@ -1662,10 +1711,12 @@ object CthulhuWarsSolo {
                                     topMenu()
                             })
                         case 1 =>
-                            topMenu()
-                        case 2 =>
-                            topMenu()
-                        case 3 =>
+                            val ir = hrf.html.ImageResources(Map(), Map(), hrf.HRF.imageCache)
+                            val resources = hrf.html.Resources(ir, () => Map())
+                            var game = new Game(EarthMap3, RitualTrack.for3, $(GC, CC, BG), true, $)
+
+                            hrf.quine.Quine.save("cthulhu-wars-solo-" + Info.version, $, $, resources, $, new Serialize(game), "cthulhu-wars-solo-" + Info.version, false, "", topMenu())
+                        case 2 | 3 | 4 =>
                             topMenu()
                     })
                     case 4 => ask("Cthulhu Wars Solo", List("<a href='https://boardgamegeek.com/filepage/152635/cthulhu-wars-solo-hrf-19' target='_blank'><div>Project Homepage</div></a>", "Developed by " + "Haunt Roll Fail".hl, "Additional AI programming by " + "ricedwlit".hl, "Ancients"/*.styled("AN")*/ + " faction developed by " + "Legrasse81".hl, "Board game by " + "Peterson Games".hl, "All graphics in the app belong to Petersen Games.<br>Used with permission.", "Back"), {
