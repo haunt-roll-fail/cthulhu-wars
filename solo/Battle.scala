@@ -46,7 +46,7 @@ case class DoubleHP(left : BaseUnitHealth, right : BaseUnitHealth) extends UnitH
     case (Alive, Alive) => "alive"
     case (a, b) => "" + a + "/" + b
 })
-case object Spared extends UnitHealth("spared")
+case class Spared(now : BaseUnitHealth) extends UnitHealth("spared-" + now)
 
 
 @scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
@@ -169,7 +169,7 @@ case class ShrivelingAction(self : Faction, ur : UnitRef) extends BaseFactionAct
 
 
 
-class Side(val faction : Faction, val player : Player, var units : List[UnitFigure], var strength : Int = 0, var rolls : List[BattleRoll] = Nil, var opponent : Side = null) {
+class Side(val faction : Faction, val player : Player, var units : $[UnitFigure], var strength : Int = 0, var rolls : $[BattleRoll] = $, var opponent : Side = null) {
     def has(s : Spellbook) = player.oncePerAction.contains(s)
     def add(s : Spellbook) { player.oncePerAction :+= s }
     def remove(s : Spellbook) { player.oncePerAction = player.oncePerAction.but(s) }
@@ -237,7 +237,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     def assignKill(unit : UnitFigure) {
         unit.health = unit.health match {
             case Killed => log("ERROR - Assign KILL to KILLED"); Killed
-            case Spared => log("ERROR - Assign KILL to SPARED"); Killed
+            case Spared(_) => log("ERROR - Assign KILL to SPARED"); Killed
             case DoubleHP(Killed, Killed) => log("ERROR - Assign KILL to DBL-KILLED"); Killed
             case DoubleHP(Killed, _) => DoubleHP(Killed, Killed)
             case DoubleHP(_, Killed) => log("ERROR - Assign KILL to HALF-PAINED"); DoubleHP(Killed, Killed)
@@ -270,7 +270,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     def assignPain(unit : UnitFigure) {
          unit.health = unit.health match {
             case Killed => log("ERROR - Assign PAIN to KILLED"); Pained
-            case Spared => log("ERROR - Assign PAIN to SPARED"); Killed
+            case Spared(_) => log("ERROR - Assign PAIN to SPARED"); Killed
             case Pained => log("ERROR - Assign PAIN to PAINED"); Pained
             case DoubleHP(Killed, Killed) => log("ERROR - Assign PAIN to DBL-KILLED"); Pained
             case DoubleHP(Pained, Killed) => log("ERROR - Assign PAIN to PAINED-KILLED"); Pained
@@ -565,7 +565,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                     if (s.has(Emissary)) {
                         s.units.%(_.health == Killed).%(_.uclass == Nyarlathotep).foreach { u =>
                             log("" + u.uclass + " survived the kill as an " + u.faction.styled(Emissary))
-                            u.health = Pained
+                            u.health = Spared(Pained)
                         }
                     }
 
@@ -691,7 +691,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                     s.units.foreach(u => u.health = u.health match {
                         case DoubleHP(Alive, Alive) => Alive
                         case DoubleHP(_, _) => Pained
-                        case Spared => Alive
+                        case Spared(now) => now
                         case s => s
                     })
 
@@ -1021,7 +1021,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // ETERNAL
         case EternalPayAction(self, u, result) =>
             game.of(self).power -= 1
-            game.unit(u).health = Spared
+            game.unit(u).health = Spared(Alive)
             log("" + self + " payed " + 1.power + " for " + self.styled(Eternal) + " to cancel " + result + " on " + u.short)
             proceed()
 
