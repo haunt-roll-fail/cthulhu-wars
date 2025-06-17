@@ -101,19 +101,35 @@ object CthulhuWarsSolo {
 
     def getAsset(k : String) : html.Image = dom.document.getElementById(k).asInstanceOf[html.Image]
 
-    def getTintedAsset(k : String, tint : String) : html.Canvas = {
-        val nmi = dom.document.getElementById(k).asInstanceOf[html.Image]
+    case class Processing(tint : |[String], screen : |[String], overlay : |[String]) extends GoodMatch
 
-        val nmt = new Bitmap(nmi.width, nmi.height)
-        nmt.context.drawImage(nmi, 0, 0)
+    def getTintedAsset(k : String, processing : Processing) : html.Canvas = {
+        val source = dom.document.getElementById(k).asInstanceOf[html.Image]
 
-        nmt.context.fillStyle = tint
-        nmt.context.globalCompositeOperation = "color"
-        nmt.context.fillRect(0, 0, nmi.width, nmi.height)
+        val result = new Bitmap(source.width, source.height)
+        result.context.drawImage(source, 0, 0)
 
-        nmt.context.globalCompositeOperation = "destination-in"
-        nmt.context.drawImage(nmi, 0, 0)
-        nmt.canvas
+        processing.tint.foreach { tint =>
+            result.context.fillStyle = tint
+            result.context.globalCompositeOperation = "color"
+            result.context.fillRect(0, 0, source.width, source.height)
+        }
+
+        processing.screen.foreach { screen =>
+            result.context.fillStyle = screen
+            result.context.globalCompositeOperation = "screen"
+            result.context.fillRect(0, 0, source.width, source.height)
+        }
+
+        processing.overlay.foreach { overlay =>
+            result.context.fillStyle = overlay
+            result.context.globalCompositeOperation = "overlay"
+            result.context.fillRect(0, 0, source.width, source.height)
+        }
+
+        result.context.globalCompositeOperation = "destination-in"
+        result.context.drawImage(source, 0, 0)
+        result.canvas
     }
 
     def newDiv(cl : String, content : String, click : () => Unit = null) = {
@@ -530,20 +546,22 @@ object CthulhuWarsSolo {
             case object Gate extends UnitClass("Gate", Token, 3)
             case object FactionGlyph extends UnitClass("Faction Glyph", Token, 0)
 
-            case class DrawRect(key : String, tint : |[String], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
+            case class DrawRect(key : String, tint : |[Processing], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
 
             case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
                 // val tint = $(GC, CC, BG, YS, WW, SL, OW, AN).shuffle.first @@ {
                 val tint = faction @@ {
-                    case GC => "#77a055"
-                    case CC => "#4977b3"
-                    case BG => "#cd3233"
-                    case YS => "#cda431" // "#bf9c30"
-                    case WW => "#88a9be"
-                    case SL => "#db6a33"
-                    case OW => "#6c4296"
-                    case AN => "#47a5bc"
-                    case _ => "#ff00ff"
+                    case GC => Processing(|("#77a055"), |("#222222"), None)
+                    case CC => Processing(|("#4977b3"), |("#111111"), None)
+                    case BG => Processing(|("#cd3233"), None, |("#555555"))
+                    case YS => Processing(|("#ffd000"), |("#663344"), None)
+                    case WW => Processing(|("#88a9be"), |("#5577aa"), None)
+                    case WW => Processing(|("#88a9be"), |("#6688bb"), None)
+                    case WW => Processing(|("#88a9be"), |("#444477"), None)
+                    case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
+                    case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
+                    case AN => Processing(|("#47a5bc"), |("#333333"), None)
+                    case _ => Processing(None, None, None)
                 }
 
                 val rect : DrawRect = unit match {
