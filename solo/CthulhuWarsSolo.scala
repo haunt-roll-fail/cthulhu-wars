@@ -223,9 +223,9 @@ object CthulhuWarsSolo {
         //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // Temp for test (comment out before deploying)
         val scroll = cwsOptions./~(_.getAttribute("data-scroll").?)./(_ == "true").|(false)
         val server = cwsOptions./~(_.getAttribute("data-server").?).|("###SERVER-URL###")
-        //val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
-        //val redirect = location != server
-        val redirect = false // making online games work with AN, as per hauntrollfail's advice
+        // val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
+        val redirect = location != server
+        // val redirect = false // making online games work with AN, as per hauntrollfail's advice
 
         val logDiv = getElem("log")
 
@@ -556,8 +556,6 @@ object CthulhuWarsSolo {
                     case BG => Processing(|("#cd3233"), None, |("#555555"))
                     case YS => Processing(|("#ffd000"), |("#663344"), None)
                     case WW => Processing(|("#88a9be"), |("#5577aa"), None)
-                    case WW => Processing(|("#88a9be"), |("#6688bb"), None)
-                    case WW => Processing(|("#88a9be"), |("#444477"), None)
                     case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
                     case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
                     case AN => Processing(|("#47a5bc"), |("#333333"), None)
@@ -1415,6 +1413,12 @@ object CthulhuWarsSolo {
                         n -= 1
                         if (n == 0) {
                             setup.toggle(NeutralMonsters)
+
+                            if (setup.options.has(NeutralMonsters))
+                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire)
+                            else
+                                setup.options = setup.options.notOf[NeutralMonsterOption]
+
                             setupQuestions()
                         }
                         if (setup.options.contains(NeutralMonsters)) {
@@ -1528,6 +1532,12 @@ object CthulhuWarsSolo {
                         n -= 1
                         if (n == 0) {
                             setup.toggle(NeutralMonsters)
+
+                            if (setup.options.has(NeutralMonsters))
+                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire)
+                            else
+                                setup.options = setup.options.notOf[NeutralMonsterOption]
+
                             setupQuestions()
                         }
                         if (setup.options.contains(NeutralMonsters)) {
