@@ -282,11 +282,12 @@ case class RevealESAction(self : Faction, es : List[ElderSign], power : Boolean,
 
 case class LoyaltyCardDoomAction(self : Faction) extends OptionFactionAction("Obtain " + "Loyalty Card".styled("nt")) with DoomQuestion with Soft with PowerNeutral
 case class LoyaltyCardAction(self: Faction, lcs: List[LoyaltyCard], next: Action) extends BaseFactionAction(g => "Obtain " + "Loyalty Card".styled("nt"), {
+    val qm = Overlays.imageSource("question-mark")
     lcs.map { lc =>
         val p = s""""${lc.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;")
         "<div class=sbdiv>" +
         lc.short +
-        s"""<img class=explain src="info/question-mark.png" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
+        s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
         "</div>"
     }.mkString("\n")
 }) with PowerNeutral
@@ -623,10 +624,11 @@ case object MapEarth35 extends MapOption
 case object MapEarth53 extends MapOption
 case object MapEarth55 extends MapOption
 
-case object UseGhast extends GameOption
-case object UseGug extends GameOption
-case object UseShantak extends GameOption
-case object UseStarVampire extends GameOption
+sealed trait NeutralMonsterOption extends GameOption
+case object UseGhast extends NeutralMonsterOption
+case object UseGug extends NeutralMonsterOption
+case object UseShantak extends NeutralMonsterOption
+case object UseStarVampire extends NeutralMonsterOption
 
 case class PlayerCount(n : Int) extends GameOption
 
