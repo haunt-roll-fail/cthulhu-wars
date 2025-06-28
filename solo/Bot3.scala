@@ -60,7 +60,7 @@ case class Bot3(faction : Faction) {
             def freeGate = gate && !ownGate && !enemyGate
             def controllers = (ownGate || enemyGate).?(owner.at(r).%(_.canControlGate)).|(Nil)
             def owner = game.factions.%(_.gates.contains(r)).single.get
-            def capturers = others.%(f => allies.goos.none && ((f.at(r).monsters.any && allies.monsters.none) || f.at(r).goos.any))
+            def capturers = others.%(f => allies.goos.none && (((f.at(r).monsters.filterNot(_.uclass == Gug).any && !f.at(r).exists(u => game.isIsolatedBrainless(game.of(f), u))) && allies.monsters.none) || f.at(r).goos.any))
         }
 
         implicit class UnitClassifyList(val us : List[UnitFigure]) {
@@ -95,7 +95,7 @@ case class Bot3(faction : Faction) {
             def pretender = cultist && !capturable && enemyGate
             def shield = friends.goos.any
             def capturable = cultist && capturers.%(_.power > 0).any
-            def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && f.at(u.region).monsters.any)))
+            def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && (f.at(u.region).monsters.filterNot(_.uclass == Gug).any && !f.at(u.region).exists(u => game.isIsolatedBrainless(game.of(f), u))))))
             def vulnerable = cultist && friends.goos.none && friends.monsters.none
         }
 
@@ -220,7 +220,7 @@ case class Bot3(faction : Faction) {
                         true |=> -1000 -> "unknown"
                 }
 
-                case Pay4PowerMainAction(_) =>
+               case Pay4PowerMainAction(_) =>
                     self.numSB == 5 |=> 500 -> "last spellbook"
                     self.numSB == 4 |=> 400 -> "pre-last spellbook"
                     power < 6 |=> -200 -> "not much power"

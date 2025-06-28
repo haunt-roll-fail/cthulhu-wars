@@ -47,6 +47,11 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
             val kiy = allies.has(KingInYellow)
             val has = allies.has(Hastur)
 
+            //var eght = foes(Ghast).num
+            var egug = foes(Gug).num
+            var esht = foes(Shantak).num
+            var esv = foes(StarVampire).num
+
             f match {
                 case GC =>
                     var ec = foes(Acolyte).num
@@ -55,7 +60,7 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
                     var ss = foes(Starspawn).num
                     var cth = foes.has(Cthulhu)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
                     var shield = ac + un + by - 1
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
@@ -124,7 +129,7 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB)
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
 
                     val enough = shield * 4 > enemyStr
 
@@ -152,7 +157,7 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                     val shield = ac + un + by
 
-                    val enemyStr = sm + fs * (f.count(FormlessSpawn) + f.count(Tsathoggua)) + tsa.??(max(2, power - 1))
+                    val enemyStr = sm + fs * (f.count(FormlessSpawn) + f.count(Tsathoggua)) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
 
@@ -894,11 +899,6 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
                 u.faction != self |=> u.uclass.cost * 100 -> "cost * 100"
                 u.is(Acolyte) && u.faction != self |=> 50 -> "pain enemy acolyte"
             }
-
-            val opponent = battle.opponent(self)
-            val allies = battle.units(self)
-            val enemies = battle.units(opponent)
-            val first = battle.attacker == self
 
             a match {
                 case DevourAction(_, u) =>

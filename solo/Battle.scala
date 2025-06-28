@@ -1084,7 +1084,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         case UnholyGroundEliminateAction(self, f, r, ur) =>
             val u = game.unit(ur)
             eliminate(u)
-            log("" + u.uclass.name + " was eliminated with " + f.styled(UnholyGround))
+            log("" + u.short + " was eliminated with " + f.styled(UnholyGround))
 
             if (side(self).units.%(_.uclass.utype == GOO).any) {
                 QAsk(game.cathedrals./(r => UnholyGroundAction(f, self, r)) :+ UnholyGroundIgnoreAction(f))

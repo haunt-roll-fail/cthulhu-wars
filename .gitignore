@@ -8,3 +8,5 @@ solo/target/*
 solo/images/*
 solo/info/*
 solo/fonts/*
+solo/webp/*
+solo/web.config
