@@ -21,6 +21,11 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
             var ra = allies(Reanimated).num
             var yo = allies(Yothan).num
 
+            //var eght = foes(Ghast).num
+            var egug = foes(Gug).num
+            var esht = foes(Shantak).num
+            var esv = foes(StarVampire).num
+
             f match {
                 case GC =>
                     var ec = foes(Acolyte).num
@@ -29,7 +34,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                     var ss = foes(Starspawn).num
                     var cth = foes.has(Cthulhu)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
                     var shield = ac + um + ra + yo - 1
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
@@ -84,15 +89,14 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB)
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
 
                     val enough = shield * 5 > enemyStr * 4
 
                     f.has(Invisibility) && fp == foes.num |=> -1000000 -> "invis"
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
 
-                    // If neutral goos are ever introduced, this needs adjusting (along with a whole lot of other things, of course).
-                    nya && yo > 0 && shield < 3 |=> -500000 -> "dont risk yothans vs unkillable nya"
+                    nya && f.has(Emissary) && yo > 0 && shield < 3 |=> -500000 -> "dont risk yothans vs unkillable nya"
 
                     hh == foes.num && enough && ownStr > 3 |=> 11000/d -> "attack hh"
                     hh + fp == foes.num && enough && ownStr > 4 |=> 10000/d -> "attack hhfp"
@@ -108,7 +112,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     val ownStr = ra * 2 + yo * 7
 
-                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1))
+                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -131,7 +135,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     val ownStr = ra * 2 + yo * 7
 
-                    val enemyStr = mu + ab * 2 + sp * 3 + game.factions.but(f).map(_.goos.num).sum * 2
+                    val enemyStr = mu + ab * 2 + sp * 3 + game.factions.but(f).map(_.goos.num).sum * 2 + egug * 3 + esht * 2 + esv
 
                     var shield = ac + um + ra + yo
 
@@ -390,7 +394,9 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.allies.monsters.any |=> 59 -> "flee from capture to monster"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.empty |=> 58 -> "flee from capture"
 
-                others.%(f => f.power > 0 || f.has(Passion)).%(f => o.of(f).goos.none && o.of(f).monsters.none).none |=> -300 -> "why move"
+                // Not sure about this.
+                //others.%(f => f.power > 0 || f.has(Passion)).%(f => o.of(f).goos.none && o.of(f).monsters.none).none |=> -300 -> "why move"
+                //game.cathedrals.num < 4 && others.%(f => f.power > 0 || f.has(Passion)).%(f => o.of(f).goos.none && o.of(f).monsters.none).none |=> -300 -> "why move"
 
                 d.foes.goos.any && d.allies.goos.none |=> -250 -> "dont move to enemy goos"
                 o.capturers.%(_.power > 0).any && d.capturers.none && o.allies.cultists.num == 1 |=> 220 -> "move from capture"
