@@ -26,8 +26,13 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
             var ac = allies(Acolyte).num
             var mu = allies(Mutant).num
             var ab = allies(Abomination).num
-            val sp = allies.has(SpawnOW)
+            var sp = allies(SpawnOW).num
             val ygs = allies.has(YogSothoth)
+
+            //var eght = foes(Ghast).num
+            var egug = foes(Gug).num
+            var esht = foes(Shantak).num
+            var esv = foes(StarVampire).num
 
             f match {
                 case GC =>
@@ -37,7 +42,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                     var ss = foes(Starspawn).num
                     var cth = foes.has(Cthulhu)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
                     var shield = ac + mu + ab - 1
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
@@ -92,13 +97,13 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB)
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
 
                     val enough = shield * 5 > enemyStr * 4
 
                     f.has(Invisibility) && fp == foes.num |=> -1000000 -> "invis"
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
-                    sp && nya && enough && (ownStr > 2 + (foes.num - 1) * 6 || (!f.active && ownStr > enemyStr && power > 1)) |=> 13000/d -> "sp attack nya"
+                    sp > 0 && nya && enough && (ownStr > 2 + (foes.num - 1) * 6 || (!f.active && ownStr > enemyStr && power > 1)) |=> 13000/d -> "sp attack nya"
 
                     ygs && ec < foes.num |=> 12000/d -> "attack cc"
                     ygs && nya |=> 19000/d -> "attack nya"
@@ -561,11 +566,6 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 }
             }
             else {
-                val opponent = battle.opponent(self)
-                val allies = battle.units(self)
-                val enemies = battle.units(opponent)
-                val first = battle.attacker == self
-
                 a match {
                     case DevourAction(_, u) =>
                         elim(battle, u)
@@ -651,7 +651,6 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                     case ChannelPowerDoneAction(_) =>
                         true |=> 10000 -> "done"
-
 
                     case _ =>
                         true |=> 1000 -> "todo"

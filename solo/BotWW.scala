@@ -34,6 +34,11 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
             val rhas = rha.??(3)
             val iths = ith.??((f.doom + 1) / 2)
 
+            //var eght = foes(Ghast).num
+            var egug = foes(Gug).num
+            var esht = foes(Shantak).num
+            var esv = foes(StarVampire).num
+
             f match {
                 case GC =>
                     var ec = foes(Acolyte).num
@@ -57,7 +62,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val ownStr = we + gk * 3 + rhas + iths
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -76,7 +81,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val ownStr = we + gk * 3 + rhas + iths
 
-                    var enemyStr = ec * ep.has(Frenzy).??(1) + fu + dy * 2 + shu.??(ep.gates.num + ep.all(Acolyte).num + ep.all(DarkYoung).num * ep.has(RedSign).??(1))
+                    var enemyStr = ec * ep.has(Frenzy).??(1) + fu + dy * 2 + shu.??(ep.gates.num + ep.all(Acolyte).num + ep.all(DarkYoung).num * ep.has(RedSign).??(1)) + egug * 3 + esht * 2 + esv
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -128,7 +133,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB)
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
 
                     val enough = shield * 5 > enemyStr * 4 && ownStr > foes.num * 3
 
@@ -154,7 +159,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val ownStr = we + gk * 3 + rhas + iths
 
-                    val enemyStr = (un > 0).??(un - 1) + (by > 0).??(by + 1) + has.??(game.ritualCost)
+                    val enemyStr = (un > 0).??(un - 1) + (by > 0).??(by + 1) + has.??(game.ritualCost) + egug * 3 + esht * 2 + esv
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -174,7 +179,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val ownStr = we + gk * 3 + rhas + iths
 
-                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1))
+                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12

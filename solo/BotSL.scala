@@ -97,7 +97,6 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 val hasturThreat = YS.has(Hastur) && YS.player.goo(Hastur).region.ownGate && YS.power == 0
                 val kiyThreat = YS.has(KingInYellow) && YS.player.goo(KingInYellow).region.ownGate && YS.power == 0
-                val ihh = have(SeekAndDestroy).?(self.all(FormlessSpawn).%(_.region != d).num).|(0)
 
                 d.enemyGate && others./(_.aprxDoom).max > 15 && (d.owner.aprxDoom + 5 < others./(_.aprxDoom).max) && d.foes.goos.none |=> -1500 -> "bash leader instead"
                 d.enemyGate && others./(_.aprxDoom).max > 23 && (d.owner.aprxDoom + 1 < others./(_.aprxDoom).max) && d.foes.goos.none |=> -1500 -> "bash leader instead"
@@ -122,7 +121,6 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 d.enemyGate && self.gates.num < 4 && d.owner.power < power && (d.owner != YS || !hasturThreat) && d.controllers.num == 1 && d.controllers.monsters.none && d.foes.goos.none && !d.owner.active && power > 1 |=> 999 -> "go get a gate"
                 d.enemyGate && self.gates.num < 4 && d.owner.power < power && (d.owner != YS || !hasturThreat) && d.controllers.num == 2 && d.controllers.monsters.none && d.foes.goos.none && !d.owner.active && power > 2 |=> 990 -> "go get a gate"
-                d.enemyGate && self.gates.num < 4 && d.owner.power < power && (d.owner != YS || !hasturThreat) && d.owner.power + 1 < power && d.foes.goos.none && have(Emissary) && power > 2 |=> 900 -> "go get a gate"
                 d.enemyGate |=> -d.controllers.num -> "controllers"
 
                 d.foes(Hastur).any |=> -3000 -> "no not hastur"
@@ -131,17 +129,17 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 o.foes(Cthulhu).any && o.of(GC).num > o.allies.num && GC.power > 0 |=> 2400 -> "no not cthulhu"
                 o.ownGate && others.%(_.power > 0).%(_.at(o).monsters.any).any && o.allies.monsters.none |=> -1500 -> "protect gate"
 
-                d.foes(Hastur).any && power > 1 && YS.power == 0 && have(Abduct).?(d.allies(Wizard).num).|(0) + have(Invisibility).?(d.allies(SerpentMan).num).|(0) >= d.of(YS).num - 1 |=> 3333 -> "assassinate hastur"
+                d.foes(Hastur).any && power > 1 && YS.power == 0 && 0 >= d.of(YS).num - 1 |=> 3333 -> "assassinate hastur"
 
-                ((d.ownGate && d.allies.cultists.num <= YS.power) || ((self.allSB || YS.power == 0 || (YS.power == 0 && !d.desecrated        )) && power > 1)) && d.foes(KingInYellow).any && d.foes(Hastur).none && d.str(YS) <= (d.allies.num + ihh    ) * 4 && YS.power >= 0 |=> 2000 -> "nya defend from kiy"
-                ((d.ownGate && d.allies.cultists.num <= BG.power) || ((self.allSB || BG.power == 0 || (BG.power == 0 && d.allies.cultists.any)) && power > 1)) && d.foes(ShubNiggurath).any                       && d.str(BG) <= (d.allies.num + ihh    ) * 4 && BG.power >= 0 |=> 1800 -> "nya defend from shub"
-                ((d.ownGate && d.allies.cultists.num <= GC.power) || ((self.allSB || GC.power == 0 || (GC.power == 0 && d.allies.cultists.any)) && power > 1)) && d.foes(Cthulhu).any                             && d.str(GC) <= (d.allies.num + ihh - 1) * 4 && GC.power >= 0 |=> 1600 -> "nya defend from cthulhu"
+                ((d.ownGate && d.allies.cultists.num <= YS.power) || ((self.allSB || YS.power == 0 || (YS.power == 0 && !d.desecrated        )) && power > 1)) && d.foes(KingInYellow).any && d.foes(Hastur).none && d.str(YS) <= d.allies.num * 4 && YS.power >= 0 |=> 2000 -> "tsa defend from kiy"
+                ((d.ownGate && d.allies.cultists.num <= BG.power) || ((self.allSB || BG.power == 0 || (BG.power == 0 && d.allies.cultists.any)) && power > 1)) && d.foes(ShubNiggurath).any                       && d.str(BG) <= d.allies.num * 4 && BG.power >= 0 |=> 1800 -> "tsa defend from shub"
+                ((d.ownGate && d.allies.cultists.num <= GC.power) || ((self.allSB || GC.power == 0 || (GC.power == 0 && d.allies.cultists.any)) && power > 1)) && d.foes(Cthulhu).any                             && d.str(GC) <= (d.allies.num - 1) * 4 && GC.power >= 0 |=> 1600 -> "tsa defend from cthulhu"
 
-                val shield = d.allies.num + have(SeekAndDestroy).?(self.all(FormlessSpawn).num).|(0) >= 2
+                val shield = d.allies.num >= 2
 
-                shield && d.foes(KingInYellow).any && d.foes(Hastur).none && !game.desecrated.contains(d) |=> 300 -> "nya chase kiy"
-                shield && d.foes(ShubNiggurath).any && d.enemyGate && d.owner == BG |=> 290 -> "nya chase shub"
-                shield && d.foes(Cthulhu).any && d.ocean.not |=> 280 -> "nya chase cthulhu"
+                shield && d.foes(KingInYellow).any && d.foes(Hastur).none && !game.desecrated.contains(d) |=> 300 -> "tsa chase kiy"
+                shield && d.foes(ShubNiggurath).any && d.enemyGate && d.owner == BG |=> 290 -> "tsa chase shub"
+                shield && d.foes(Cthulhu).any && d.ocean.not |=> 280 -> "tsa chase cthulhu"
 
                 active.none && power > 1 && d.enemyGate && (d.owner != YS || (!hasturThreat && !kiyThreat)) && d.controllers.num == 1 && d.of(d.owner).goos.none |=> (5 * 100000 / 3) -> "go get a gate"
 
@@ -218,10 +216,6 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 d.ownGate && d.capturers.any && d.capturers.%(_.power > 0).any && d.capturers.%(_.power > 0).%(_.at(d).goos.any).none |=> 1100 -> "protect gate"
 
-                // Nyarlathotep is wrong here, right?
-                uc == Wizard && (o.noGate || o.enemyGate || o.foes.none) && have(Nyarlathotep) && power > 2 && o.foes.goos.none && d.foes.goos.any && d.foes(Hastur).none && (d.foes(Cthulhu).none || d.allies.any || power > 3) && (others.%(_.at(d).goos.any).%(_.power == 0).any) |=> 700 -> "maybe shield"
-                uc == SerpentMan && (o.noGate || o.enemyGate || o.foes.none) && have(Nyarlathotep) && power > 2 && o.foes.goos.none && d.foes.goos.any && d.foes(Hastur).none && (d.foes(Cthulhu).none || d.allies.any || power > 3) && (others.%(_.at(d).goos.any).%(_.power == 0).any) |=> 700 -> "maybe shield"
-
                 o.ownGate && u.friends.goos.none && u.friends.monsters.none && u.friends.cultists.num == 1 |=> -600 -> "dont leave lone cultist on gate"
 
                 o.foes.goos.any |=> -500 -> "stay with enemy goos"
@@ -255,94 +249,25 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 val igh = BG.has(Necrophagy).?(f.all(Ghoul).diff(foes).num).|(0)
 
                 var ac = allies(Acolyte).num
-                var ng = allies(Wizard).num
-                var fp = allies(SerpentMan).num
-                var hh = allies(FormlessSpawn).num
+                var wz = allies(Wizard).num
+                var sm = allies(SerpentMan).num
+                var fs = allies(FormlessSpawn).num
                 val tsa = allies.has(Tsathoggua)
-
-                val nya = allies.has(Nyarlathotep)
-
-                var ihh = have(SeekAndDestroy).?(self.all(FormlessSpawn).diff(allies).num).|(0)
-
-                def emissary = have(Emissary) && nya && foes.goos.none
 
                 f.has(Invisibility) &&            foes(FlyingPolyp).num >= foes.num    |=> -10000000 -> "polyp can invis all"
                 f.has(Invisibility) && tsa.not && foes(FlyingPolyp).num >= allies.num  |=> -10000000 -> "polyp can invis all"
 
-                r.ownGate && allies.num + ihh < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
+                r.ownGate && allies.num < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
+
+                var eght = foes(Ghast).num
+                var egug = foes(Gug).num
+                var esht = foes(Shantak).num
+                var esv = foes(StarVampire).num
 
                 f match {
                     case GC =>
-                        var ec = foes(Acolyte).num
-                        var dp = foes(DeepOne).num
-                        var sh = foes(Shoggoth).num
-                        var ss = foes(Starspawn).num
-                        var cth = foes.has(Cthulhu)
-
-                        if (have(Abduct)) 1.to(ng).foreach { x =>
-                            ng -= 1
-                            if (ec > 0)
-                                ec -= 1
-                            else
-                            if (dp > 0)
-                                dp -= 1
-                            else
-                            if (sh > 0)
-                                sh -= 1
-                            else
-                            if (ss > 0)
-                                ss -= 1
-                            else
-                                ng += 1
-                        }
-
-                        if (have(Invisibility)) 1.to(fp).foreach { x =>
-                            if (ec + dp + sh > 1 && sh > 0)
-                                sh -= 1
-                            else
-                            if (ss > 0)
-                                ss -= 1
-                            else
-                            if (sh > 0)
-                                sh -= 1
-                            else
-                            if (dp > 0)
-                                ss -= 1
-                            else
-                            if (ec > 0)
-                                ec -= 1
-                        }
-
-                        if (cth) {
-                            if (ac > 0)
-                                ac -= 1
-                            else
-                            if (ng > 0)
-                                ng -= 1
-                            else
-                            if (fp > 0)
-                                fp -= 1
-                            else
-                            if (hh > 0)
-                                hh -= 1
-                            else
-                            if (ihh > 0)
-                                ihh -= 1
-                        }
-
-                        val enemyAttack = cth.?(6).|(0) + ss * 3 + (f.has(Absorb) && ss > 0).?(ss * 2 + ec * 3 + dp * 3).|(dp)
-                        val enemyDefense = ss * f.has(Regenerate).?(2).|(1) + sh + dp + ec
-
-                        val myAttack = nya.?(self.numSB + f.numSB).|(0) + hh * 2 + ihh * 2 + fp * 1
-                        val myDefense = ihh + hh + fp + ng + ac
-
-                        nya && cth && myAttack > enemyDefense * 2 && myDefense * 3 >= enemyAttack * 2 |=> 1200 -> "good cthulhu fight"
-                        nya && cth && myAttack > enemyDefense * 2 && myDefense * 2 >= enemyAttack * 1 |=> 800 -> "ok cthulhu fight"
-
-                        active.none && nya && cth && (enemyStr <= (allies.num + ihh - 2) * 4) |=> 800000 -> "attack cthulhu 800000"
-
-                        nya && cth && enemyStr <= (allies.num + ihh - 2) * 4 |=> 5555 -> "attack cthulhu 5555"
-
+                        // None of the earlier conditions here could trigger.
+                        0 -> "todo"
 
                     case BG =>
                         def ec = foes(Acolyte).num
@@ -352,15 +277,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                         def dy = foes(DarkYoung).num
                         def shu = foes.has(ShubNiggurath)
 
-                        nya && shu && enemyStr <= (allies.num + ihh - 1) * 4 |=> 5555 -> "attack shub 5555"
-
-                        active.none && nya && shu && enemyStr <= (allies.num + ihh - 1) * 4 |=> 900000 -> "attack shub 900000"
-
-                        emissary && dy > 0 && (ec + fu + gh) * 4 < ownStr |=> 1000 -> "kill dark youngs"
-
-                        r.ownGate && shu && !nya && dy + fu + gh + ec == 0 && (ownStr > 1 || ac < BG.power) |=> 1111 -> "chase bg away"
-
-                        gh > 0 && ec + fu + dy == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
+                        gh > 0 && ec + fu + dy + eght + egug + esht + esv == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
 
                     case YS =>
                         def ec = foes(Acolyte).num
@@ -369,20 +286,15 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                         def kiy = foes.has(KingInYellow)
                         def has = foes.has(Hastur)
 
-                        active.none && nya && kiy && !has && (enemyStr <= (allies.num + ihh - 1) * 4) |=> 1000000 -> "attack kiy 1000000"
+                        r.ownGate && kiy && (ownStr > enemyStr || ownStr >= foes.num * 2) && !(self.allSB && power > 1) |=> 4444 -> "chase kiy away"
 
-                        nya && kiy && !has && enemyStr <= (allies.num + ihh - 1) * 4 |=> 5555 -> "attack kiy 5555"
+                        r.ownGate && has && un <= 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && ownStr > un |=> 1222 -> "chase has away"
 
-                        r.ownGate && !nya && kiy && (ownStr > enemyStr || ownStr >= foes.num * 2) && !(have(Nyarlathotep) && self.allSB && power > 1) |=> 4444 -> "chase kiy away"
+                        un == 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
 
-                        r.ownGate && !nya && has && un <= 1 && by == 0 && ownStr > un |=> 1222 -> "chase has away"
-
-                        un == 1 && by == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
-
-                        has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
+                        has && 0 >= ec + un + by + eght + egug + esht + esv && ownStr > 4 |=> 3334 -> "assassinate has"
 
                         f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
-                        emissary && r.enemyGate && r.owner == f && r.owner.has(Passion) && ec > 1 |=> 900 -> "better skirmish ys than capture"
 
                     case CC =>
                         0 -> "todo"
@@ -402,18 +314,10 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 (game.acted || game.battled.any) && r.enemyGate && foes.goos.none |=> -10000 -> "unlimited battle drains power"
 
-                emissary && hh == 0 && (fp == 0 || have(Invisibility)) && r.enemyGate && r.owner == f |=> 610 -> "ok emissary skirmish at gate"
-
                 enemyStr == 0 && r.gateOf(f) && ownStr >= 2 |=> (300 + ownStr) -> "enemy rolls none at gate"
                 enemyStr == 0 && f.power > 0 && r.freeGate && others.%(_ != f).%(_.at(r).any).none |=> (300 + ownStr) -> "enemy rolls none at free gate"
 
-                val ysThreat = if (f == YS) (
-                    (YS.has(Hastur) && YS.player.goo(Hastur).region.allies.cultists.any) ||
-                    (YS.has(KingInYellow) && YS.player.goo(KingInYellow).region.allies.cultists.any)
-                ) else false
-
                 active.none && (game.acted || game.battled.any) |=> -1000000 -> "unlimited battle drains power"
-                active.none && r.gateOf(f) && emissary && !ysThreat |=> (7 * 100000 / 4) -> "drive from gate"
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
@@ -426,9 +330,6 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 4 && power > 3 && !f.has(Passion) |=> (5 * 100000 / 4) -> "safe capture and fourth of gate"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 5 && power > 4 && !f.has(Passion) |=> (6 * 100000 / 5) -> "safe capture and fifth of gate"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 6 && power > 5 && !f.has(Passion) |=> (7 * 100000 / 6) -> "safe capture and sixth of gate"
-
-                !need(Gates4Power15) && others./(_.aprxDoom).max > 15 && (f.aprxDoom + 9 < others./(_.aprxDoom).max) |=> -1650 -> "bash leader instead"
-                !need(Gates4Power15) && others./(_.aprxDoom).max > 23 && (f.aprxDoom + 5 < others./(_.aprxDoom).max) |=> -1650 -> "bash leader instead"
 
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && others.%(_.power > 0).%(_.at(r).%(_.canControlGate).any).any |=> -700 -> "give gate away"
                 !f.has(Passion) |=> 1600 -> "capture"
@@ -447,8 +348,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 YS.has(Hastur) && YS.power > 1 |=> -1000 -> "hastur in play"
                 YS.has(KingInYellow) && YS.power > 1 && game.board.connected(YS.player.goo(KingInYellow).region).contains(r) |=> -1000 -> "kiy is near"
-                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -800 -> "shub in play and lone cultist"
-                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -700 -> "cthulhu has dreams"
+
+                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -800 -> "shub in play and lone cultist"
+                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -700 -> "cthulhu has dreams"
 
                 power > 5 && r.near.%(n => active.%(_.at(n).any).any).none |=> -600 -> "building can wait"
                 (power >= 3 + maxEnemyPower || self.gates.num <= 1) && r.capturers.none |=> 500 -> "building gates is good"
@@ -482,15 +384,15 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 power > 1 && r.allies.goos.any && r.foes.goos(Hastur).none && others.%(_.at(r).goos.any).%(_.power == 0).any |=> 850 -> "shield"
 
-                r.allies(Wizard).none |=> 20 -> "ng cheap"
-                r.allies(Wizard).any |=> 10 -> "ng cheap"
-                r.foes(KingInYellow).any |=> -150 -> "ng bad against kiy"
-                r.near.%(_.foes(KingInYellow).any).any |=> -110 -> "ng bad against kiy"
-                r.near.%(n => n.noGate && n.of(YS).any && YS.power > 5).any |=> -100 -> "ng bad against kiy"
-                YS.has(KingInYellow) && YS.power >= 2 && r.allies.monsters.num == r.allies.monsters(Wizard).num && r.allies.goos.none |=> -90 -> "ng bad against kiy"
-                YS.power >= 6 |=> -80 -> "ng bad against kiy"
+                r.allies(Wizard).none |=> 20 -> "wz cheap"
+                r.allies(Wizard).any |=> 10 -> "wz cheap"
+                r.foes(KingInYellow).any |=> -150 -> "wz bad against kiy"
+                r.near.%(_.foes(KingInYellow).any).any |=> -110 -> "wz bad against kiy"
+                r.near.%(n => n.noGate && n.of(YS).any && YS.power > 5).any |=> -100 -> "wz bad against kiy"
+                YS.has(KingInYellow) && YS.power >= 2 && r.allies.monsters.num == r.allies.monsters(Wizard).num && r.allies.goos.none |=> -90 -> "wz bad against kiy"
+                YS.power >= 6 |=> -80 -> "wz bad against kiy"
 
-                self.pool(Wizard).num == 1 && self.pool(SerpentMan).num > 0 && power == 2 |=> -500 -> "summon fp instead"
+                self.pool(Wizard).num == 1 && self.pool(SerpentMan).num > 0 && power == 2 |=> -500 -> "summon sm instead"
 
                 r.controllers.num == 1 && r.controllers.%(_.capturable).any && r.foes.goos.none |=> 1900 -> "prevent losing gate"
                 r.capturers.%(_.power > 0).any && r.capturers.%(_.power > 0).%(_.at(r).goos.any).none |=> 1800 -> "prevent capture"
@@ -499,7 +401,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
                 r.allies.monsters.none |=> 140 -> "no monsters"
                 r.allies.cultists.num > 2 && r.allies.monsters.any |=> 130 -> "many cultists"
-                r.allies.goos.any |=> 100 -> "summon to nya"
+                r.allies.goos.any |=> 100 -> "summon to tsa"
 
                 true |=> 3000 -> "wizards out"
 
@@ -522,7 +424,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
                 r.allies.monsters.none |=> 140 -> "no monsters"
                 r.allies.cultists.num > 2 && r.allies.monsters.any |=> 130 -> "many cultists"
-                r.allies.goos.any |=> 100 -> "summon to nya"
+                r.allies.goos.any |=> 100 -> "summon to tsa"
 
             case SummonAction(_, FormlessSpawn, r) =>
                 if (have(Burrow) && self.all.%(_.has(Moved)).num == 1) {
@@ -532,12 +434,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 true |=> (-r.allies.monsters.num) -> "monsters count"
 
-                have(Nyarlathotep) && !have(ThousandForms) && need(Pay4Power) && power > 4 && power < 8 |=> -300 -> "better pay 4 power for 1000f"
+                true |=> 10 -> "fs expensive"
 
-                !have(Nyarlathotep) |=> 10 -> "hh expensive"
-                have(Nyarlathotep) |=> 30 -> "hh to shield nya"
-
-                r.foes(KingInYellow).any && power > 3 |=> -150 -> "ng bad againgt kiy"
+                r.foes(KingInYellow).any && power > 3 |=> -150 -> "fs bad against kiy" // Is it?
 
                 r.controllers.num == 1 && r.controllers.%(_.capturable).any && r.foes.goos.none |=> 1900 -> "prevent losing gate"
                 r.capturers.%(_.power > 0).any && r.capturers.%(_.power > 0).%(_.at(r).goos.any).none |=> 1800 -> "prevent capture"
@@ -545,12 +444,12 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
                 r.allies.monsters.none |=> 140 -> "no monsters"
                 r.allies.cultists.num > 2 && r.allies.monsters.any |=> 130 -> "many cultists"
-                r.allies.goos.any |=> 100 -> "summon to nya"
+                r.allies.goos.any |=> 100 -> "summon to tsa"
 
             case AwakenAction(_, _, r, _) =>
-                numSB >= 5 && need(AwakenTsathoggua) |=> 5000 -> "need nyarlathotep"
+                numSB >= 5 && need(AwakenTsathoggua) |=> 5000 -> "need tsathoggua"
                 r.foes.has(Hastur) |=> -3000 -> "hastur is scary"
-                numSB < 5 && numSB > 3 && need(AwakenTsathoggua) |=> 2500 -> "need nyarlathotep"
+                numSB < 5 && numSB > 3 && need(AwakenTsathoggua) |=> 2500 -> "need tsathoggua"
                 power > 8 |=> 2000 -> "yes awaken"
                 power == 8 |=> 1800 -> "maybe awaken"
                 r.foes(KingInYellow).any |=> 400 -> "awaken to battle kiy"
@@ -581,7 +480,6 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 f.power == 0 && f.all.goos.none |=> 270 -> "good power conf"
                 f.power == 0 && game.board.regions.%(r => r.allies.cultists.any && r.capturers.contains(f)).any |=> -1000 -> "dont give power to capture"
-
 
                 self.count(SerpentMan) == 3 && !have(AncientSorcery) |=> 300 -> "get ancient sorcery"
 
@@ -675,6 +573,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 r.ownGate && r.allies.goos.none && r.allies.monsters.num == 1 && others.%(_.power > 1).any |=> -1000 -> "dont open gate"
                 r.allies.num == 1 && r.desecrated && have(Feast) |=> -200 -> "dont leave feast"
 
+            // TODO: Add AncientSorceryUnitAction for OW:s BeyondOne?
+            // TODO: Add AncientSorceryUnitAction for AN:s Dematerialization?
+
             case AncientSorceryPlaceAction(self, r, uc) =>
                 val o = game.board.regions.minBy(r => r.foes.num + r.allies.num)
                 result = eval(MoveAction(self, uc, o, r))
@@ -735,7 +636,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 c.gateKeeper |=> -900 -> "gate keeper"
                 c.friends.cultists.none && c.region.capturers.any |=> 800 -> "can be captured one"
                 c.friends.cultists.any && c.region.capturers.any |=> 700 -> "can be captured many"
-                c.friends.goos.any |=> -500 -> "nya huggers"
+                c.friends.goos.any |=> -500 -> "tsa huggers"
                 c.friends.cultists.any |=> 400 -> "cultist friends"
                 c.friends.monsters.none |=> 300 -> "cultist friends"
 
@@ -752,87 +653,27 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
             case _ =>
         }
 
-        // Battle
-        def elim(battle : Battle, u : UnitFigure) {
-            u.is(Nyarlathotep) && have(Emissary) && battle.units(battle.opponent(self)).goos.none |=> 1000 -> "emissary or what"
-            u.is(Wizard) |=> 400 -> "elim ng"
-            u.is(Acolyte) |=> 800 -> "elim acolyte"
-            u.is(SerpentMan) |=> 200 -> "elim fp"
-            u.is(FormlessSpawn) |=> 100 -> "elim hh"
-            u.is(Nyarlathotep) |=> -1 -> "elim nya"
-        }
-
-        def retreat(battle : Battle, u : UnitFigure) {
-            u.uclass == Acolyte |=> 600 -> "retr acolyte"
-            u.gateKeeper && battle.region.allies.num - battle.side(self).opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
-
-            u.uclass == Wizard |=> 100 -> "retr ng"
-            u.uclass == SerpentMan |=> 200 -> "retr fp"
-            u.uclass == FormlessSpawn |=> 300 -> "retr hh"
-            u.uclass == Nyarlathotep && u.region.foes.goos(Hastur).%(_.health == Alive).any |=> 2000 -> "retr nya from hastur"
-            u.uclass == Nyarlathotep && u.region.foes.goos.%(!_.is(Hastur)).%(_.health == Alive).any |=> -1500 -> "nya stays with goo"
-            u.uclass == Nyarlathotep && u.region.ownGate && (u.region.allies.monsters.none || u.region.foes.goos.any) && u.region.foes.any |=> -500 -> "nya holds to gate"
-            u.uclass == Nyarlathotep |=> 400 -> "nya moves anyway"
-        }
-
         // BATTLE
         if (game.battle != null) {
             val battle = game.battle
 
-            val opponent = battle.opponent(self)
-            val allies = battle.units(self)
-            val enemies = battle.units(opponent)
-            val first = battle.attacker == self
-
-            def ac = allies(Acolyte).num
-            def ng = allies(Wizard).num
-            def fp = allies(SerpentMan).num
-            def hh = allies(FormlessSpawn).num
-            def ihh = have(SeekAndDestroy).?(self.all(FormlessSpawn).diff(allies).num).|(0)
-            def nya = allies.has(Nyarlathotep)
-
-            def ec = enemies(Acolyte).num
-
-            def fr = opponent.has(Frenzy).?(enemies(Acolyte).num).|(0)
-
-            def dp = enemies(DeepOne).num
-            def sh = enemies(Shoggoth).num
-            def ss = enemies(Starspawn).num
-            def cth = enemies.has(Cthulhu)
-
-            def gh = enemies(Ghoul).num
-            def fu = enemies(Fungi).num
-            def dy = enemies(DarkYoung).num
-            def shu = enemies.has(ShubNiggurath)
-
-            def un = enemies(Undead).num
-            def by = enemies(Byakhee).num
-            def kiy = enemies.has(KingInYellow)
-            def has = enemies.has(Hastur)
-
-            // Battle
             def elim(battle : Battle, u : UnitFigure) {
-                u.is(Nyarlathotep) && have(Emissary) && battle.units(battle.opponent(self)).goos.none |=> 1000 -> "emissary or what"
-                u.is(Wizard) |=> 400 -> "elim ng"
+                u.is(Wizard) |=> 400 -> "elim wz"
                 u.is(Acolyte) |=> 800 -> "elim acolyte"
-                u.is(SerpentMan) |=> 200 -> "elim fp"
-                u.is(FormlessSpawn) |=> 100 -> "elim hh"
-                u.is(Nyarlathotep) |=> -1 -> "elim nya"
+                u.is(SerpentMan) |=> 200 -> "elim sm"
+                u.is(FormlessSpawn) |=> 100 -> "elim fs"
+                u.is(Tsathoggua) |=> -1 -> "elim tsa"
             }
 
             def retreat(battle : Battle, u : UnitFigure) {
                 u.uclass == Acolyte |=> 600 -> "retr acolyte"
                 u.gateKeeper && battle.region.allies.num - battle.side(self).opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
 
-                u.uclass == Wizard |=> 100 -> "retr ng"
-                u.uclass == SerpentMan |=> 200 -> "retr fp"
-                u.uclass == FormlessSpawn |=> 300 -> "retr hh"
-                u.uclass == Nyarlathotep && u.region.foes.goos(Hastur).%(_.health == Alive).any |=> 2000 -> "retr nya from hastur"
-                u.uclass == Nyarlathotep && u.region.foes.goos.%(!_.is(Hastur)).%(_.health == Alive).any |=> -1500 -> "nya stays with goo"
-                u.uclass == Nyarlathotep && u.region.ownGate && (u.region.allies.monsters.none || u.region.foes.goos.any) && u.region.foes.any |=> -500 -> "nya holds to gate"
-                u.uclass == Nyarlathotep |=> 400 -> "nya moves anyway"
+                u.uclass == Wizard |=> 100 -> "retr wz"
+                u.uclass == SerpentMan |=> 200 -> "retr sm"
+                u.uclass == FormlessSpawn |=> 300 -> "retr fs"
+                u.is(Tsathoggua) |=> -100000 -> "retr tsa"
             }
-
 
             a match {
                 case DevourAction(_, u) =>

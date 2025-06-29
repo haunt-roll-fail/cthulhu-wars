@@ -130,7 +130,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def controllers = (ownGate || enemyGate).?(owner.at(r).%(_.canControlGate)).|(Nil)
         def gateOf(f : Faction) = f.gates.contains(r)
         def owner = game.factions.%(_.gates.contains(r)).single.get
-        def capturers = others.%(f => allies.goos.none && ((of(f).monsters.any && allies.monsters.none) || of(f).goos.any))
+        def capturers = others.%(f => allies.goos.none && (((of(f).monsters.filterNot(_.uclass == Gug).any && !f.at(r).exists(u => game.isIsolatedBrainless(game.of(f), u))) && allies.monsters.none) || of(f).goos.any))
         def desecrated = game.desecrated.contains(r)
         def near = game.board.connected(r)
         def near2 = game.board.connected(r).flatMap(n => game.board.connected(n)).%(_ != r).%(!near.contains(_))
@@ -180,7 +180,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def pretender = cultist && !capturable && enemyGate
         def shield = friends.goos.any
         def capturable = cultist && capturers.active.any
-        def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && f.at(u.region).monsters.any)))
+        def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && (f.at(u.region).monsters.filterNot(_.uclass == Gug).any && !f.at(u.region).exists(u => game.isIsolatedBrainless(game.of(f), u))))))
         def vulnerableM = cultist && friends.goos.none && friends.monsters.none
         def vulnerableG = cultist && friends.goos.none
     }

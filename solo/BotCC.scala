@@ -276,6 +276,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 r.ownGate && allies.num + ihh < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
+                var eght = foes(Ghast).num
+                var egug = foes(Gug).num
+                var esht = foes(Shantak).num
+                var esv = foes(StarVampire).num
+
                 f match {
                     case GC =>
                         var ec = foes(Acolyte).num
@@ -286,6 +291,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                         if (have(Abduct)) 1.to(ng).foreach { x =>
                             ng -= 1
+                            if (eght > 0)
+                                eght -= 1
+                            else
                             if (ec > 0)
                                 ec -= 1
                             else
@@ -294,6 +302,15 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                             else
                             if (sh > 0)
                                 sh -= 1
+                            else
+                            if (esht > 0)
+                                esht -= 1
+                            else
+                            if (egug > 0)
+                                egug -= 1
+                            else
+                            if (esv > 0)
+                                esv -= 1
                             else
                             if (ss > 0)
                                 ss -= 1
@@ -308,11 +325,23 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                             if (ss > 0)
                                 ss -= 1
                             else
+                            if (egug > 0)
+                                egug -= 1
+                            else
                             if (sh > 0)
                                 sh -= 1
                             else
+                            if (esht > 0)
+                                esht -= 1
+                            else
+                            if (esv > 0)
+                                esv -= 1
+                            else
                             if (dp > 0)
                                 ss -= 1
+                            else
+                            if (eght > 0)
+                                eght -= 1
                             else
                             if (ec > 0)
                                 ec -= 1
@@ -335,8 +364,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 ihh -= 1
                         }
 
-                        val enemyAttack = cth.?(6).|(0) + ss * 3 + (f.has(Absorb) && ss > 0).?(ss * 2 + ec * 3 + dp * 3).|(dp)
-                        val enemyDefense = ss * f.has(Regenerate).?(2).|(1) + sh + dp + ec
+                        val enemyAttack = cth.?(6).|(0) + ss * 3 + (f.has(Absorb) && sh > 0).?(ss * 2 + ec * 3 + dp * 3).|(dp) + egug * 3 + esht * 2 + esv
+                        val enemyDefense = ss * f.has(Regenerate).?(2).|(1) + sh + dp + ec + eght + egug + esht + esv
 
                         val myAttack = nya.?(self.numSB + f.numSB).|(0) + hh * 2 + ihh * 2 + fp * 1
                         val myDefense = ihh + hh + fp + ng + ac
@@ -348,7 +377,6 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                         nya && cth && enemyStr <= (allies.num + ihh - 2) * 4 |=> 5555 -> "attack cthulhu 5555"
 
-
                     case BG =>
                         def ec = foes(Acolyte).num
                         def fr = (f == BG && f.has(Frenzy)).?(ec).|(0)
@@ -357,15 +385,17 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         def dy = foes(DarkYoung).num
                         def shu = foes.has(ShubNiggurath)
 
+                        // TODO: Should subtract probable invised units here, like we do for GC?
+
                         nya && shu && enemyStr <= (allies.num + ihh - 1) * 4 |=> 5555 -> "attack shub 5555"
 
                         active.none && nya && shu && enemyStr <= (allies.num + ihh - 1) * 4 |=> 900000 -> "attack shub 900000"
 
-                        emissary && dy > 0 && (ec + fu + gh) * 4 < ownStr |=> 1000 -> "kill dark youngs"
+                        emissary && dy > 0 && (ec + fu + gh + eght + egug + esht + esv) * 4 < ownStr |=> 1000 -> "kill dark youngs"
 
-                        r.ownGate && shu && !nya && dy + fu + gh + ec == 0 && (ownStr > 1 || ac < BG.power) |=> 1111 -> "chase bg away"
+                        r.ownGate && shu && !nya && dy + fu + gh + ec + eght + egug + esht + esv == 0 && (ownStr > 1 || ac < BG.power) |=> 1111 -> "chase bg away"
 
-                        gh > 0 && ec + fu + dy == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
+                        gh > 0 && ec + fu + dy + eght + egug + esht + esv == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
 
                     case YS =>
                         def ec = foes(Acolyte).num
@@ -374,17 +404,19 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         def kiy = foes.has(KingInYellow)
                         def has = foes.has(Hastur)
 
+                        // TODO: Should subtract probable invised units here, like we do for GC?
+
                         active.none && nya && kiy && !has && (enemyStr <= (allies.num + ihh - 1) * 4) |=> 1000000 -> "attack kiy 1000000"
 
                         nya && kiy && !has && enemyStr <= (allies.num + ihh - 1) * 4 |=> 5555 -> "attack kiy 5555"
 
-                        r.ownGate && !nya && kiy && ((ownStr > enemyStr && ownStr > ec + un + by) || ownStr >= foes.num * 2) && !(have(Nyarlathotep) && self.allSB && power > 1) |=> 4444 -> "chase kiy away"
+                        r.ownGate && !nya && kiy && ((ownStr > enemyStr && ownStr > ec + un + by + eght + egug + esht + esv) || ownStr >= foes.num * 2) && !(have(Nyarlathotep) && self.allSB && power > 1) |=> 4444 -> "chase kiy away"
 
-                        r.ownGate && !nya && has && un <= 1 && by == 0 && ownStr > un |=> 1222 -> "chase has away"
+                        r.ownGate && !nya && has && un <= 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && ownStr > un |=> 1222 -> "chase has away" // Modify? Should apply if low number of ghasts as well as undead, I think.
 
-                        un == 1 && by == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
+                        un == 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
 
-                        has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
+                        has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by + eght + egug + esht + esv && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
 
                         !f.active && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
                         emissary && r.enemyGate && r.owner == f && r.owner.has(Passion) && ec > 1 |=> 900 -> "better skirmish ys than capture"
@@ -396,7 +428,10 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         var fs = foes(FormlessSpawn).num
                         var tsa = foes.has(Tsathoggua)
 
+                        // TODO: Should add neutrals here.
+                        // Why *3 and *2 here if we only check if more than 1? Was the intention to check if less than ownStr? Like in factor 1?
                         nya && !tsa && ownStr >= 6 && (fs * 3 + sm * 2 + wz) > 1 |=> 100 -> "ok sl attack"
+                        //nya && !tsa && ownStr >= 6 && (fs * 3 + sm * 2 + wz + eght + egug * 4 + esht * 3 + esv * 2) > 1 |=> 100 -> "ok sl attack"
 
                         0 -> "todo"
 
@@ -420,9 +455,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         var mu = foes(Mutant).num
                         var ab = foes(Abomination).num
                         val sp = foes(SpawnOW).num
-                        val ygs = allies.has(YogSothoth)
+                        val ygs = foes.has(YogSothoth)
 
-                        nya && !ygs && ownStr >= (mu + ab + sp) * 5 |=> 100 -> "ok ow attack"
+                        nya && !ygs && ownStr >= (mu + ab + sp + eght + egug + esht + esv) * 5 |=> 100 -> "ok ow attack"
 
                         0 -> "todo"
 
@@ -478,8 +513,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 YS.has(Hastur) && YS.power > 1 |=> -1000 -> "hastur in play"
                 YS.has(KingInYellow) && YS.power > 1 && game.board.connected(YS.player.goo(KingInYellow).region).contains(r) |=> -1000 -> "kiy is near"
-                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -800 -> "shub in play and lone cultist"
-                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -700 -> "cthulhu has dreams"
+                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -800 -> "shub in play and lone cultist"
+                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -700 -> "cthulhu has dreams"
 
                 WW.exists && game.board.starting(WW).contains(r) |=> -10000000 -> "starting ww"
                 GC.exists && game.board.starting(GC).contains(r) |=> -10000000 -> "starting gc"
@@ -767,20 +802,34 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         r.of(YS).any |=> -r.of(YS).num*100 -> "disperse ys"
 
                     case _ =>
-                        r.allies.any |=> -2000 -> "dont send non cultists to self"
-                        r.ownGate |=> -2000 -> "dont send non cultists to own gate"
-                        r.freeGate |=> -3000 -> "dont send non cultists to free gate"
-                        r.gateOf(f) |=> -2000 -> "dont send non cultists to their gate"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 6 |=> 600 -> "send non cultists to enemy gate 6"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 5 |=> 500 -> "send non cultists to enemy gate 5"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 4 |=> 400 -> "send non cultists to enemy gate 4"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 3 |=> 300 -> "send non cultists to enemy gate 3"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 2 |=> 200 -> "send non cultists to enemy gate 2"
-                        r.enemyGate && r.owner != f && r.owner.gates.num == 1 |=> 100 -> "send non cultists to enemy gate 1"
-                        r.freeGate |=> -100 -> "dont send non cultists to free gate"
-                        r.empty |=> 200 -> "send non cultists to empty"
+                        // YS neutrals are handled the same way as Undead and Byakhee.
+                        if (f == YS) {
+                            r.of(YS).goos(KingInYellow).any |=> -2000 -> "dont send ys to kiy"
+                            r.of(YS).goos(Hastur).any |=> -200 -> "dont send ys to has"
+                            r.ownGate |=> -1500 -> "dont send ys to own gate"
+                            r.desecrated && r.of(YS).none |=> -1000 -> "dont send for feast"
+                            r.glyph == GlyphWW && YS.needs(DesecrateWW) |=> -200 -> "dont sent for spellbook"
+                            r.glyph == GlyphAA && YS.needs(DesecrateAA) |=> -200 -> "dont sent for spellbook"
+                            r.glyph == GlyphOO && YS.needs(DesecrateOO) |=> -200 -> "dont sent for spellbook"
+                            r.gate && r.allies.any |=> -100 -> "dont send ys to gate"
+                            r.of(YS).any |=> -r.of(YS).num*100 -> "disperse ys"
+                        }
+                        else {
+                            r.allies.any |=> -2000 -> "dont send non cultists to self"
+                            r.ownGate |=> -2000 -> "dont send non cultists to own gate"
+                            r.freeGate |=> -3000 -> "dont send non cultists to free gate"
+                            r.gateOf(f) |=> -2000 -> "dont send non cultists to their gate"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 6 |=> 600 -> "send non cultists to enemy gate 6"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 5 |=> 500 -> "send non cultists to enemy gate 5"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 4 |=> 400 -> "send non cultists to enemy gate 4"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 3 |=> 300 -> "send non cultists to enemy gate 3"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 2 |=> 200 -> "send non cultists to enemy gate 2"
+                            r.enemyGate && r.owner != f && r.owner.gates.num == 1 |=> 100 -> "send non cultists to enemy gate 1"
+                            r.freeGate |=> -100 -> "dont send non cultists to free gate"
+                            r.empty |=> 200 -> "send non cultists to empty"
 
-                        f != AN && u.utype == GOO && game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 |=> 50000 -> "send goo to unholy ground"
+                            f != AN && u.utype == GOO && u != Cthulhu && game.cathedrals.contains(r) && AN.has(UnholyGround) && r.str(AN) > 0 |=> 50000 -> "send goo to unholy ground"
+                        }
 
                 }
             }
@@ -828,6 +877,30 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 def kiy = enemies.has(KingInYellow)
                 def has = enemies.has(Hastur)
 
+                def wz = enemies(Wizard).num
+                def sm = enemies(SerpentMan).num
+                def fs = enemies(FormlessSpawn).num
+                def tsa = enemies.has(Tsathoggua)
+
+                def we = enemies(Wendigo).num
+                def gk = enemies(GnophKeh).num
+                def rha = enemies.has(RhanTegoth)
+                def ith = enemies.has(Ithaqua)
+
+                def mu = enemies(Mutant).num
+                def ab = enemies(Abomination).num
+                def sp = enemies(SpawnOW).num
+                def ygs = enemies.has(YogSothoth)
+
+                def um = enemies(UnMan).num
+                def ra = enemies(Reanimated).num
+                def yo = enemies(Yothan).num
+
+                def eght = enemies(Ghast).num
+                def egug = enemies(Gug).num
+                def esht = enemies(Shantak).num
+                def esv = enemies(StarVampire).num
+
                 def emissary = have(Emissary) && nya && enemies.goos.none
 
                 a match {
@@ -840,19 +913,19 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 cth && first && ng == 1 && ac + fp + hh == 0 |=> 1000 -> "abduct to avoid devour"
                                 cth && first && ng == 1 && ac + fp + hh > 0 |=> -900 -> "wait for devour"
                                 nya && (cth || !have(Emissary)) |=> -500 -> "stay as shield"
-                                ng > ec + dp && sh + ss > 0 |=> 400 -> "eat good unit"
+                                ng > ec + dp + eght && sh + ss + egug + esht + esv > 0 |=> 400 -> "eat good unit"
                                 true |=> -100 -> "dont bother"
                             case BG =>
                                 nya && ec + gh + fu == 0 && dy == 1 |=> -700 -> "dont if just one dy"
-                                dy > 0 && gh == 0 && ng > ec + fu |=> 600 -> "eat dark young"
+                                (dy > 0 || egug > 0 || esht > 0 || esv > 0) && gh == 0 && ng > ec + fu + eght |=> 600 -> "eat dark young or good neutral"
                                 nya && (shu || !have(Emissary)) |=> -500 -> "stay as shield"
-                                !nya && gh == 0 |=> 400 -> "eat cultist or unit"
-                                nya && gh + fu == 0 |=> 300 -> "eat good cultist or unit"
+                                !nya && gh == 0 && eght == 0 |=> 400 -> "eat cultist or unit"
+                                nya && gh + fu + eght == 0 |=> 300 -> "eat good cultist or unit"
                                 true |=> -100 -> "dont bother"
                             case YS =>
                                 nya && (kiy || !have(Emissary)) && !has |=> -500 -> "stay as shield"
                                 ng == 1 && un == 1 |=> -400 -> "lone undead"
-                                ng > ec + un && by > 0 |=> 300 -> "eat byakhee"
+                                ng > ec + un + eght && (by > 0 || egug > 0 || esht > 0 || esv > 0) |=> 300 -> "eat byakhee or good neutral"
                                 has |=> 200 -> "try strip hastur"
                                 true |=> -100 -> "dont bother"
                             case SL =>
@@ -883,38 +956,52 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 first && u.uclass == Shoggoth && ec + dp > 0 && opponent.has(Absorb) && fp >= sh |=> 60000 -> "prevent absorb"
                                 !first && u.uclass == Shoggoth && u.has(Absorbed) && u.count(Absorbed) == enemies./(_.count(Absorbed)).max |=> 50000 -> "hide max absorb"
                                 u.uclass == Starspawn |=> 40000 -> "hide starspawn"
+                                u.uclass == Gug && u.faction == opponent |=> 32000 -> "hide enemy gug"
                                 u.uclass == Shoggoth |=> 30000 -> "hide shoggoth"
+                                u.uclass == Shantak && u.faction == opponent |=> 28000 -> "hide enemy shantak"
+                                u.uclass == StarVampire && u.faction == opponent |=> 25000 -> "hide enemy star vampire" // Depending on if CC has power left?
                                 u.uclass == DeepOne |=> 20000 -> "hide deep one"
+                                nya && cth && u.uclass == Ghast && u.faction == opponent |=> 17000 -> "hide enemy ghast"
                                 nya && cth && u.uclass == Acolyte && u.faction == opponent |=> 15000 -> "hide enemy cultist"
                                 u.uclass == Acolyte && u.faction == self |=> 10000 -> "hide cultist just in case"
 
                                 true |=> -100 -> "dont bother"
+
                             case BG =>
                                 nya && (shu || !have(Emissary)) && u.faction == self |=> -100000 -> "dont hide shields"
                                 nya && !shu && have(Emissary) && u.uclass == HuntingHorror |=> 90000 -> "hide hh when emissary"
                                 nya && !shu && have(Emissary) && u == ifp |=> 85000 -> "hide self when emissary"
                                 !first && shu && !nya && ec + gh + fu > 1 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from shub"
                                 !first && shu && !nya && ec + gh + fu > 1 && u == ifp |=> 70000 -> "hide self from shub"
+                                u.uclass == Gug && u.faction == opponent |=> 60000 -> "hide enemy gug"
                                 u.uclass == DarkYoung && (shu || !nya) |=> 50000 -> "hide dark young"
+                                u.uclass == Shantak && u.faction == opponent |=> 48000 -> "hide enemy shantak"
+                                u.uclass == StarVampire && u.faction == opponent |=> 42000 -> "hide enemy star vampire" // Depending on if CC has power left?
                                 u.uclass == Fungi && (shu || !nya) |=> 40000 -> "hide fungi"
                                 u.uclass == Ghoul && (shu || !nya) |=> 30000 -> "hide ghoul"
                                 u.uclass == Acolyte && u.faction.has(Frenzy) && (shu || !nya) |=> 20000 -> "hide frenzy"
+                                nya && shu && u.uclass == Ghast && u.faction == opponent |=> 17000 -> "hide enemy ghast"
                                 nya && shu && u.uclass == Acolyte && u.faction == opponent |=> 15000 -> "hide enemy cultist"
                                 u.uclass == Acolyte && u.faction == self |=> 10000 -> "hide cultist just in case"
 
                                 true |=> -100 -> "dont bother"
+
                             case YS =>
                                 nya && !has && (kiy || !have(Emissary)) && u.faction == self |=> -100000 -> "dont hide shields"
                                 nya && !has && !kiy && have(Emissary) && u.uclass == HuntingHorror |=> 90000 -> "hide hh when emissary"
                                 nya && !has && !kiy && have(Emissary) && u == ifp |=> 85000 -> "hide self when emissary"
                                 !first && has && !nya && ec + un + by > 0 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from hastur"
                                 !first && has && !nya && ec + un + by > 0 && u == ifp |=> 70000 -> "hide self from hastur"
+                                u.uclass == Gug && u.faction == opponent |=> 65000 -> "hide enemy gug"
                                 u.uclass == Byakhee && invises >= by |=> 60000 -> "hide all byakhee"
+                                u.uclass == Shantak && u.faction == opponent |=> 55000 -> "hide enemy shantak"
+                                u.uclass == StarVampire && u.faction == opponent |=> 52000 -> "hide enemy star vampire" // Depending on if CC has power left?
                                 u.uclass == Undead && un > 1 |=> 50000 -> "hide undead but last"
                                 u.uclass == Byakhee && invises < by |=> 40000 -> "hide some byakhee"
                                 u.uclass == Acolyte && u.faction == opponent && (kiy || has) |=> 30000 -> "hide passion cultist"
                                 u.uclass == Acolyte && u.faction == self |=> 10000 -> "hide cultist just in case"
                                 u.uclass == Undead && un == 1 && (kiy || has) |=> 5000 -> "hide last undead"
+                                u.uclass == Ghast && u.faction == opponent && (kiy || has) |=> 400 -> "hide enemy ghast"
 
                                 true |=> -100 -> "dont bother"
 
@@ -922,7 +1009,6 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 true |=> 0 -> "todo"
 
                             case WW =>
-                                0 -> "todo"
                                 true |=> -100 -> "dont bother"
 
                             case OW =>
@@ -936,25 +1022,26 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         opponent match {
                             case GC =>
                                 first && cth && ac + ng + fp + hh == 0 && ihh == 1 |=> -3000 -> "dont seek devour"
-                                emissary && dp + sh + ss > 0 |=> -3000 -> "dont seek emissary"
+                                emissary && dp + sh + ss + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case BG =>
-                                emissary && fr + fu + dy > 0 |=> -3000 -> "dont seek emissary"
+                                emissary && fr + fu + dy + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case YS =>
-                                emissary && (un > 1 || by > 0) |=> -3000 -> "dont seek emissary"
+                                emissary && (un > 1 || by > 0 || egug > 0 || esht > 0 || esv > 0) |=> -3000 -> "dont seek emissary"
 
                             case SL =>
-                                0 -> "todo"
+                                emissary && sm + fs + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case WW =>
-                                0 -> "todo"
+                                emissary && we + gk + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case OW =>
-                                0 -> "todo"
+                                emissary && mu + ab + sp + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case AN =>
-                                0 -> "todo"
+                                // Could be worth it to try to kill off extinct Yothans, possibly.
+                                emissary && ra + yo + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
                         }
 
                         true |=> 2000 -> "seek seek destroy destroy"

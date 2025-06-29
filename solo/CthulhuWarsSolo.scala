@@ -964,10 +964,12 @@ object CthulhuWarsSolo {
 
                 val deep = if (p.at(GC.deep).any) {
                     var draws = List(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
+                    
+                    val sortedDeep = p.at(GC.deep).sortWith(game.sortAllUnits(p))
 
                     while (draws.num < p.at(GC.deep).num) {
                         val last = draws.last
-                        draws :+= ((last.unit, p.at(GC.deep)(draws.num).uclass) match {
+                        draws :+= ((last.unit, sortedDeep(draws.num).uclass) match {
                             case (Cthulhu, Starspawn) => DrawItem(null, f, Starspawn, Alive, 75 + last.x, 6 + last.y)
                             case (Starspawn, Starspawn) => DrawItem(null, f, Starspawn, Alive, 70 + last.x, last.y)
 
@@ -1773,9 +1775,9 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        val setup = new Setup(randomSeating($(GC, CC, BG)), Normal)
-                        setup.difficulty += GC -> Human
-                        setup.difficulty += CC -> Debug
+                        val setup = new Setup(randomSeating($(AN, CC, BG)), Normal)
+                        setup.difficulty += AN -> Debug
+                        setup.difficulty += CC -> Human
                         setup.difficulty += BG -> Human
                         // setup.options = $(MapEarth53)
                         setup.options = $(NeutralMonsters, UseGhast, UseGug, UseShantak, UseStarVampire)

@@ -917,14 +917,26 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         (gates ++ yogRegion ++ breakThroughRegions).distinct
     }
 
-    def sortAllUnits(p : Player)(a : UnitFigure, b : UnitFigure) =
-        if (a.uclass == b.uclass)
+    def sortAllUnits(p: Player)(a: UnitFigure, b: UnitFigure): Boolean = {
+        val neutralsPriority: Map[String, Int] = Map(
+            "Ghast" -> 1,
+            "Gug" -> 2,
+            "Shantak" -> 3,
+            "Star Vampire" -> 4
+            ).withDefaultValue(0)
+
+        val ap = neutralsPriority(a.uclass.name)
+        val bp = neutralsPriority(b.uclass.name)
+
+        if (ap != bp)
+            ap < bp
+        else if (a.uclass == b.uclass)
             board.regions.indexOf(a.region) < board.regions.indexOf(b.region)
-        else
-        if (a.uclass.utype != b.uclass.utype)
+        else if (a.uclass.utype != b.uclass.utype)
             a.uclass.utype.priority > b.uclass.utype.priority
         else
             p.units.indexOf(a) < p.units.indexOf(b)
+    }
 
     def regionStatus(r : Region) : List[String] = {
         val gate = gates.contains(r)
@@ -1601,7 +1613,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).any)
                 board.regions.%(nx).%(afford(1)).%!(gates.contains).some.foreach { options :+= CursedSlumberLoadMainAction(self, _) }
 
-            (player.inPool(Terror) ++ player.inPool(Monster))./(_.uclass).distinct.reverse.foreach { uc =>
+            ((player.inPool(Terror) ++ player.inPool(Monster)).sortWith(sortAllUnits(player)))./(_.uclass).distinct.reverse.foreach { uc =>
                 board.regions.%(nx).%(afford(r => self.summonCost(this, uc, r))).%(r => canAccessGate(self, r)).some.foreach { options :+= SummonMainAction(self, uc, _) }
             }
 

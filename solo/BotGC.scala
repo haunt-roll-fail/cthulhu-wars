@@ -313,8 +313,7 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 r.ocean && need(AwakenCthulhu) && power < 10 |=> 1100 -> "cant awaken build gates"
                 YS.has(Hastur) && YS.power > 1 |=> -1000 -> "hastur in play"
                 YS.has(KingInYellow) && YS.power > 1 && game.board.connected(YS.player.goo(KingInYellow).region).contains(r) |=> -1000 -> "kiy is near"
-                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -800 -> "shub in play and lone cultist"
-                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -700 -> "cthulhu has dreams"
+                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -800 -> "shub in play and lone cultist"
 
                 (power >= 3 + maxEnemyPower || self.gates.num <= 1 || (r.ocean && need(OceanGates))) && r.capturers.none |=> 500 -> "building gates is good"
 
@@ -505,7 +504,6 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
             val foes = battle.units(opponent)
             val first = battle.attacker == self
 
-            // Battle
             def elim(battle : Battle, u : UnitFigure) {
                 u.is(DeepOne)   |=> 800 -> "elim dee"
                 u.is(Acolyte)   |=> 400 -> "elim aco"
