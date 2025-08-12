@@ -54,20 +54,11 @@ case object WW extends Faction {
         case _ => u.cost
     }
 
-    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
-
-    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == Wendigo) * 1 +
         units.count(_.uclass == GnophKeh) * 3 +
         units.count(_.uclass == RhanTegoth) * 3 +
-        units.count(_.uclass == Ithaqua) * ((g.of(opponent).doom + 1) / 2)
-
-    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
-        strengthFn(g, units, opponent)
-
-    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
-        val current = strengthFn
-        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
-    }
+        units.count(_.uclass == Ithaqua) * ((g.of(opponent).doom + 1) / 2) +
+        neutralStrength(g, units, opponent)
 
 }

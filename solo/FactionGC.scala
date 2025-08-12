@@ -36,8 +36,8 @@ case object GC extends Faction {
 
     def deep = Region("Ocean Deep", Deep)
 
-    override def abilities : List[Spellbook] = List(Immortal, Devour)
-    override def spellbooks : List[Spellbook] = List(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)
+    override def abilities : $[Spellbook] = $(Immortal, Devour)
+    override def spellbooks : $[Spellbook] = $(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)
     override def requirements(options : $[GameOption]) = $(FirstDoomPhase, KillDevour1, KillDevour2, AwakenCthulhu, OceanGates, FiveSpellbooks)
 
     val allUnits =
@@ -53,19 +53,11 @@ case object GC extends Faction {
 
     override def awakenDesc(g : Game, u : UnitClass) : Option[String] = None
 
-    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
-
-    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == DeepOne) * 1 +
         units.count(_.uclass == Shoggoth) * 2 +
         units.count(_.uclass == Starspawn) * 3 +
-        units.count(_.uclass == Cthulhu) * 6
+        units.count(_.uclass == Cthulhu) * 6 +
+        neutralStrength(g, units, opponent)
 
-    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
-        strengthFn(g, units, opponent)
-
-    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
-        val current = strengthFn
-        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
-    }
 }

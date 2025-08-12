@@ -47,11 +47,9 @@ case object BG extends Faction {
         case ShubNiggurath => (g.of(this).gates.contains(r)).?((g.of(this).all(Cultist).num >= 2).?(8).|(998)).|(999)
     }
 
-    override def summonCost(g : Game, u : UnitClass, r : Region) = u.cost - (g.of(this).has(ThousandYoung) && g.of(this).has(ShubNiggurath)).?(1).|(0)
+    override def summonCost(g : Game, u : UnitClass, r : Region) = u.cost - (u.is[FactionUnitClass] && g.of(this).has(ThousandYoung) && g.of(this).has(ShubNiggurath)).??(1)
 
-    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
-
-    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == Acolyte) * g.of(this).has(Frenzy).?(1).|(0) +
         units.count(_.uclass == Fungi) * 1 +
         units.count(_.uclass == DarkYoung) * 2 +
@@ -59,13 +57,7 @@ case object BG extends Faction {
             g.of(this).gates.num +
             g.of(this).all(Acolyte).num +
             g.of(this).all(DarkYoung).num * g.of(this).has(RedSign).?(1).|(0)
-        )
+        ) +
+        neutralStrength(g, units, opponent)
 
-    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
-        strengthFn(g, units, opponent)
-
-    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
-        val current = strengthFn
-        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
-    }
 }
