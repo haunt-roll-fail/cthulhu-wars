@@ -51,18 +51,10 @@ case object SL extends Faction {
         case Tsathoggua => (g.of(this).at(r, FormlessSpawn).any).?((g.of(this).has(Immortal) && !g.of(this).needs(AwakenTsathoggua)).?(4).|(8)).|(999)
     }
 
-    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
-
-    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == SerpentMan) * 1 +
         units.count(_.uclass == FormlessSpawn) * (g.of(this).all(FormlessSpawn).num + g.of(this).all(Tsathoggua).num) +
-        units.count(_.uclass == Tsathoggua) * (max(2, g.of(opponent).power))
+        units.count(_.uclass == Tsathoggua) * (max(2, g.of(opponent).power)) +
+        neutralStrength(g, units, opponent)
 
-    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
-        strengthFn(g, units, opponent)
-
-    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
-        val current = strengthFn
-        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
-    }
 }

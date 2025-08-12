@@ -89,7 +89,7 @@ class Serialize(val g : Game) {
 
         parse(ss, action(_)) match {
             case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
-            case Parsed.Failure(label, index, extra) => throw new Error(label + " " + index + " " + extra)
+            case Parsed.Failure(label, index, extra) => throw new Error(s + "\n" + label + " " + index + " " + extra)
         }
     }
 

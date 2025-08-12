@@ -209,6 +209,7 @@ object CthulhuWarsSolo {
     }
 
 
+    val DottedLine = "............................................................................................................................................................................................................................................"
 
     def setupUI() {
         val (hash, quick) = dom.window.location.hash.drop(1) @@ {
@@ -229,11 +230,11 @@ object CthulhuWarsSolo {
 
         val logDiv = getElem("log")
 
-        def log(s : String) = {
+        def log(s : String, onClick : () => Unit = () => {}) = {
             val nd = logDiv
             val isScrolledToBottom = nd.scrollHeight - nd.clientHeight <= nd.scrollTop + 1
 
-            val p = newDiv("p", s)
+            val p = newDiv("p", s, onClick)
 
             logDiv.appendChild(p)
 
@@ -251,6 +252,7 @@ object CthulhuWarsSolo {
         log(version)
 
         val actionDiv = getElem("action")
+        val undoDiv = getElem("undo")
 
         def askTop() {
             actionDiv.scrollTop = 0
@@ -308,7 +310,7 @@ object CthulhuWarsSolo {
         val mapSmall = getElem("map-small")
         val mapBig = getElem("map-big")
 
-        hide(mapBig.parentNode.parentNode.asInstanceOf[html.Element])
+        hide(mapBig.parentElement.parentElement)
         hide(cw)
         hide(ccw)
 
@@ -363,8 +365,8 @@ object CthulhuWarsSolo {
             if (seating.num == 5)
                 statuses = statuses.take(3) ++ statuses.drop(4).take(1) ++ statuses.drop(3).take(1)
 
-            statuses.take(seating.num)./(_.parentNode.parentNode.asInstanceOf[html.Element]).foreach(show)
-            statuses.drop(seating.num)./(_.parentNode.parentNode.asInstanceOf[html.Element]).foreach(hide)
+            statuses.take(seating.num)./(_.parentElement.parentElement).foreach(show)
+            statuses.drop(seating.num)./(_.parentElement.parentElement).foreach(hide)
 
             if (seating.num <= 4) {
                 hide(getElem("to-cw6"))
@@ -395,9 +397,11 @@ object CthulhuWarsSolo {
             }
 
             var game = new Game(board, track, seating, true, setup.options)
+            var overrideGame : |[Game] = None
+            def displayGame = overrideGame.|(game)
 
-            var actions : List[Action] = Nil
-            var queue : List[UIAction] = Nil
+            var actions : $[Action] = $
+            var queue : $[UIAction] = $
             var paused = recorded.any && hash == ""
 
             val serializer = new Serialize(game)
@@ -659,7 +663,7 @@ object CthulhuWarsSolo {
             var oldGates : List[Region] = Nil
             var horizontal = true
 
-            def drawMap() {
+            def drawMap(game : Game) {
                 val upscale = 2
 
                 val width = map.node.clientWidth * dom.window.devicePixelRatio
@@ -839,26 +843,26 @@ object CthulhuWarsSolo {
             }
 
             mapSmall.onclick = (e) => {
-                hide(mapSmall.parentNode.parentNode.asInstanceOf[html.Element])
-                show(mapBig.parentNode.parentNode.asInstanceOf[html.Element])
+                hide(mapSmall.parentElement.parentElement)
+                show(mapBig.parentElement.parentElement)
 
                 map = mapBitmapBig
-                drawMap()
+                drawMap(displayGame)
             }
 
             mapBig.onclick = (e) => {
-                hide(mapBig.parentNode.parentNode.asInstanceOf[html.Element])
-                show(mapSmall.parentNode.parentNode.asInstanceOf[html.Element])
+                hide(mapBig.parentElement.parentElement)
+                show(mapSmall.parentElement.parentElement)
 
                 map = mapBitmapSmall
-                drawMap()
+                drawMap(displayGame)
             }
 
-            drawMap()
+            drawMap(displayGame)
 
             val statusBitmaps = statuses.take(seating.num)./(s => new CachedBitmap(s))
 
-            def factionStatus(f : Faction, b : CachedBitmap) {
+            def factionStatus(game : Game, f : Faction, b : CachedBitmap) {
                 if (!game.factions.contains(f))
                     return
 
@@ -964,7 +968,7 @@ object CthulhuWarsSolo {
 
                 val deep = if (p.at(GC.deep).any) {
                     var draws = List(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
-                    
+
                     val sortedDeep = p.at(GC.deep).sortWith(game.sortAllUnits(p))
 
                     while (draws.num < p.at(GC.deep).num) {
@@ -989,7 +993,7 @@ object CthulhuWarsSolo {
                             case (DeepOne, Acolyte) if last.health == Alive => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y)
                             case (DeepOne, Acolyte) if last.health == Pained => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y + 31)
                             case (Acolyte, Acolyte) => DrawItem(null, f, Acolyte, Alive, 35 + last.x, last.y)
-                            
+
                             case (Cthulhu, Ghast) => DrawItem(null, f, Ghast, Alive, 62 + last.x, 6 + last.y)
                             case (Starspawn, Ghast) => DrawItem(null, f, Ghast, Alive, 54 + last.x, last.y)
                             case (Shoggoth, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
@@ -1006,7 +1010,7 @@ object CthulhuWarsSolo {
                             case (Acolyte, Gug) => DrawItem(null, f, Gug, Alive, 54 + last.x, last.y)
                             case (Ghast, Gug) => DrawItem(null, f, Gug, Alive, 55 + last.x, last.y)
                             case (Gug, Gug) => DrawItem(null, f, Gug, Alive, 72 + last.x, last.y)
-                            
+
                             case (Cthulhu, Shantak) => DrawItem(null, f, Shantak, Alive, 83 + last.x, 6 + last.y)
                             case (Starspawn, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
                             case (Shoggoth, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
@@ -1067,22 +1071,24 @@ object CthulhuWarsSolo {
 
             def updateStatus() {
                 0.until(seating.num).foreach { n =>
-                    factionStatus(game.factions(n), statusBitmaps(n))
+                    factionStatus(displayGame, displayGame.factions(n), statusBitmaps(n))
                 }
 
-                mapWest.innerHTML = (board.west :+ GC.deep)./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
-                mapEast.innerHTML = board.east./(r => processStatus(game.regionStatus(r), "p8")).mkString("")
+                mapWest.innerHTML = (board.west :+ GC.deep)./(r => processStatus(displayGame.regionStatus(r), "p8")).mkString("")
+                mapEast.innerHTML = board.east./(r => processStatus(displayGame.regionStatus(r), "p8")).mkString("")
 
-                drawMap()
+                drawMap(displayGame)
             }
 
             dom.window.onresize = e => updateStatus()
+
+            var token : Double = 0.0
 
             def perform(action : Action) {
                 queue :+= UIPerform(game, action)
 
                 if (!paused)
-                    processUI()
+                    startUI()
             }
 
             def finishUI() {
@@ -1092,17 +1098,97 @@ object CthulhuWarsSolo {
                 }
             }
 
-            def processUI() {
-                updateUI() match {
-                    case Some((s, n)) =>
-                        if (s) {
-                            updateStatus()
-                            if (recorded.any && hash == "")
-                                replayMenu()
-                        }
+            def startUI() {
+                token = math.random()
 
-                        setTimeout(n * delay) { processUI() }
-                    case None =>
+                processUI(token)
+            }
+
+            def processUI(t : Double) {
+                if (t == token) {
+                    updateUI() match {
+                        case Some((s, n)) =>
+                            if (s) {
+                                updateStatus()
+                                if (recorded.any && hash == "")
+                                    replayMenu()
+                            }
+
+                            setTimeout(n * delay) { processUI(t) }
+                        case None =>
+                    }
+                }
+            }
+
+            def cancelUndo() {
+                clear(undoDiv)
+                hide(undoDiv.parentElement.parentElement)
+
+                if (overrideGame.any) {
+                    overrideGame = None
+                    updateStatus()
+                }
+            }
+
+            def showUndo(n : Int) : () => Unit = () => {
+                show(undoDiv.parentElement.parentElement)
+
+                clear(undoDiv)
+
+                undoDiv.appendChild(newDiv("", "Game state after " + n + " actions"))
+
+                val style = None
+
+                if (hash != "")
+                    undoDiv.appendChild(newDiv("option" + style./(" " + _).|(""), "Undo to here".hl, () => { clear(undoDiv); performUndoOnline(n) }))
+                else
+                    undoDiv.appendChild(newDiv("option" + style./(" " + _).|(""), "Undo to here".hl, () => { clear(undoDiv); performUndoLocal(n) }))
+
+                undoDiv.appendChild(newDiv("option" + style./(" " + _).|(""), "Cancel", () => { cancelUndo() }))
+
+                val g = new Game(board, track, seating, true, setup.options)
+
+                actions.reverse.take(n).foreach { a =>
+                    g.perform(a)
+                }
+
+                overrideGame = |(g)
+
+                updateStatus()
+
+                ()
+            }
+
+            def performUndoLocal(n : Int) : Unit = {
+                actions = actions.reverse.take(n).reverse
+
+                clear(logDiv)
+
+                log(version)
+
+                var cc : Continue = null
+
+                val g = new Game(board, track, seating, true, setup.options)
+
+                actions.reverse.indexed./ { (a, i) =>
+                    val (l, c) = g.perform(a)
+
+                    l.foreach(s => log(s, showUndo(i + 1)))
+
+                    cc = c
+                }
+
+                game = g
+                overrideGame = None
+
+                queue = $(askFaction(game, cc))
+
+                startUI()
+            }
+
+            def performUndoOnline(n : Int) : Unit = {
+                postF(server + "rollback/" + hash + "/" + (n + 3), "") {
+                    dom.document.location.assign(dom.document.location.href)
                 }
             }
 
@@ -1112,9 +1198,10 @@ object CthulhuWarsSolo {
                         queue = rest
                         head match {
                             case UILog(l) => {
-                                log(l)
+                                // log(l, () => { dom.window.alert(actions.num.toString) })
+                                log(l, showUndo(actions.num))
 
-                                Some((false, l.contains(".........").?(16).|(5)))
+                                Some((false, (l == DottedLine).?(16).|(5)))
                             }
                             case UIPerform(g, a : GameOverAction) if a.msg == "Save replay" => {
                             /*
@@ -1160,7 +1247,7 @@ object CthulhuWarsSolo {
                                 postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a)) {
                                     queue :+= UIRead(g)
 
-                                    processUI()
+                                    startUI()
                                 }
 
                                 None
@@ -1169,7 +1256,7 @@ object CthulhuWarsSolo {
                                 getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
                                     queue :+= UIParse(g, ll.split("\n").toList.filter(_ != ""))
 
-                                    processUI()
+                                    startUI()
                                 }
 
                                 None
@@ -1182,14 +1269,14 @@ object CthulhuWarsSolo {
                             case UIParse(g, recorded) => {
                                 var cc : Continue = null
 
-                                recorded.foreach { aa =>
+                                recorded./ { aa =>
                                     val a = serializer.parseAction(aa)
 
                                     actions +:= a
 
                                     val (l, c) = game.perform(a)
 
-                                    l.foreach(log)
+                                    l.foreach(s => log(s, showUndo(actions.num)))
 
                                     cc = c
                                 }
@@ -1263,9 +1350,13 @@ object CthulhuWarsSolo {
                                 Some((false, 50))
                             }
                             case UIQuestion(f, g, actions) => {
+                                cancelUndo()
+
                                 askM(actions./(a => a.question(g) -> a.option(g)), n => perform(actions(n)), Option(f)./(_.style + "-border"))
                             }
                             case UIQuestionDebug(f, g, actions) => {
+                                cancelUndo()
+
                                 val aa = Explode.explode(g, actions)
 
                                 val sorted = if (f == BG)
@@ -1339,7 +1430,7 @@ object CthulhuWarsSolo {
                         paused = true
                         if (queue.none) {
                             action.map(perform)
-                            processUI()
+                            startUI()
                         }
                         replayMenu()
                 })
@@ -1349,7 +1440,7 @@ object CthulhuWarsSolo {
                 if (recorded.any || self == None) {
                     queue :+= UIParse(game, recorded)
 
-                    processUI()
+                    startUI()
                 }
                 else
                     perform(StartAction)

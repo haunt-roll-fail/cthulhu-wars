@@ -683,6 +683,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                         case DoubleHP(Alive, Alive) =>
                         case DoubleHP(Pained, Pained) => log("" + u.short + " was assigned two " + Pain + "s".styled("pain"))
                         case DoubleHP(Killed, Alive) => log("" + u.short + " was assigned " + Kill + " and was " + "pained".styled("pain"))
+                        case DoubleHP(Pained, Alive) => log("" + u.short + " was assigned " + Pain + " and was " + "pained".styled("pain"))
                         case DoubleHP(Killed, Pained) => log("" + u.short + " was assigned " + Kill + " and " + Pain + " and was " + "pained".styled("pain"))
                         case DoubleHP(l, r) => log("" + u.short + " was assigned " + List(l, r).%(_ != Alive).mkString(" and ") + " and was " + "pained".styled("pain"))
                         case _ =>

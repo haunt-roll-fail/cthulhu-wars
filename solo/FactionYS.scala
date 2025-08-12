@@ -50,18 +50,10 @@ case object YS extends Faction {
         case Hastur => (g.of(this).gates.contains(r) && g.of(this).at(r, KingInYellow).any).?(10).|(999)
     }
 
-    private var strengthFn: (Game, List[UnitFigure], Faction) => Int = defaultStrength
-
-    private def defaultStrength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
+    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == Undead) * 1 - units.exists(_.uclass == Undead).?(1).|(0) +
         units.count(_.uclass == Byakhee) * 1 + units.exists(_.uclass == Byakhee).?(1).|(0) +
-        units.count(_.uclass == Hastur) * g.ritualCost
+        units.count(_.uclass == Hastur) * g.ritualCost +
+        neutralStrength(g, units, opponent)
 
-    override def strength(g: Game, units: List[UnitFigure], opponent: Faction): Int =
-        strengthFn(g, units, opponent)
-
-    def addToStrength(fn: (Game, List[UnitFigure], Faction) => Int): Unit = {
-        val current = strengthFn
-        strengthFn = (g, u, o) => current(g, u, o) + fn(g, u, o)
-    }
 }
