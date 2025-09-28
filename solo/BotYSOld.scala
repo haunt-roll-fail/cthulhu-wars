@@ -221,7 +221,7 @@ class GameEvaluationYSOld(game : Game) extends GameEvaluation(game, YS) {
                         0 -> "todo"
                 }
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 6000 -> "capture and open gate"
                 r.enemyGate && f == r.owner && r.controllers.num == 2 |=> 3000 -> "capture and nearly open gate"
@@ -250,6 +250,9 @@ class GameEvaluationYSOld(game : Game) extends GameEvaluation(game, YS) {
                 r.ownGate && r.allies.cultists.num == 1 |=> -100 -> "cultists not friends"
                 r.ownGate && r.allies.cultists.num == 2 |=> -200 -> "cultists not friends"
                 r.ownGate && r.allies.cultists.num >= 3 |=> -250 -> "own gate"
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, Undead, r) =>
                 r.allies(Hastur).any |=> 50 -> "summon to has"

@@ -34,7 +34,7 @@ case object SL extends Faction {
     val poolR = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
-    def slumber = Region("Cursed Slumber", Slumber)
+    def slumber = Region("Slumber", Slumber)
 
     override def abilities = $(DeathFromBelow, Lethargy)
     override def spellbooks = $(Burrow, EnergyNexus, AncientSorcery, CaptureMonster, DemandSacrifice, CursedSlumber)
@@ -57,4 +57,5 @@ case object SL extends Faction {
         units.count(_.uclass == Tsathoggua) * (max(2, g.of(opponent).power)) +
         neutralStrength(g, units, opponent)
 
+    var ignoredSacrificeHighPriest: Boolean = false
 }

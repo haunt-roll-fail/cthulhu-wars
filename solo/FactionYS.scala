@@ -56,4 +56,5 @@ case object YS extends Faction {
         units.count(_.uclass == Hastur) * g.ritualCost +
         neutralStrength(g, units, opponent)
 
+    var ignoredSacrificeHighPriest: Boolean = false
 }

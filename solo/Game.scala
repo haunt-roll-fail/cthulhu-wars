@@ -60,7 +60,8 @@ object LoyaltyCardConfig {
     (UseGhast, GhastCard),
     (UseGug, GugCard),
     (UseShantak, ShantakCard),
-    (UseStarVampire, StarVampireCard)
+    (UseStarVampire, StarVampireCard),
+    (HighPriests, HighPriestCard)
   )
 }
 
@@ -168,6 +169,8 @@ trait Faction {
         units.count(_.uclass == Gug) * 3 +
         units.count(_.uclass == Shantak) * 2 +
         units.count(_.uclass == StarVampire) * 1
+
+    var ignoredSacrificeHighPriest : Boolean
 }
 
 @EnableReflectiveInstantiation
@@ -315,7 +318,7 @@ case class BuildGateMainAction(self : Faction, l : $[Region]) extends OptionFact
 case class BuildGateAction(self : Faction, r : Region) extends BaseFactionAction(g => "Build gate" + g.forNPowerWithTax(r, self, 3 - g.of(self).has(UmrAtTawil).??(1)) + " in", r)
 
 case class CaptureMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Capture") with MainQuestion with Soft
-case class CaptureAction(self : Faction, r : Region, f : Faction) extends BaseFactionAction(g => "Capture" + g.for1PowerWithTax(r, self) + " in " + r + g.ia(r, self), g => f.styled("Cultist"))
+case class CaptureAction(self : Faction, r : Region, f : Faction, uc : UnitClass) extends BaseFactionAction(g => "Capture" + g.for1PowerWithTax(r, self) + " in " + r + g.ia(r, self), g => f.styled(uc))
 
 case class RecruitMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Recruit " + self.styled(uc)) with MainQuestion with Soft
 case class RecruitAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "Recruit " + self.styled(uc) + g.forNPowerWithTax(r, self, self.recruitCost(g, uc, r)) + " in", g => r + g.ia(r, self))
@@ -329,6 +332,11 @@ case class AwakenAction(self : Faction, uc : UnitClass, r : Region, cost : Int =
 case class AwakenEliminate2CultistsAction(self : Faction, uc : UnitClass, l : $[Region], a : Region, b : Region) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " to awaken " + self.styled(uc), (a == b).?("Two from " + a)|("From " + a + " and " + b))
 
 case class Offer(f : Faction, n : Int)
+
+case class SacrificeHighPriestDoomAction(self : Faction) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with DoomQuestion with Soft with PowerNeutral
+case class SacrificeHighPriestMainAction(self : Faction, then : Action) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with MainQuestion with Soft
+case class SacrificeHighPriestAction(self : Faction, r : Region, then : Action) extends BaseFactionAction("Sacrifice to gain " + 2.power, self.styled(HighPriest) + " in " + r)
+case class SacrificeHighPriestDoneAction(self : Faction, then : Action) extends BaseFactionAction(None, "Done".styled("power"))
 
 // GC
 case class DevolveMainAction(self : Faction, then : Action) extends OptionFactionAction(self.styled(Devolve)) with MainQuestion with Soft
@@ -520,6 +528,7 @@ case class UndimensionedCancelAction(self : Faction, destinations : $[Region]) e
 case class ToggleUnlimitedBattleAction(self : Faction, value : UnlimitedBattleOption) extends BaseFactionAction("&nbsp;&nbsp;", "Unlimited Battle: " + value.label) with Cancel
 case class ToggleUnlimitedSummonAction(self : Faction, value : UnlimitedSummonOption) extends BaseFactionAction("&nbsp;&nbsp;", "Unlimited Summon: " + value.label) with Cancel
 case class ToggleOutOfTurnDevolveAction(self : Faction, value : OutOfTurnDevolveOption) extends BaseFactionAction("&nbsp;&nbsp;", "Out of turn " + self.styled("Devolve") + ": " + value.label) with Cancel
+case class ToggleOutOfTurnSacrificeHighPriestAction(self : Faction, value : OutOfTurnSacrificeHighPriestOption) extends BaseFactionAction("&nbsp;&nbsp;", "Out of turn sacrifice " + self.styled("High Priest") + ": " + value.label) with Cancel
 
 trait IgnoreOption
 
@@ -532,6 +541,11 @@ sealed abstract class OutOfTurnDevolveOption(val label : String) extends IgnoreO
 case object OutOfTurnDevolveOff extends OutOfTurnDevolveOption("Off")
 case object OutOfTurnDevolveOn extends OutOfTurnDevolveOption("On".hl)
 case object OutOfTurnDevolveAvoidCapture extends OutOfTurnDevolveOption("Avoid " + "Capture".hl)
+
+sealed abstract class OutOfTurnSacrificeHighPriestOption(val label : String) extends IgnoreOption
+case object OutOfTurnSacrificeHighPriestOff extends OutOfTurnSacrificeHighPriestOption("Off")
+case object OutOfTurnSacrificeHighPriestOn extends OutOfTurnSacrificeHighPriestOption("On".hl)
+case object OutOfTurnSacrificeHighPriestAvoidCapture extends OutOfTurnSacrificeHighPriestOption("Avoid " + "Capture".hl)
 
 sealed abstract class UnlimitedSummonOption(val label : String) extends IgnoreOption
 case object UnlimitedSummonOff extends UnlimitedSummonOption("Off")
@@ -617,6 +631,7 @@ object NoIceAges extends IceAges($)
 
 @EnableReflectiveInstantiation
 sealed trait GameOption
+case object HighPriests extends GameOption
 case object NeutralSpellbooks extends GameOption
 case object NeutralMonsters extends GameOption
 case object IceAgeAffectsLethargy extends GameOption
@@ -639,6 +654,7 @@ case class PlayerCount(n : Int) extends GameOption
 
 object GameOptions {
     val all = $(
+        HighPriests,
         NeutralSpellbooks,
         NeutralMonsters,
         IceAgeAffectsLethargy,
@@ -1062,10 +1078,20 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             1.to(6).foreach(_ => place(self, Acolyte, r))
 
-            // Temp starting setup
+            // Temp starting setup (for debug)
             // if (of(self).has(Immortal)) {
             //     place(self, Cthulhu, r)
             // }
+
+            if (options.has(HighPriests)) {
+                // Add High Priest to pool.
+                1.times(HighPriest).foreach { u =>
+                    of(self).units :+= new UnitFigure(self, u, of(self).units.%(_.uclass == u).num, self.poolR)
+                }
+
+                // Add High Priest Loyalty Card to the faction.
+                of(self).loyaltyCards = of(self).loyaltyCards :+ HighPriestCard
+            }
 
             gates :+= r
 
@@ -1182,6 +1208,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         case ActionPhaseAction =>
             if (factions.%(of(_).doom >= 30).any || ritualTrack(ritualMarker) == 999)
                 return GameOverPhaseAction
+
+            // Remove the High Priest Loyalty card, if there is one (it's only ever assigned at start).
+            loyaltyCards = loyaltyCards.but(HighPriestCard)
 
             log("=======================================================================================================================")
             log("Turn " + turn)
@@ -1384,9 +1413,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
                     // Place unit(s).
                     if (getControlledGatesRegions(self).any) {
-                        log("" + self + " had nowhere to place " + self.styled(uc))
                         QAsk(getControlledGatesRegions(self)./(r => LoyaltyCardSummonAction(self, uc, r, next)))
                     } else {
+                        log("" + self + " had nowhere to place " + self.styled(uc))
                         Force(next)
                     }
 
@@ -1398,7 +1427,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         case LoyaltyCardSummonAction(self, uc, r, next) =>
             place(self, uc, r)
             log("" + self + " placed " + self.styled(uc) + " in " + r)
-            //log("" + self + " placed " + uc.name.styled("nt") + " in " + r)
+
             CheckSpellbooksAction(DoomAction(self))
 
             if (uc == Ghast && of(self).inPool(Ghast).any) {
@@ -1442,6 +1471,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             if (player.es.num > 0)
                 options :+= RevealESDoomAction(self)
+
+            if (player.all(HighPriest).any)
+                options :+= SacrificeHighPriestDoomAction(self)
 
             if (loyaltyCards.num > 0 && player.doom >= 2 && !of(self).obtainedLoyaltyCard)
                 options :+= LoyaltyCardDoomAction(self)
@@ -1532,6 +1564,29 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
                 checkGatesOwnership(self)
             }
 
+            if (player.active) {
+                others.%(of(_).all(HighPriest).any).foreach { f =>
+                    board.regions.%(of(f).at(_, HighPriest).any).foreach { r =>
+                        if (!f.ignoredSacrificeHighPriest) {
+                            if (!acted)
+                                if (canCapture(self, f, r))
+                                    if (!of(f).option(OutOfTurnSacrificeHighPriestOff))
+                                        return Force(SacrificeHighPriestMainAction(f, SacrificeHighPriestDoneAction(f, MainAction(self))))
+
+                            if (!acted || (player.hasAllSB && !battled.contains(r)))
+                                if (canAttack(self, f, r))
+                                    if (!of(f).option(OutOfTurnSacrificeHighPriestOff) && !of(f).option(OutOfTurnSacrificeHighPriestAvoidCapture))
+                                        return Force(SacrificeHighPriestMainAction(f, SacrificeHighPriestDoneAction(f, MainAction(self))))
+                        }
+                        else {
+                            f.ignoredSacrificeHighPriest = false
+                        }
+                    }
+                }
+
+                checkGatesOwnership(self)
+            }
+
             object afford {
                 def apply(n : Int)(r : Region) = of(self).power >= tax(r, self) + n
                 def apply(c : Region => Int)(r : Region) = of(self).power >= tax(r, self) + c(r)
@@ -1594,10 +1649,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
                 }
             }
 
-            if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).none && player.gates.%(nx).%(_.glyph.onMap).any)
+            if (player.has(CursedSlumber) && gates.%(_.glyph == Slumber).none && player.gates.%(nx).%(_.glyph.onMap).any)
                 options :+= CursedSlumberSaveMainAction(self)
 
-            if (player.has(CursedSlumber) && player.gates.%(_.glyph == Slumber).any)
+            if (player.has(CursedSlumber) && gates.%(_.glyph == Slumber).any)
                 board.regions.%(nx).%(afford(1)).%!(gates.contains).some.foreach { options :+= CursedSlumberLoadMainAction(self, _) }
 
             ((player.inPool(Terror) ++ player.inPool(Monster)).sortWith(sortAllUnits(player)))./(_.uclass).distinct.reverse.foreach { uc =>
@@ -1675,7 +1730,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             if (player.can(HWINTBN) && !player.used(ScreamingDead) && player.has(Hastur)) {
                 val o = player.goo(Hastur).region
-                board.regions.%(afford(1)).but(o).%(r => factions.%(of(_).at(r, Acolyte).any).any).some.foreach {
+                board.regions.%(afford(1)).but(o).%(r => factions.%(of(_).at(r, Cultist).any).any).some.foreach {
                     options :+= HWINTBNMainAction(self, o, _)
                 }
             }
@@ -1688,7 +1743,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             }
 
             if (player.has(Zingaya) && player.inPool(Undead).any)
-                board.regions.%(afford(1)).%(r => player.at(r, Undead).any).%(r => others.%(of(_).at(r, Cultist).any).any).some.foreach {
+                board.regions.%(afford(1)).%(r => player.at(r, Undead).any).%(r => others.%(of(_).at(r, Acolyte).any).any).some.foreach {
                     options :+= ZingayaMainAction(self, _)
                 }
 
@@ -1728,6 +1783,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             if (player.has(Recriminations))
                 options :+= RecriminationsMainAction(self)
 
+            if (player.all(HighPriest).any)
+                options :+= SacrificeHighPriestMainAction(self, MainCancelAction(self))
 
             if (player.es.num > 0)
                 options :+= RevealESMainAction(self)
@@ -1762,6 +1819,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
                 if (player.has(Devolve))
                     options :+= ToggleOutOfTurnDevolveAction(self, List(OutOfTurnDevolveOn, OutOfTurnDevolveOff, OutOfTurnDevolveAvoidCapture).intersect(player.ignoreOptionsNew).single.|(OutOfTurnDevolveOn))
+
+                if (player.all(HighPriest).any)
+                    options :+= ToggleOutOfTurnSacrificeHighPriestAction(self, List(OutOfTurnSacrificeHighPriestOn, OutOfTurnSacrificeHighPriestOff, OutOfTurnSacrificeHighPriestAvoidCapture).intersect(player.ignoreOptionsNew).single.|(OutOfTurnSacrificeHighPriestOn))
             }
 
             options
@@ -1960,12 +2020,15 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             val variants = l./~ { r =>
                 factions.but(self).% { f =>
                     canCapture(self, f, r)
-                }./(f => CaptureAction(self, r, f))
+                }./ { f =>
+                    val uc = if (of(f).at(r, HighPriest).nonEmpty && of(f).at(r, Acolyte).isEmpty) HighPriest else Acolyte
+                    CaptureAction(self, r, f, uc)
+                }
             }
 
             QAsk(variants :+ MainCancelAction(self))
 
-        case CaptureAction(self, r, f) =>
+        case CaptureAction(self, r, f, _) =>
             of(self).power -= 1
             payTax(self, r)
             val c = of(f).at(r, Cultist).minBy(_.uclass.cost)
@@ -2066,6 +2129,17 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
 
             MainAction(self)
 
+        case ToggleOutOfTurnSacrificeHighPriestAction(self, value) =>
+            of(self).ignoreOptionsNew :-= value
+
+            of(self).ignoreOptionsNew :+= (value match {
+                case OutOfTurnSacrificeHighPriestOn => OutOfTurnSacrificeHighPriestAvoidCapture
+                case OutOfTurnSacrificeHighPriestAvoidCapture => OutOfTurnSacrificeHighPriestOff
+                case OutOfTurnSacrificeHighPriestOff => OutOfTurnSacrificeHighPriestOn
+            })
+
+            MainAction(self)
+
         // AWAKEN
         case AwakenMainAction(self, uc, locations) if uc == ShubNiggurath =>
             val cultists = board.regions./~(r => of(self).at(r, Cultist).take(2))
@@ -2148,6 +2222,41 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             }
 
             EndAction(self)
+
+        // HIGH PRIESTS
+        case SacrificeHighPriestDoomAction(self) =>
+            Ask(self, board.regions./~(r => of(self).at(r, HighPriest))./(c => SacrificeHighPriestAction(self, c.region, DoomCancelAction(self))) :+ DoomCancelAction(self))
+
+        case SacrificeHighPriestMainAction(self, then) =>
+            if (of(self).all(HighPriest).any) {
+                if (of(self).at(SL.slumber, HighPriest).any) {
+                    Ask(self, List(SL.slumber)./~(r => of(self).at(r, HighPriest))./(c => SacrificeHighPriestAction(self, c.region, then)) :+ then)
+                }
+                else {
+                    Ask(self, board.regions./~(r => of(self).at(r, HighPriest))./(c => SacrificeHighPriestAction(self, c.region, then)) :+ then)
+                }
+            }
+            else
+                Force(then)
+
+        case SacrificeHighPriestAction(self, r, then) =>
+            val c = of(self).at(r, HighPriest).head
+            eliminate(c)
+
+            of(self).power += 2
+
+            log("" + self + " sacrificed " + c + " in " + r)
+
+            checkGatesLost()
+
+            if (Explode.isCancel(then))
+                Force(then)
+            else
+                Force(SacrificeHighPriestMainAction(self, then))
+
+        case SacrificeHighPriestDoneAction(self, then) =>
+            self.ignoredSacrificeHighPriest = true
+            Force(then)
 
         // GC -- GREAT CTHULHU
 
@@ -2499,6 +2608,14 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             else {
                 val next = full.head
                 val cultists = board.regions./~(r => of(next).at(r, Cultist))
+                // If we want to allow SL to eliminate a cultist in Cursed Slumber (which you should be able to do, according to the FAQ).
+                // val cultists = {
+                //     val base = board.regions./~(r => of(next).at(r, Cultist))
+                //     val slumberCultists = of(next).at(SL.slumber, Cultist)
+                //     if (slumberCultists.nonEmpty) {
+                //         base ++ slumberCultists
+                //     } else base
+                // }
                 QAsk(cultists./(c => GhrothUnitAction(next, c.uclass, c.region, f, full.drop(1))))
             }
 
@@ -2552,7 +2669,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             else
                 log(self.styled(KingInYellow) + " failed " + r + " desecration with roll [" + x.styled("power") + "]")
 
-            val us = (of(self).inPool(Cultist) ++ of(self).inPool(Monster))./(_.uclass).distinct
+            val us = (of(self).inPool(Cultist) ++ of(self).inPool(Monster))./( _.uclass ).filter( _.cost <= 2 ).distinct
 
             if (us.any)
                 QAsk(us./(DesecratePlaceAction(self, r, _)))
@@ -2756,7 +2873,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
         case CursedSlumberSaveAction(self, r) =>
             of(self).power -= 1
             of(self).gates = of(self).gates.but(r) :+ SL.slumber
-            gates = gates.but(r)
+            gates = gates.but(r) :+ SL.slumber
             move(of(self).at(r, Cultist).head, SL.slumber)
             log("" + self + " moved gate from " + r + " to " + CursedSlumber.full)
             EndAction(self)
@@ -2768,8 +2885,11 @@ class Game(val board : Board, val ritualTrack : $[Int], val factions : $[Faction
             of(self).power -= 1
             payTax(self, r)
             of(self).gates = of(self).gates.but(SL.slumber) :+ r
-            gates = gates :+ r
-            move(of(self).at(SL.slumber, Cultist).head, r)
+            gates = gates.but(SL.slumber) :+ r
+
+            if (of(self).at(SL.slumber, Cultist).any)
+                move(of(self).at(SL.slumber, Cultist).head, r)
+
             log("" + self + " moved gate from " + CursedSlumber.full + " to " + r)
             EndAction(self)
 

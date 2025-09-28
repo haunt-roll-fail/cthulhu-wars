@@ -469,7 +469,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                 f.gates.contains(r) && (foes.monsters.any || foes.goos.any) && r.allies(Yothan).any && (r.allies.%(_.uclass.utype == Monster).any || r.allies.cultists.any) && ownStr >= enemyStr |=> 14000 -> "yothan w shield vs protected gate"
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -528,6 +528,9 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 r.ownGate && r.allies.goos.any |=> 200 -> "a cultist needs a big friend"
                 
                 r.allies.monsters.any |=> 50 -> "recruit to monsters"
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, UnMan, r) =>
                 !have(Festival) |=> -10 -> "lacks fesival"
