@@ -113,13 +113,18 @@ class Serialize(val g : Game) {
         case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).get.newInstance(params.map(parseExpr) : _*))
     }
 
-    def parseRegion(s : String) : Option[Region] = g.board.regions.%(_.name.split(" ").mkString("") == s).single
+    //def parseRegion(s : String) : Option[Region] = g.board.regions.%(_.name.split(" ").mkString("") == s).single
+    def parseRegion(s: String): Option[Region] = {
+        val normalized = s.replaceAll(" ", "")
+        val allRegions = g.board.regions :+ SL.slumber
+        allRegions.find(r => r.name.replaceAll(" ", "") == normalized)
+    }
 }
 
 object Serialize {
     val factions = $(GC, CC, BG, YS, SL, WW, OW, AN)
 
-    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard)
+    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard)
 
     def parseDifficulty(s : String) : Option[Difficulty] = parseSymbol(s).map(_.asInstanceOf[Difficulty])
 

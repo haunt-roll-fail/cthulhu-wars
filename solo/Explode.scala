@@ -57,7 +57,7 @@ object Explode {
     def isOffense(game : Game, friend : Faction)(a : Action) = a match {
         case MoveAction(self : Faction, _, _, dest) if self != friend && game.of(friend).gates.contains(dest) => true
         case AttackAction(_, _, f) if f == friend => true
-        case CaptureAction(_, _, f) if f == friend => true
+        case CaptureAction(_, _, f, _) if f == friend => true
         case AvatarAction(self, _, _, f) if self != friend && f == friend => true
         case ThousandFormsAskAction(f, _, _, _, _, _, power) if f == friend && power > 0 => true
         case DreamsAction(_, _, f) if f == friend => true

@@ -51,13 +51,15 @@ case object BG extends Faction {
 
     def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == Acolyte) * g.of(this).has(Frenzy).?(1).|(0) +
+        units.count(_.uclass == HighPriest) * g.of(this).has(Frenzy).?(1).|(0) +
         units.count(_.uclass == Fungi) * 1 +
         units.count(_.uclass == DarkYoung) * 2 +
         units.count(_.uclass == ShubNiggurath) * (
             g.of(this).gates.num +
-            g.of(this).all(Acolyte).num +
+            g.of(this).all(Cultist).num +
             g.of(this).all(DarkYoung).num * g.of(this).has(RedSign).?(1).|(0)
         ) +
         neutralStrength(g, units, opponent)
 
+    var ignoredSacrificeHighPriest: Boolean = false
 }

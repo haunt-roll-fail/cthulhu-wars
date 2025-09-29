@@ -61,4 +61,5 @@ case object WW extends Faction {
         units.count(_.uclass == Ithaqua) * ((g.of(opponent).doom + 1) / 2) +
         neutralStrength(g, units, opponent)
 
+    var ignoredSacrificeHighPriest: Boolean = false
 }

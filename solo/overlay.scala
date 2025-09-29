@@ -408,6 +408,9 @@ object Overlays {
             case $("Shantak") => loyaltyCard(ShantakCard.name, ShantakCard.quantity, ShantakCard.cost, ShantakCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place 1 Shantak at your controlled Gate.", "Horror Steed", "Ongoing", "When Moving a Shantak, it can reach any Area on the map. In addition, the Shantak may carry one of your Cultists with it for free.")
             case $("Star Vampire") => loyaltyCard(StarVampireCard.name, StarVampireCard.quantity, StarVampireCard.cost, StarVampireCard.combat, "Pay 2 Doom to obtain this Loyalty Card, plus place 1 Star Vampire at your controlled Gate.", "Vampirism", "Battle", "Roll the Star Vampire's combat dice separately. Each Pain they roll drains 1 Power from the enemy Faction. Each Kill they roll drains 1 Doom point from the enemy Faction. The drained point(s) are transferred to you immediately. If the enemy Faction lacks Power or Doom points, you get nothing. The Pains and Kills rolled still count towards your Combat Results.")
 
+            case $("High Priest") => loyaltyCard(HighPriestCard.name, HighPriestCard.quantity, HighPriestCard.cost, HighPriestCard.combat, "The High Priest is a new type of Cultist, it is Recruited like an Acolyte. Each High Priest generates 1 Power during the Gather Power Phase, can Create and Control a Gate, and can be Captured.", "Unspeakable Oath", "Ongoing", "At the end of any player's Action (even if it is not your turn), Sacrifice your High Priest (return him to your Pool) and gain 2 Power. This may also be done during the Gather Power and Doom Phases.")
+
+
             case _ =>
                 println("onExternalClick " + s.$.mkString(" | "))
                 ""

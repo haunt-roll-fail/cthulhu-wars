@@ -293,7 +293,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                 allies.cultists.any && foes.goos.any |=> 1200 -> "battle to prevent capture"
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.%(f => f.strength(game, f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none
 
                 safe && impunity && !r.enemyGate |=> 105000 -> "impunity capture"
@@ -343,6 +343,9 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 r.ownGate && r.allies.cultists.num == 1 |=> -100 -> "cultists not friends"
                 r.ownGate && r.allies.cultists.num == 2 |=> -200 -> "cultists not friends"
                 r.ownGate && r.allies.cultists.num >= 3 |=> -250 -> "own gate"
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, uc, r) if r.enemyGate && r.allies.none =>
                 need(UnitsAtEnemyGates) |=> 1000 -> "need units at enemy gates"
