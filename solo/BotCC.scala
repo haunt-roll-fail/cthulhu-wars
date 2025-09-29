@@ -8,7 +8,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
     def costA(g : Game, a : Action) : Int = a match {
         case MoveAction(self, _, _, r) => 1 + g.tax(r, self)
         case AttackAction(self, r, _) => 1 + g.tax(r, self)
-        case CaptureAction(self, r, _) => 1 + g.tax(r, self)
+        case CaptureAction(self, r, _, _) => 1 + g.tax(r, self)
         case BuildGateAction(self, r) => 3 + g.tax(r, self)
         case RecruitAction(self, uc, r) => self.recruitCost(g, uc, r) + g.tax(r, self)
         case SummonAction(self, uc, r) => self.summonCost(g, uc, r) + g.tax(r, self)
@@ -485,7 +485,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -534,6 +534,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.ownGate && others.all(_.power < power) |=> -250 -> "dont recruit if max power"
                 r.ownGate && r.allies.cultists.num == 1 |=> 100 -> "a cultist needs a friend"
 
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
+                
             case SummonAction(_, Nightgaunt, r) =>
                 // Defense against WW setting up 2nd gate at opposite pole.  Summon this turn in order to move next turn
                 r.distanceToWWOppPole <= 2 && wwLoneCultistPolarGate(2) && r.allies.monsters.none |=> 1500 ->"cheap summon to stop WW 2nd gate at opp pole"

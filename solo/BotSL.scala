@@ -321,7 +321,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -366,6 +366,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 self.pool.cultists.num >= power && !have(Tsathoggua) |=> 300 -> "recover lost cultists"
                 r.ownGate && others.all(_.power < power) |=> -250 -> "dont recruit if max power"
                 r.ownGate && r.allies.goos.any |=> 200 -> "a cultist needs a big friend"
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, Wizard, r) =>
                 // Defense against WW setting up 2nd gate at opposite pole. Only worth it if adjacent to location for new gate

@@ -575,7 +575,7 @@ case class Bot3(faction : Faction) {
                     f == AN && r.allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
                     f == AN && AN.has(Extinction) && defenders.num == 1 && defenders(Yothan).any && ((r.allies.goos.any && r.allies.num >= 3 && attack >= 6) || (r.allies.goos.none && attack >= 6)) |=> 1000 -> "attack lone extinct yothan"
 
-                case CaptureAction(_, r, f) =>
+                case CaptureAction(_, r, f, _) =>
                     true |=> 600 -> "capture"
                     r.enemyGate |=> 100 -> "enemy gate"
                     r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -599,6 +599,9 @@ case class Bot3(faction : Faction) {
                     self.pool.cultists.num >= power |=> 300 -> "recover lost cultists"
                     r.capturers.any |=> -1000 -> "don't recruit if can be captured"
                     true |=> 100 -> "cultist is good"
+                
+                case RecruitAction(_, HighPriest, r) =>
+                    true |=> -100000 -> "inactivated"
 
                 case SummonAction(_, uc, r) =>
                     val p = self.summonCost(game, uc, r)

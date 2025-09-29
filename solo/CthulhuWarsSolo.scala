@@ -581,6 +581,18 @@ object CthulhuWarsSolo {
                         case _ => null
                     }
 
+                    case HighPriest => faction match {
+                        case BG => DrawRect("bg-high-priest", None, x - 35, y - 60, 70, 68)
+                        case CC => DrawRect("cc-high-priest", None, x - 35, y - 60, 70, 69)
+                        case GC => DrawRect("gc-high-priest", None, x - 35, y - 60, 70, 67)
+                        case YS => DrawRect("ys-high-priest", None, x - 35, y - 60, 70, 66)
+                        case SL => DrawRect("sl-high-priest", None, x - 35, y - 60, 70, 69)
+                        case WW => DrawRect("ww-high-priest", None, x - 35, y - 60, 70, 67)
+                        case OW => DrawRect("ow-high-priest", None, x - 35, y - 60, 70, 66) // Left to do
+                        case AN => DrawRect("an-high-priest", None, x - 35, y - 60, 70, 66) // Left to do
+                        case _ => null
+                    }
+
                     case FactionGlyph => faction match {
                         case BG => DrawRect("bg-glyph", None, x - 50, y - 50, 100, 100)
                         case CC => DrawRect("cc-glyph", None, x - 50, y - 50, 100, 100)
@@ -645,6 +657,8 @@ object CthulhuWarsSolo {
                     case GugIcon          => DrawRect("gug-icon", None, x - 17, y - 55, 50, 50)
                     case ShantakIcon      => DrawRect("shantak-icon", None, x - 17, y - 55, 50, 50)
                     case StarVampireIcon  => DrawRect("star-vampire-icon", None, x - 17, y - 55, 50, 50)
+
+                    case HighPriestIcon   => DrawRect("high-priest-icon", None, x - 17, y - 55, 50, 50)
 
                     case _ => null
                 }
@@ -903,6 +917,7 @@ object CthulhuWarsSolo {
                         case "Gug"   => GugIcon
                         case "Shantak"   => ShantakIcon
                         case "Star Vampire"   => StarVampireIcon
+                        case "High Priest"   => HighPriestIcon
                     }
 
                     val d = DrawItem(null, f, icon, Alive, 0, 0)
@@ -953,9 +968,11 @@ object CthulhuWarsSolo {
 
                 dd(DrawItem(null, f, FactionGlyph, Alive, 55, 55).rect)
 
-                if (p.gates.contains(SL.slumber)) {
+                if (game.gates.contains(SL.slumber)) {
                     dd(DrawItem(null, f, Gate, Alive, w - 46, 56).rect)
-                    dd(DrawItem(null, p.at(SL.slumber, Cultist).head.faction, p.at(SL.slumber, Cultist).head.uclass, Alive, w - 46, 56).rect)
+                    if (p.at(SL.slumber, Cultist).any) {
+                        dd(DrawItem(null, p.at(SL.slumber, Cultist).head.faction, p.at(SL.slumber, Cultist).head.uclass, Alive, w - 46, 56).rect)
+                    }
                 }
 
                 var smx = 0
@@ -994,12 +1011,20 @@ object CthulhuWarsSolo {
                             case (DeepOne, Acolyte) if last.health == Pained => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y + 31)
                             case (Acolyte, Acolyte) => DrawItem(null, f, Acolyte, Alive, 35 + last.x, last.y)
 
+                            case (Cthulhu, HighPriest) => DrawItem(null, f, HighPriest, Alive, 75 + last.x, 6 + last.y)
+                            case (Starspawn, HighPriest) => DrawItem(null, f, HighPriest, Alive, 70 + last.x, last.y)
+                            case (Shoggoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 66 + last.x, last.y)
+                            case (DeepOne, HighPriest) if last.health == Alive => DrawItem(null, f, HighPriest, Alive, 54 + last.x, last.y)
+                            case (DeepOne, HighPriest) if last.health == Pained => DrawItem(null, f, HighPriest, Alive, 54 + last.x, last.y + 31)
+                            case (Acolyte, HighPriest) => DrawItem(null, f, HighPriest, Alive, 53 + last.x, last.y)
+
                             case (Cthulhu, Ghast) => DrawItem(null, f, Ghast, Alive, 62 + last.x, 6 + last.y)
                             case (Starspawn, Ghast) => DrawItem(null, f, Ghast, Alive, 54 + last.x, last.y)
                             case (Shoggoth, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
                             case (DeepOne, Ghast) if last.health == Alive => DrawItem(null, f, Ghast, Alive, 39 + last.x, last.y)
                             case (DeepOne, Ghast) if last.health == Pained => DrawItem(null, f, Ghast, Alive, 39 + last.x, last.y + 31)
                             case (Acolyte, Ghast) => DrawItem(null, f, Ghast, Alive, 37 + last.x, last.y)
+                            case (HighPriest, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
                             case (Ghast, Ghast) => DrawItem(null, f, Ghast, Alive, 35 + last.x, last.y)
 
                             case (Cthulhu, Gug) => DrawItem(null, f, Gug, Alive, 78 + last.x, 6 + last.y)
@@ -1008,6 +1033,7 @@ object CthulhuWarsSolo {
                             case (DeepOne, Gug) if last.health == Alive => DrawItem(null, f, Gug, Alive, 56 + last.x, last.y)
                             case (DeepOne, Gug) if last.health == Pained => DrawItem(null, f, Gug, Alive, 56 + last.x, last.y + 31)
                             case (Acolyte, Gug) => DrawItem(null, f, Gug, Alive, 54 + last.x, last.y)
+                            case (HighPriest, Gug) => DrawItem(null, f, Gug, Alive, 68 + last.x, last.y)
                             case (Ghast, Gug) => DrawItem(null, f, Gug, Alive, 55 + last.x, last.y)
                             case (Gug, Gug) => DrawItem(null, f, Gug, Alive, 72 + last.x, last.y)
 
@@ -1017,6 +1043,7 @@ object CthulhuWarsSolo {
                             case (DeepOne, Shantak) if last.health == Alive => DrawItem(null, f, Shantak, Alive, 49 + last.x, last.y)
                             case (DeepOne, Shantak) if last.health == Pained => DrawItem(null, f, Shantak, Alive, 49 + last.x, last.y + 31)
                             case (Acolyte, Shantak) => DrawItem(null, f, Shantak, Alive, 50 + last.x, last.y)
+                            case (HighPriest, Shantak) => DrawItem(null, f, Shantak, Alive, 61 + last.x, last.y)
                             case (Ghast, Shantak) => DrawItem(null, f, Shantak, Alive, 48 + last.x, last.y)
                             case (Gug, Shantak) => DrawItem(null, f, Shantak, Alive, 63 + last.x, last.y)
                             case (Shantak, Shantak) => DrawItem(null, f, Shantak, Alive, 74 + last.x, last.y)
@@ -1027,6 +1054,7 @@ object CthulhuWarsSolo {
                             case (DeepOne, StarVampire) if last.health == Alive => DrawItem(null, f, StarVampire, Alive, 50 + last.x, last.y)
                             case (DeepOne, StarVampire) if last.health == Pained => DrawItem(null, f, StarVampire, Alive, 50 + last.x, last.y + 31)
                             case (Acolyte, StarVampire) => DrawItem(null, f, StarVampire, Alive, 52 + last.x, last.y)
+                            case (HighPriest, StarVampire) => DrawItem(null, f, StarVampire, Alive, 59 + last.x, last.y)
                             case (Ghast, StarVampire) => DrawItem(null, f, StarVampire, Alive, 53 + last.x, last.y)
                             case (Gug, StarVampire) => DrawItem(null, f, StarVampire, Alive, 64 + last.x, last.y)
                             case (Shantak, StarVampire) => DrawItem(null, f, StarVampire, Alive, 70 + last.x, last.y)
@@ -1469,6 +1497,7 @@ object CthulhuWarsSolo {
                 askM(
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " monsters (" + setup.get(NeutralMonsters).?("yes").|("no").hl + ")")) ++
                     (setup.options.contains(NeutralMonsters))
@@ -1499,6 +1528,11 @@ object CthulhuWarsSolo {
                             setupQuestions()
                         }
                         n -= seatings.num
+                        if (n == 0) {
+                            setup.toggle(HighPriests)
+                            setupQuestions()
+                        }
+                        n -= 1
                         if (n == 0) {
                             setup.toggle(NeutralSpellbooks)
                             setupQuestions()
@@ -1585,6 +1619,7 @@ object CthulhuWarsSolo {
                 askM(
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " monsters (" + setup.get(NeutralMonsters).?("yes").|("no").hl + ")")) ++
                     (setup.options.contains(NeutralMonsters))
@@ -1618,6 +1653,11 @@ object CthulhuWarsSolo {
                             setupQuestions()
                         }
                         n -= seatings.num
+                        if (n == 0) {
+                            setup.toggle(HighPriests)
+                            setupQuestions()
+                        }
+                        n -= 1
                         if (n == 0) {
                             setup.toggle(NeutralSpellbooks)
                             setupQuestions()
@@ -1866,12 +1906,14 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        val setup = new Setup(randomSeating($(AN, CC, BG)), Normal)
-                        setup.difficulty += AN -> Debug
+                        val setup = new Setup(randomSeating($(GC, BG, CC, YS)), Normal)
+                        setup.difficulty += GC -> Human
+                        setup.difficulty += BG -> Debug
                         setup.difficulty += CC -> Human
-                        setup.difficulty += BG -> Human
+                        setup.difficulty += YS -> Human
                         // setup.options = $(MapEarth53)
-                        setup.options = $(NeutralMonsters, UseGhast, UseGug, UseShantak, UseStarVampire)
+                        // setup.options = $(NeutralMonsters, UseGhast, UseGug, UseShantak, UseStarVampire)
+                        setup.options = $(HighPriests)
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)

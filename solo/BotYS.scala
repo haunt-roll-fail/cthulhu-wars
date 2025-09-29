@@ -486,7 +486,7 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
 
                 checkAttack(r, f, allies, foes, 1)
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.%(f => f.strength(game, f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none
 
                 safe && impunity && !r.enemyGate |=> 105000 -> "impunity capture"
@@ -553,6 +553,9 @@ class GameEvaluationYS(game : Game) extends GameEvaluation(game, YS) {
                 have(Hastur) && !have(KingInYellow) && r.noGate && r.allies.cultists.none |=> 100 -> "recruit to awaken kiy"
 
                 needRegion(r)
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, Undead, r) =>
                 have(Hastur) && have(ThirdEye) && r.allies(KingInYellow).any && !r.desecrated |=> -10000000 -> "desecrate instead"

@@ -55,4 +55,5 @@ case object AN extends Faction {
         units.count(_.uclass == Yothan) * 7 +
         neutralStrength(g, units, opponent)
 
+    var ignoredSacrificeHighPriest: Boolean = false
 }

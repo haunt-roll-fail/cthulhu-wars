@@ -278,7 +278,7 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 // Ok to risk Cthulhu with this, I think. Other factions should make sure any own goo has some shield:
                 f == AN && AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ownStr >= 6 |=> 1000 -> "attack lone extinct yothan"
 
-            case CaptureAction(_, r, f) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -339,6 +339,9 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 need(OceanGates) && r.ocean && r.noGate && r.foes.none && r.allies.cultists.none |=> 490 -> "private sea"
                 r.allies.goos.any |=> 30 -> "goo will protect"
                 r.foes.goos.any |=> -20 -> "goo will capture"
+
+            case RecruitAction(_, HighPriest, r) =>
+                true |=> -100000 -> "inactivated"
 
             case SummonAction(_, DeepOne, r) =>
                 // Defense against WW setting up 2nd gate at opposite pole. Only worth it if adjacent to location for new gate
