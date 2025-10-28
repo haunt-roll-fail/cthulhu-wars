@@ -19,7 +19,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
         def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
             val enemyStr = f.strength(game, foes, self)
-            val ownStr = self.strength(game, allies, f)
+            val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
             val igh = others.%(_.has(Necrophagy))./(_.all(Ghoul).diff(foes).num).sum
 
@@ -29,10 +29,14 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
             var sp = allies(SpawnOW).num
             val ygs = allies.has(YogSothoth)
 
+            var eby = foes.has(Byatis)
+            var eab = foes.has(Abhoth)
+            var eny = foes(Nyogtha).num
             //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
+            var efi = if (eab) foes(Filth).num else 0
 
             f match {
                 case GC =>
@@ -42,7 +46,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                     var ss = foes(Starspawn).num
                     var cth = foes.has(Cthulhu)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
                     var shield = ac + mu + ab - 1
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
@@ -93,11 +97,11 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                     val shield = ac + mu + ab
 
-                    val ownStr = (mu > 0).??(mu - 1) + (ab > 0).??(ab + 1) + ygs.??(game.ritualCost)
+                    val ownStr = adjustedOwnStrengthForCosmicUnity((mu > 0).??(mu - 1) + (ab > 0).??(ab + 1) + ygs.??(game.ritualCost), allies, foes, game, opponent = f)
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough = shield * 5 > enemyStr * 4
 
@@ -123,7 +127,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                 case AN =>
                     allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
-                    AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ((ygs && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
+                    AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((ygs && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
             }
         }
 
@@ -189,7 +193,7 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 !self.allSB |=> -1000 -> "spellbooks first"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -280,6 +284,9 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
                 val allies = self.at(r)
                 val foes = f.at(r)
 
+                val enemyStr = f.strength(game, foes, self)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
+
                 val upg1 = allies(SpawnOW).any && self.pool(Mutant).num > 2
                 val upg2 = allies(Abomination).any && self.pool(SpawnOW).any
                 val upg3 = allies(Mutant).any && self.pool(Abomination).any
@@ -287,11 +294,23 @@ class GameEvaluationOW(game : Game) extends GameEvaluation(game, OW) {
 
                 checkAttack(r, f, allies, foes, 1)
 
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
+
                 upg && f.strength(game, foes, self) == 0 |=> 1900 -> "zero attack"
                 upg && f.strength(game, foes, self) == 1 && allies./(_.uclass.cost).min < 3 |=> 1500 -> "one attack"
                 upg && f.strength(game, foes, self) == 2 && allies./(_.uclass.cost).min == 2 |=> 1500 -> "one attack"
 
                 allies.cultists.any && foes.goos.any |=> 1200 -> "battle to prevent capture"
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 val safe = active.%(f => f.strength(game, f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none

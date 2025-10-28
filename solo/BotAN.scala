@@ -2,6 +2,8 @@ package cws
 
 import hrf.colmat._
 
+import cws.UnitUtils._
+
 object BotAN extends BotX(g => new GameEvaluationAN(g))
 
 class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
@@ -21,10 +23,14 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
             var ra = allies(Reanimated).num
             var yo = allies(Yothan).num
 
+            var eby = foes.has(Byatis)
+            var eab = foes.has(Abhoth)
+            var eny = foes(Nyogtha).num
             //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
+            var efi = if (eab) foes(Filth).num else 0
 
             f match {
                 case GC =>
@@ -34,7 +40,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                     var ss = foes(Starspawn).num
                     var cth = foes.has(Cthulhu)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
                     var shield = ac + um + ra + yo - 1
 
                     enemyStr > shield * 5 |=> -500000 -> "not enough shield"
@@ -85,11 +91,11 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     val shield = ac + um + ra + yo
 
-                    val ownStr = ra * 2 + yo * 7
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(ra * 2 + yo * 7, allies, foes, game, opponent = f)
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough = shield * 5 > enemyStr * 4
 
@@ -110,9 +116,9 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     val shield = ac + um + ra + yo
 
-                    val ownStr = ra * 2 + yo * 7
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(ra * 2 + yo * 7, allies, foes, game, opponent = f)
 
-                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv
+                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -133,9 +139,9 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                     val sp = foes(SpawnOW).num
                     val yog = foes.has(YogSothoth)
 
-                    val ownStr = ra * 2 + yo * 7
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(ra * 2 + yo * 7, allies, foes, game, opponent = f)
 
-                    val enemyStr = mu + ab * 2 + sp * 3 + game.factions.but(f).map(_.goos.num).sum * 2 + egug * 3 + esht * 2 + esv
+                    val enemyStr = mu + ab * 2 + sp * 3 + game.factions.but(f).map(_.goos.num).sum * 2 + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     var shield = ac + um + ra + yo
 
@@ -143,18 +149,6 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                     self.gates.contains(r) && ab + sp > 0 && ownStr >= enemyStr/2 |=> 11000 -> "protect gate from beyond one"
 
-            }
-        }
-
-        def isIsolatedBrainless(p: Player, u: UnitFigure): Boolean = {
-            if (p.has(Brainless)) {
-                if (u.uclass != Reanimated) return false
-                val r = u.region
-                val monsters = p.at(r, Monster).but(u)
-                !(p.at(r, Cultist).any || p.at(r, GOO).any || p.at(r, Terror).any || monsters.exists(_.uclass != Reanimated))
-            }
-            else {
-                false
             }
         }
 
@@ -258,7 +252,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 true |=> -250 -> "don't ritual unless have reasons"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -456,9 +450,12 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 val foes = f.at(r)
 
                 val enemyStr = f.strength(game, foes, self)
-                val ownStr = self.strength(game, allies, f)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
                 checkAttack(r, f, allies, foes, 1)
+
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
                 foes.goos.any && game.cathedrals.contains(r) && r.str(AN) > 0 && have(UnholyGround) |=> 100000 -> "unholy ground enemy goo"
 
@@ -468,6 +465,15 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 foes.goos.num == 1 && (foes.monsters.num == 1 || foes.cultists.num == 1) && r.allies(Yothan).any && (r.allies.%(_.uclass.utype == Monster).any || r.allies.cultists.any) |=> 40000 -> "prot yothan vs goo with 1 unit"
 
                 f.gates.contains(r) && (foes.monsters.any || foes.goos.any) && r.allies(Yothan).any && (r.allies.%(_.uclass.utype == Monster).any || r.allies.cultists.any) && ownStr >= enemyStr |=> 14000 -> "yothan w shield vs protected gate"
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 val safe = active.none
@@ -650,7 +656,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exists(u => isIsolatedBrainless(game.of(self), u))
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exceptIsolatedBrainless(game.of(self), game).isEmpty.not
 
                 // Flags for potential destination regions.
                 var needCultistOnlyForGlyph = false
@@ -818,7 +824,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exists(u => isIsolatedBrainless(game.of(self), u))
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exceptIsolatedBrainless(game.of(self), game).isEmpty.not
 
                 // Flags for destination region (d).
                 val destIsWW = d.glyph == GlyphWW
@@ -941,7 +947,7 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exists(u => isIsolatedBrainless(game.of(self), u))
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsters.exceptIsolatedBrainless(game.of(self), game).isEmpty.not
 
                 // Flags for destination region (d).
                 val destHasOwnCultist = d.allies.cultists.any
@@ -1170,11 +1176,17 @@ class GameEvaluationAN(game : Game) extends GameEvaluation(game, AN) {
 
                         true |=> (game.board.connected(r) ++ game.board.connected(r).flatMap(game.board.connected)).distinct.num -> "reachable regions"
 
-                    case UnholyGroundAction(_, f, r) =>
-                        r.noGate |=> 1800 -> "no gate"
-                        r.enemyGate |=> 1400 -> "enemy gate"
-                        r.ownGate |=> 1200 -> "own gate"
-                        r.foes.goos.any |=> -1800 -> "enemy goo" // should disregard if in battle area, and if there's only one goo there (that will be eliminated)
+                    case UnholyGroundAction(_, f, cr, br) =>
+                        val enemyGOOsHere = cr.foes.goos
+                        val isBattleRegion = cr == br
+                        val shouldPenalizeForGOO =
+                            enemyGOOsHere.nonEmpty && !isBattleRegion &&
+                            !(enemyGOOsHere.size == 1 && enemyGOOsHere.head.health == Killed)
+
+                        cr.noGate        |=> 1800 -> "no gate"
+                        cr.enemyGate     |=> 1400 -> "enemy gate"
+                        cr.ownGate       |=> 1200 -> "own gate"
+                        shouldPenalizeForGOO |=> -1800 -> "enemy goo (future UG potential)"
 
                     case UnholyGroundIgnoreAction(self) =>
                         true |=> -2000 -> "dont"

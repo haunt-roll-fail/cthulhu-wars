@@ -14,6 +14,9 @@ import Html._
 
 import util.canvas._
 
+import cws.SpellbookUtils._
+import cws.UnitUtils._
+
 sealed trait UIAction
 case object UIStop extends UIAction
 case class UILog(s : String) extends UIAction
@@ -553,18 +556,23 @@ object CthulhuWarsSolo {
             case class DrawRect(key : String, tint : |[Processing], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
 
             case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
-                // val tint = $(GC, CC, BG, YS, WW, SL, OW, AN).shuffle.first @@ {
-                val tint = faction @@ {
-                    case GC => Processing(|("#77a055"), |("#222222"), None)
-                    case CC => Processing(|("#4977b3"), |("#111111"), None)
-                    case BG => Processing(|("#cd3233"), None, |("#555555"))
-                    case YS => Processing(|("#ffd000"), |("#663344"), None)
-                    case WW => Processing(|("#88a9be"), |("#5577aa"), None)
-                    case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
-                    case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
-                    case AN => Processing(|("#47a5bc"), |("#333333"), None)
-                    case _ => Processing(None, None, None)
-                }
+                val defaultProcessing = Processing(None, None, None)
+                val tint =
+                    if (unit == Filth && game.isAbhothAbsent)
+                        defaultProcessing
+                    else {
+                        faction @@ {
+                            case GC => Processing(|("#77a055"), |("#222222"), None)
+                            case CC => Processing(|("#4977b3"), |("#111111"), None)
+                            case BG => Processing(|("#cd3233"), None, |("#555555"))
+                            case YS => Processing(|("#ffd000"), |("#663344"), None)
+                            case WW => Processing(|("#88a9be"), |("#5577aa"), None)
+                            case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
+                            case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
+                            case AN => Processing(|("#47a5bc"), |("#333333"), None)
+                            case _  => defaultProcessing
+                        }
+                    }
 
                 val rect : DrawRect = unit match {
                     case Gate => { DrawRect("gate", None, x - 38, y - 38, 76, 76) }
@@ -652,12 +660,20 @@ object CthulhuWarsSolo {
                     case Gug           => DrawRect("n-gug", |(tint), x - 36, y - 78, 73, 90)
                     case Shantak       => DrawRect("n-shantak", |(tint), x - 39, y - 89, 79, 100)
                     case StarVampire   => DrawRect("n-star-vampire", |(tint), x - 35, y - 75, 70, 85)
+                    case Byatis        => DrawRect("n-byatis", |(tint), x - 47, y - 90, 95, 90)
+                    case Abhoth        => DrawRect("n-abhoth", |(tint), x - 47, y - 110, 95, 120)
+                    case Filth         => DrawRect("n-filth", |(tint), x - 20, y - 20, 40, 40)
+                    case Daoloth       => DrawRect("n-daoloth", |(tint), x - 59, y - 91, 118, 99)
+                    case Nyogtha       => DrawRect("n-nyogtha", |(tint), x - 40, y - 69, 81, 80)
 
                     case GhastIcon        => DrawRect("ghast-icon", None, x - 17, y - 55, 50, 50)
                     case GugIcon          => DrawRect("gug-icon", None, x - 17, y - 55, 50, 50)
                     case ShantakIcon      => DrawRect("shantak-icon", None, x - 17, y - 55, 50, 50)
                     case StarVampireIcon  => DrawRect("star-vampire-icon", None, x - 17, y - 55, 50, 50)
-
+                    case ByatisIcon       => DrawRect("byatis-icon", None, x - 17, y - 55, 50, 50)
+                    case AbhothIcon       => DrawRect("abhoth-icon", None, x - 17, y - 55, 50, 50)
+                    case DaolothIcon      => DrawRect("daoloth-icon", None, x - 17, y - 55, 50, 50)
+                    case NyogthaIcon      => DrawRect("nyogtha-icon", None, x - 17, y - 55, 50, 50)
                     case HighPriestIcon   => DrawRect("high-priest-icon", None, x - 17, y - 55, 50, 50)
 
                     case _ => null
@@ -893,18 +909,16 @@ object CthulhuWarsSolo {
                 val doomL = div()(("" + p.doom + " Doom").styled("doom") + p.es.any.?(" + " + (p.es.num == 1).?("Elder Sign").|("" + p.es.num + " Elder Signs").styled("es")).|(""))
                 val doomS = div()(("" + p.doom + "D").styled("doom") + p.es.any.?("+" + ("" + p.es.num + "ES").styled("es")).|(""))
 
-                val sb = p.spellbooks./{ sb =>
+                val sb = nonIGOO(p.spellbooks)./{ sb =>
                     val full = sb.full
                     val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
-                    // val d = "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + full + "</div>"
                     val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
                     p.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
-                (1.to(6 - p.spellbooks.num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
+                (1.to(6 - nonIGOO(p.spellbooks).num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
                 p.requirements./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
                     val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
-                    // "<div class='spellbook' onclick=\"onExternalClick('" + f.short + "', '" + s + "')\" onpointerover=\"onExternalOver('" + f.short + "', '" + s + "')\" onpointerout=\"onExternalOut('" + f.short + "', '" + s + "')\" >" + r.text + "</div>"
                     d
                 }.mkString("")
 
@@ -917,6 +931,10 @@ object CthulhuWarsSolo {
                         case "Gug"   => GugIcon
                         case "Shantak"   => ShantakIcon
                         case "Star Vampire"   => StarVampireIcon
+                        case "Byatis"   => ByatisIcon
+                        case "Abhoth"   => AbhothIcon
+                        case "Daoloth"   => DaolothIcon
+                        case "Nyogtha"   => NyogthaIcon
                         case "High Priest"   => HighPriestIcon
                     }
 
@@ -964,14 +982,19 @@ object CthulhuWarsSolo {
                 g.setTransform(1, 0, 0, 1, 0, 0)
                 g.clearRect(0, 0, bitmap.width, bitmap.height)
 
-                def dd(d : DrawRect) = g.drawImage(getAsset(d.key), d.x, d.y)
+                def dd(d : DrawRect) = {
+                    val img = d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key))
+                    g.drawImage(img, d.x, d.y)
+                }
 
                 dd(DrawItem(null, f, FactionGlyph, Alive, 55, 55).rect)
 
-                if (game.gates.contains(SL.slumber)) {
+                if (f == SL && game.gates.contains(SL.slumber)) {
                     dd(DrawItem(null, f, Gate, Alive, w - 46, 56).rect)
-                    if (p.at(SL.slumber, Cultist).any) {
-                        dd(DrawItem(null, p.at(SL.slumber, Cultist).head.faction, p.at(SL.slumber, Cultist).head.uclass, Alive, w - 46, 56).rect)
+                    val cultistOrHP = p.at(SL.slumber, Cultist) ++ p.at(SL.slumber, HighPriest)
+                    if (cultistOrHP.nonEmpty) {
+                        val unit = cultistOrHP.head
+                        dd(DrawItem(null, unit.faction, unit.uclass, Alive, w - 46, 56).rect)
                     }
                 }
 
@@ -986,25 +1009,48 @@ object CthulhuWarsSolo {
                 val deep = if (p.at(GC.deep).any) {
                     var draws = List(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
 
-                    val sortedDeep = p.at(GC.deep).sortWith(game.sortAllUnits(p))
+                    val sortedDeep = p.at(GC.deep).filterNot(_.uclass == Cthulhu).sortWith(game.sortAllUnits(p))
 
-                    while (draws.num < p.at(GC.deep).num) {
+                    while (draws.num - 1 < sortedDeep.num) {
                         val last = draws.last
-                        draws :+= ((last.unit, sortedDeep(draws.num).uclass) match {
+                        val next = sortedDeep(draws.num - 1).uclass
+                        draws :+= ((last.unit, next) match {
+                            case (Cthulhu, Abhoth) => DrawItem(null, f, Abhoth, Alive, 90 + last.x, 6 + last.y)
+
+                            case (Cthulhu, Daoloth) => DrawItem(null, f, Daoloth, Alive, 92 + last.x, 6 + last.y)
+                            case (Abhoth, Daoloth) => DrawItem(null, f, Daoloth, Alive, 88 + last.x, last.y)
+
+                            case (Cthulhu, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 86 + last.x, 6 + last.y)
+                            case (Abhoth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 81 + last.x, last.y)
+                            case (Daoloth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 86 + last.x, last.y)
+                            case (Nyogtha, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 80 + last.x, last.y)
+
                             case (Cthulhu, Starspawn) => DrawItem(null, f, Starspawn, Alive, 75 + last.x, 6 + last.y)
+                            case (Abhoth, Starspawn) => DrawItem(null, f, Starspawn, Alive, 70 + last.x, last.y)
+                            case (Daoloth, Starspawn) => DrawItem(null, f, Starspawn, Alive, 82 + last.x, last.y)
+                            case (Nyogtha, Starspawn) => DrawItem(null, f, Starspawn, Alive, 77 + last.x, last.y)
                             case (Starspawn, Starspawn) => DrawItem(null, f, Starspawn, Alive, 70 + last.x, last.y)
 
                             case (Cthulhu, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 76 + last.x, 6 + last.y)
+                            case (Abhoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 65 + last.x, last.y)
+                            case (Daoloth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 79 + last.x, last.y)
+                            case (Nyogtha, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 73 + last.x, last.y)
                             case (Starspawn, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 66 + last.x, last.y)
                             case (Shoggoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 62 + last.x, last.y)
 
                             case (Cthulhu, DeepOne) => DrawItem(null, f, DeepOne, Alive, 64 + last.x, 6 + last.y)
+                            case (Abhoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 60 + last.x, last.y)
+                            case (Daoloth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 74 + last.x, last.y)
+                            case (Nyogtha, DeepOne) => DrawItem(null, f, DeepOne, Alive, 62 + last.x, last.y)
                             case (Starspawn, DeepOne) => DrawItem(null, f, DeepOne, Alive, 51 + last.x, last.y)
                             case (Shoggoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 48 + last.x, last.y)
                             case (DeepOne, DeepOne) if last.health == Alive => DrawItem(null, f, DeepOne, Pained, last.x, last.y - 31)
                             case (DeepOne, DeepOne) if last.health == Pained => DrawItem(null, f, DeepOne, Alive, 35 + last.x, last.y + 31)
 
                             case (Cthulhu, Acolyte) => DrawItem(null, f, Acolyte, Alive, 57 + last.x, 6 + last.y)
+                            case (Abhoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 54 + last.x, last.y)
+                            case (Daoloth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 68 + last.x, last.y)
+                            case (Nyogtha, Acolyte) => DrawItem(null, f, Acolyte, Alive, 60 + last.x, last.y)
                             case (Starspawn, Acolyte) => DrawItem(null, f, Acolyte, Alive, 52 + last.x, last.y)
                             case (Shoggoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 48 + last.x, last.y)
                             case (DeepOne, Acolyte) if last.health == Alive => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y)
@@ -1012,6 +1058,9 @@ object CthulhuWarsSolo {
                             case (Acolyte, Acolyte) => DrawItem(null, f, Acolyte, Alive, 35 + last.x, last.y)
 
                             case (Cthulhu, HighPriest) => DrawItem(null, f, HighPriest, Alive, 75 + last.x, 6 + last.y)
+                            case (Abhoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 68 + last.x, last.y)
+                            case (Daoloth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 82 + last.x, last.y)
+                            case (Nyogtha, HighPriest) => DrawItem(null, f, HighPriest, Alive, 77 + last.x, last.y)
                             case (Starspawn, HighPriest) => DrawItem(null, f, HighPriest, Alive, 70 + last.x, last.y)
                             case (Shoggoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 66 + last.x, last.y)
                             case (DeepOne, HighPriest) if last.health == Alive => DrawItem(null, f, HighPriest, Alive, 54 + last.x, last.y)
@@ -1019,6 +1068,9 @@ object CthulhuWarsSolo {
                             case (Acolyte, HighPriest) => DrawItem(null, f, HighPriest, Alive, 53 + last.x, last.y)
 
                             case (Cthulhu, Ghast) => DrawItem(null, f, Ghast, Alive, 62 + last.x, 6 + last.y)
+                            case (Abhoth, Ghast) => DrawItem(null, f, Ghast, Alive, 53 + last.x, last.y)
+                            case (Daoloth, Ghast) => DrawItem(null, f, Ghast, Alive, 67 + last.x, last.y)
+                            case (Nyogtha, Ghast) => DrawItem(null, f, Ghast, Alive, 61 + last.x, last.y)
                             case (Starspawn, Ghast) => DrawItem(null, f, Ghast, Alive, 54 + last.x, last.y)
                             case (Shoggoth, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
                             case (DeepOne, Ghast) if last.health == Alive => DrawItem(null, f, Ghast, Alive, 39 + last.x, last.y)
@@ -1028,6 +1080,9 @@ object CthulhuWarsSolo {
                             case (Ghast, Ghast) => DrawItem(null, f, Ghast, Alive, 35 + last.x, last.y)
 
                             case (Cthulhu, Gug) => DrawItem(null, f, Gug, Alive, 78 + last.x, 6 + last.y)
+                            case (Abhoth, Gug) => DrawItem(null, f, Gug, Alive, 70 + last.x, last.y)
+                            case (Daoloth, Gug) => DrawItem(null, f, Gug, Alive, 87 + last.x, last.y)
+                            case (Nyogtha, Gug) => DrawItem(null, f, Gug, Alive, 77 + last.x, last.y)
                             case (Starspawn, Gug) => DrawItem(null, f, Gug, Alive, 70 + last.x, last.y)
                             case (Shoggoth, Gug) => DrawItem(null, f, Gug, Alive, 66 + last.x, last.y)
                             case (DeepOne, Gug) if last.health == Alive => DrawItem(null, f, Gug, Alive, 56 + last.x, last.y)
@@ -1038,6 +1093,9 @@ object CthulhuWarsSolo {
                             case (Gug, Gug) => DrawItem(null, f, Gug, Alive, 72 + last.x, last.y)
 
                             case (Cthulhu, Shantak) => DrawItem(null, f, Shantak, Alive, 83 + last.x, 6 + last.y)
+                            case (Abhoth, Shantak) => DrawItem(null, f, Shantak, Alive, 64 + last.x, last.y)
+                            case (Daoloth, Shantak) => DrawItem(null, f, Shantak, Alive, 90 + last.x, last.y)
+                            case (Nyogtha, Shantak) => DrawItem(null, f, Shantak, Alive, 70 + last.x, last.y)
                             case (Starspawn, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
                             case (Shoggoth, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
                             case (DeepOne, Shantak) if last.health == Alive => DrawItem(null, f, Shantak, Alive, 49 + last.x, last.y)
@@ -1049,6 +1107,9 @@ object CthulhuWarsSolo {
                             case (Shantak, Shantak) => DrawItem(null, f, Shantak, Alive, 74 + last.x, last.y)
 
                             case (Cthulhu, StarVampire) => DrawItem(null, f, StarVampire, Alive, 79 + last.x, 6 + last.y)
+                            case (Abhoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 63 + last.x, last.y)
+                            case (Daoloth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 77 + last.x, last.y)
+                            case (Nyogtha, StarVampire) => DrawItem(null, f, StarVampire, Alive, 69 + last.x, last.y)
                             case (Starspawn, StarVampire) => DrawItem(null, f, StarVampire, Alive, 61 + last.x, last.y)
                             case (Shoggoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 60 + last.x, last.y)
                             case (DeepOne, StarVampire) if last.health == Alive => DrawItem(null, f, StarVampire, Alive, 50 + last.x, last.y)
@@ -1060,7 +1121,23 @@ object CthulhuWarsSolo {
                             case (Shantak, StarVampire) => DrawItem(null, f, StarVampire, Alive, 70 + last.x, last.y)
                             case (StarVampire, StarVampire) => DrawItem(null, f, StarVampire, Alive, 65 + last.x, last.y)
 
-                            case (a, b) => { println("GC DEEP:" + a + " -> " + b); null }
+                            case (Cthulhu, Filth) => DrawItem(null, f, Filth, Alive, 62 + last.x, last.y - 10)
+                            case (Abhoth, Filth) => DrawItem(null, f, Filth, Alive, 50 + last.x, last.y - 15)
+                            case (Daoloth, Filth) => DrawItem(null, f, Filth, Alive, 70 + last.x, last.y - 15)
+                            case (Nyogtha, Filth) => DrawItem(null, f, Filth, Alive, 65 + last.x, last.y - 15)
+                            case (Starspawn, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
+                            case (Shoggoth, Filth) => DrawItem(null, f, Filth, Alive, 52 + last.x, last.y - 15)
+                            case (DeepOne, Filth) if last.health == Alive => DrawItem(null, f, Filth, Alive, 42 + last.x, last.y - 15)
+                            case (DeepOne, Filth) if last.health == Pained => DrawItem(null, f, Filth, Alive, 42 + last.x, last.y + 16)
+                            case (Acolyte, Filth) => DrawItem(null, f, Filth, Alive, 38 + last.x, last.y - 15)
+                            case (HighPriest, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
+                            case (Ghast, Filth) => DrawItem(null, f, Filth, Alive, 40 + last.x, last.y - 15)
+                            case (Gug, Filth) => DrawItem(null, f, Filth, Alive, 57 + last.x, last.y - 15)
+                            case (Shantak, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
+                            case (StarVampire, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
+                            case (Filth, Filth) => DrawItem(null, f, Filth, Alive, 40 + last.x, last.y)
+
+                            case (a, b) => throw new RuntimeException(s"GC DEEP missing draw case: $a -> $b")
                         })
                     }
 
@@ -1071,14 +1148,16 @@ object CthulhuWarsSolo {
                     var draws : List[DrawItem] = Nil
 
                     game.factions.%(_ != f)./~(e => game.of(e).at(f.prison)).foreach { u =>
-                        val d = DrawItem(null, u.faction, u.uclass, Alive, 0, 0)
+                        val (prisonXOffset, prisonYOffset) = u.uclass match {
+                            case Filth        => (8, -15)
+                            case _            => (0, 0)
+                        }
 
-                        val x = draws./(_.rect.width).sum - d.rect.x
+                        val x = draws./(_.rect.width).sum - 0 + prisonXOffset
+                        val y = h - 12 + prisonYOffset
 
-                        draws :+= DrawItem(null, u.faction, u.uclass, Alive, x, h - 12)
+                        draws :+= DrawItem(null, u.faction, u.uclass, Alive, x, y)
                     }
-
-                    val t = draws./(_.rect.width).sum
 
                     draws./(_.rect)
                 }
@@ -1508,6 +1587,15 @@ object CthulhuWarsSolo {
                         .$("Variants" -> ("Use " + ShantakCard.short + " (" + setup.get(UseShantak).?("yes").|("no").hl + ")")) ++
                     (setup.options.contains(NeutralMonsters))
                         .$("Variants" -> ("Use " + StarVampireCard.short + " (" + setup.get(UseStarVampire).?("yes").|("no").hl + ")")) ++
+                    $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + AbhothCard.short + " (" + setup.get(UseAbhoth).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + DaolothCard.short + " (" + setup.get(UseDaoloth).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
@@ -1567,6 +1655,39 @@ object CthulhuWarsSolo {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseStarVampire)
+                                setupQuestions()
+                            }
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(IGOOs)
+
+                            if (setup.options.has(IGOOs))
+                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha)
+                            else
+                                setup.options = setup.options.notOf[IGOOOption]
+
+                            setupQuestions()
+                        }
+                        if (setup.options.contains(IGOOs)) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseByatis)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseAbhoth)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseDaoloth)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseNyogtha)
                                 setupQuestions()
                             }
                         }
@@ -1630,6 +1751,15 @@ object CthulhuWarsSolo {
                         .$("Variants" -> ("Use " + ShantakCard.short + " (" + setup.get(UseShantak).?("yes").|("no").hl + ")")) ++
                     (setup.options.contains(NeutralMonsters))
                         .$("Variants" -> ("Use " + StarVampireCard.short + " (" + setup.get(UseStarVampire).?("yes").|("no").hl + ")")) ++
+                    $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + AbhothCard.short + " (" + setup.get(UseAbhoth).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + DaolothCard.short + " (" + setup.get(UseDaoloth).?("yes").|("no").hl + ")")) ++
+                    (setup.options.contains(IGOOs))
+                        .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
@@ -1692,6 +1822,39 @@ object CthulhuWarsSolo {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseStarVampire)
+                                setupQuestions()
+                            }
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(IGOOs)
+
+                            if (setup.options.has(IGOOs))
+                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha)
+                            else
+                                setup.options = setup.options.notOf[IGOOOption]
+
+                            setupQuestions()
+                        }
+                        if (setup.options.contains(IGOOs)) {
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseByatis)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseAbhoth)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseDaoloth)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseNyogtha)
                                 setupQuestions()
                             }
                         }
@@ -1906,14 +2069,14 @@ object CthulhuWarsSolo {
                             topMenu()
                     })
                     case 5 =>
-                        val setup = new Setup(randomSeating($(GC, BG, CC, YS)), Normal)
+                        val setup = new Setup(randomSeating($(GC, BG, WW)), Normal)
                         setup.difficulty += GC -> Human
-                        setup.difficulty += BG -> Debug
-                        setup.difficulty += CC -> Human
-                        setup.difficulty += YS -> Human
+                        setup.difficulty += BG -> Normal
+                        setup.difficulty += WW -> Debug
                         // setup.options = $(MapEarth53)
                         // setup.options = $(NeutralMonsters, UseGhast, UseGug, UseShantak, UseStarVampire)
-                        setup.options = $(HighPriests)
+                        setup.options = $(IGOOs, UseAbhoth, UseDaoloth, UseNyogtha)
+                        //setup.options = $(HighPriests)
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)

@@ -4,6 +4,8 @@ import hrf.colmat._
 
 import Html._
 
+import cws.UnitUtils._
+
 @scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
 sealed trait BattleRoll
 case object Miss extends BattleRoll {
@@ -94,15 +96,42 @@ case class BattleRollAction(f : Faction, rolls : List[BattleRoll], next : Battle
 case class AssignKillAction(self : Faction, count : Int, faction : Faction, ur : UnitRef) extends BaseFactionAction("Assign " + (count > 1).??(count.styled("highlight") + " ") + ("Kill" + (count > 1).??("s")).styled("kill"), ur.short)
 case class AssignPainAction(self : Faction, count : Int, faction : Faction, ur : UnitRef) extends BaseFactionAction("Assign " + (count > 1).??(count.styled("highlight") + " ") + ("Pain" + (count > 1).??("s")).styled("pain"), ur.short)
 
-case class RetreatOrderAction(self : Faction, a : Faction, b : Faction) extends BaseFactionAction("Retreat order", "" + a + " then " + b)
+case class RetreatOrderAction(self: Faction, attackerFirst: Boolean) extends BaseFactionAction("Retreat order",
+    g => {
+        val b = g.battle
+        val attackerLabel = if (b != null) "" + b.attacker else "Attacker"
+        val defenderLabel =
+            if (b != null && b.isUncontrolledFilth)
+                "Uncontrolled ".styled("nt") + Filth.name.styled("nt")
+            else if (b != null)
+                "" + b.defender
+            else
+                "Defender"
+
+        if (attackerFirst)
+            attackerLabel + " then " + defenderLabel
+        else
+            defenderLabel + " then " + attackerLabel
+    })
 
 case class EliminateNoWayAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Nowhere to retreat, a pained unit is eliminated", ur.short)
 
-case class RetreatAllAction(self : Faction, f : Faction, r : Region) extends BaseFactionAction("Retreat all pained " + f + " units to", r)
+case class RetreatAllAction(self: Faction, f: Faction, r: Region) extends BaseFactionAction(
+    g => {
+        val b = g.battle
+        val factionLabel =
+            if (b != null && b.isUncontrolledFilth && f == b.defender)
+                "Uncontrolled ".styled("nt") + Filth.name.styled("nt")
+            else
+                f.toString
+
+        "Retreat all pained " + factionLabel + " units to"
+    },
+    r
+  )
 case class RetreatSeparatelyAction(self : Faction, f : Faction, destinations : List[Region]) extends BaseFactionAction(None, "Retreat separately") with More
 
 case class RetreatUnitAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction("Retreat " + ur.short, r)
-
 
 // GC
 case class DevourPreBattleAction(self : Faction) extends OptionFactionAction(Devour) with PreBattleQuestion
@@ -138,6 +167,7 @@ case class DemandSacrificeKillsArePainsAction(self : Faction) extends BaseFactio
 case class HowlPreBattleAction(self : Faction) extends OptionFactionAction(Howl) with PreBattleQuestion
 case class HowlUnitAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Retreat unit from " + Howl.full, ur.full)
 case class HowlAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction("Retreat " + ur.short + " to", r)
+case class HowlUncontrolledFilthAction(self : Faction, ur : UnitRef, r : Region, target : Faction) extends BaseFactionAction("Retreat " + ur.short + " to", r)
 
 case class EternalPayAction(self : Faction, u : UnitRef, result : BattleRoll) extends BaseFactionAction("Save " + u.short + " from " + result, "Pay " + 1.power + " for " + self.styled(Eternal))
 case class EternalIgnoreAction(self : Faction) extends BaseFactionAction(None, "Cancel")
@@ -155,18 +185,17 @@ case class MillionFavoredOnesAction(self : Faction, r : Region, uc : UnitClass, 
 case class MillionFavoredOnesDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
 // AN
-case class UnholyGroundAction(self : Faction, o : Faction, r : Region) extends BaseFactionAction("Remove a cathedral with " + UnholyGround.full, r)
+case class UnholyGroundAction(self : Faction, o : Faction, cr : Region, br : Region) extends BaseFactionAction("Remove a cathedral with " + UnholyGround.full, cr)
 case class UnholyGroundIgnoreAction(self : Faction) extends BaseFactionAction(None, "Cancel")
-case class UnholyGroundEliminateAction(self : Faction, f : Faction, r : Region, ur : UnitRef) extends BaseFactionAction("Choose a GOO to eliminate in " + r, ur.short)
+case class UnholyGroundEliminateAction(self : Faction, f : Faction, br : Region, ur : UnitRef) extends BaseFactionAction("Choose a GOO to eliminate in " + br, ur.short)
 
+// Independent Great Old Ones
+case class CosmicUnityPreBattleAction(self : Faction) extends OptionFactionAction(self.styled(CosmicUnity)) with PreBattleQuestion
+case class CosmicUnityAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Target for " + self.styled(CosmicUnity), ur.short)
 
-// Neutral
-
+// Neutral Spellbooks
 case class ShrivelingPreBattleAction(self : Faction) extends OptionFactionAction(Shriveling) with PreBattleQuestion
 case class ShrivelingAction(self : Faction, ur : UnitRef) extends BaseFactionAction(Shriveling, ur.short)
-
-
-
 
 
 class Side(val faction : Faction, val player : Player, var units : $[UnitFigure], var strength : Int = 0, var rolls : $[BattleRoll] = $, var opponent : Side = null) {
@@ -176,16 +205,40 @@ class Side(val faction : Faction, val player : Player, var units : $[UnitFigure]
     def count(s : Spellbook) = player.oncePerAction.count(s)
 }
 
-class Battle(val game : Game, val region : Region, val attacker : Faction, val defender : Faction, log : (=> String) => Unit) {
+class Battle(val game : Game, val region : Region, val attacker : Faction, val defender : Faction, log : (=> String) => Unit, uncontrolledDefender : String = "") {
+    def isUncontrolledFilth: Boolean = uncontrolledDefender == Filth.name
 
-    val attackers = new Side(attacker, game.of(attacker), game.of(attacker).at(region))
-    val defenders = new Side(defender, game.of(defender), game.of(defender).at(region))
+    private val attackerUnits = {
+        game.of(attacker).at(region).exceptUncontrolledFilth(game)
+    }
+
+    private val defenderUnits = {
+        val all = game.of(defender).at(region)
+
+        if (isUncontrolledFilth)
+            all.uncontrolledFilthOnly(game)
+        else if (game.isAbhothPresent)
+            all
+        else
+            all.exceptFilth
+    }
+
+    private def refreshDefenderUnits(): Unit = {
+        val stillHere = game.of(defender).at(region)
+        defenders.units = defenders.units.filter(stillHere.contains)
+    }
+
+    val attackers = new Side(attacker, game.of(attacker), attackerUnits)
+    val defenders = new Side(defender, game.of(defender), defenderUnits)
     attackers.opponent = defenders
     defenders.opponent = attackers
 
     val sides = List(attackers, defenders)
     var hidden : List[UnitFigure] = Nil
     var cannibalism : List[Faction] = Nil
+    var cosmicUnityTargets: Set[UnitRef] = Set.empty
+
+    var unholyGroundEliminatedGOOs: Set[UnitRef] = Set.empty
 
     def opponent(f : Faction) = if (f == attacker) defender else if (f == defender) attacker else { log("Unknown faction in battle " + f); null }
     def units(f : Faction) = side(f).units
@@ -195,7 +248,9 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     def eliminate(u : UnitFigure) {
         exempt(u)
         game.eliminate(u)
-        game.satisfy(u.faction, LoseUnitInBattle, "Lose " + u.short + " in battle")
+
+        if (!u.isUncontrolledFilth(game))
+            game.satisfy(u.faction, LoseUnitInBattle, "Lose " + u.short + " in battle")
     }
 
     def exempt(u : UnitFigure) {
@@ -205,10 +260,42 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         sides.foreach(s => s.units = s.units.but(u))
     }
 
+    def resolveHowl(u: UnitFigure, movedBy: Faction, targetSide: Side, r: Region): Continue = {
+        if (!targetSide.units.contains(u)) {
+            return proceed()
+        }
+
+        targetSide.units = targetSide.units.but(u)
+        game.move(u, r)
+
+        if (!side(movedBy).has(Howl))
+            side(movedBy).add(Howl)
+
+        log("" + u.short + " was howled to " + r)
+
+        refreshDefenderUnits()
+
+        if (defenders.units.isEmpty) {
+            proceed(PostBattlePhase)
+        } else {
+            proceed()
+        }
+    }
+
     def retreat(u : UnitFigure, r : Region) = {
         game.move(u, r)
         u.add(Retreated)
         u.health = Alive
+
+        sides.foreach { s =>
+            if (s.units.contains(u)) {
+                s.units = s.units.but(u)
+            }
+        }
+
+        if (isUncontrolledFilth) {
+            defenders.units = defenders.units.but(u)
+        }
     }
 
     var phase : BattlePhase = BattleStart
@@ -306,23 +393,23 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
         var options : List[FactionAction] = Nil
 
-        if (s.player.has(Devour) && !s.has(Devour) && s.units.%(_.uclass == Cthulhu).any && s.opponent.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror).any)
+        if (s.player.has(Devour) && !s.has(Devour) && s.units.%(_.uclass == Cthulhu).any && s.opponent.units.exceptGOO.exceptTerror.any)
             options :+= DevourPreBattleAction(s.faction)
 
-        if (s.player.has(Shriveling) && !s.has(Shriveling) && s.opponent.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror).any)
+        if (s.player.has(Shriveling) && !s.has(Shriveling) && s.opponent.units.exceptGOO.exceptTerror.any)
             options :+= ShrivelingPreBattleAction(s.faction)
 
         if (s.player.has(Absorb)) {
             val sh = s.units.%(_.uclass == Shoggoth)
             if (sh.any)
-                if (s.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror).%(_ != sh(0)).any)
+                if (s.units.exceptGOO.exceptTerror.exceptUncontrolledFilth(game).%(_ != sh(0)).any)
                     options :+= AbsorbPreBattleAction(s.faction)
         }
 
-        if (s.player.has(Howl) && s.units.%(_.uclass == Wendigo).any && !s.has(Howl))
+        if (s.player.has(Howl) && s.units.%(_.uclass == Wendigo).nonEmpty && s.opponent.units.exceptByatis.nonEmpty && !side(s.faction).has(Howl) && !side(opponent(s.faction)).has(Howl))
             options :+= HowlPreBattleAction(s.faction)
 
-        if (s.player.has(Abduct) && s.units.%(_.uclass == Nightgaunt).any && s.opponent.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror).any)
+        if (s.player.has(Abduct) && s.units.%(_.uclass == Nightgaunt).any && s.opponent.units.exceptGOO.exceptTerror.any)
             options :+= AbductPreBattleAction(s.faction)
 
         if (s.player.has(SeekAndDestroy) && s.player.all(HuntingHorror).%(_.region != region).any)
@@ -331,14 +418,26 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         if (s.player.has(Invisibility) && s.units.%(_.uclass == FlyingPolyp).%(!_.has(Invised)).any)
             options :+= InvisibilityPreBattleAction(s.faction)
 
-        if (s.player.has(DemandSacrifice) && s.player.has(Tsathoggua) && !s.has(DemandSacrifice) && !s.opponent.has(KillsArePains) && (game.options.has(DemandTsathoggua).not || s.units.%(_.uclass == Tsathoggua).any))
+        if (s.player.has(DemandSacrifice) && s.player.has(Tsathoggua) && !s.has(DemandSacrifice) && !s.opponent.has(KillsArePains) && (game.options.has(DemandTsathoggua).not || s.units.%(_.uclass == Tsathoggua).any) && !s.opponent.units.isUncontrolledFilthOnly(game))
             options :+= DemandSacrificePreBattleAction(s.faction)
+
+        if (s.player.has(CosmicUnity) && !s.has(CosmicUnity) && s.units.exists(_.uclass == Daoloth) && s.opponent.units.%(_.uclass.utype == GOO).any)
+            options :+= CosmicUnityPreBattleAction(s.faction)
 
         return Ask(s.faction, options :+ PreBattleDoneAction(s.faction, next))
     }
 
     def preroll(s : Side) {
         val strength = s.faction.strength(game, s.units, s.opponent.faction) + s.units./(_.count(Absorbed)).sum * 3
+
+        if (game.of(s.faction).has(Nyogtha)) {
+            val nyogthas = s.units.%(_.uclass == Nyogtha)
+            if (nyogthas.nonEmpty && s == attackers) {
+                nyogthas.foreach { _ =>
+                    log("" + s.faction.styled(Nyogtha) + " increased its strength to " + 4.str + " since it was attacking")
+                }
+            }
+        }
 
         if (strength != s.strength) {
             log("" + s.faction + " strength " + (if (strength > s.strength) "increased" else "decreased") + " to " + strength.str)
@@ -368,6 +467,17 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
         if (s.player.has(MillionFavoredOnes))
             s.add(MillionFavoredOnes)
+
+        cosmicUnityTargets.foreach { ur =>
+            val targetUnit = game.unit(ur)
+            if (s.units.contains(targetUnit)) {
+                val removed = s.faction.strength(game, $(targetUnit), s.opponent.faction)
+                if (removed > 0) {
+                    s.strength -= removed
+                    log("" + targetUnit.short + " contributes no dice due to " + s.opponent.faction.styled(CosmicUnity) + ", new total: " + s.strength.str)
+                }
+            }
+        }
     }
 
     def postroll(s : Side) {
@@ -383,6 +493,8 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
     def hitter(s : Side) : Faction = {
         if (s.opponent.has(Vengeance))
+            return s.opponent.faction
+        else if (uncontrolledDefender.nonEmpty)
             return s.opponent.faction
 
         return s.faction
@@ -424,46 +536,55 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
         val f = hitter(s)
 
-        if (f != s.faction && assigned == 0)
+        if (f != s.faction && assigned == 0 && uncontrolledDefender.isEmpty)
             log("" + f + " assigned pains with " + f.styled(Vengeance))
 
         return DelayedContinue(50, Ask(f, s.units.%(u => canAssignPains(u) > 0).sortBy(_.uclass.cost)./(u => AssignPainAction(f, pains - assigned, s.faction, u.ref))))
     }
 
-    def retreater(s : Side) : Faction = {
-        val madness = game.factions.%(_ != s.faction).%(game.of(_).has(Madness))
-
-        if (madness.none)
-            return s.faction
-
-        if (madness.contains(s.opponent.faction))
-            return s.opponent.faction
-
-        return madness.head
+    def retreater(s: Side) : Faction = {
+        game.factions.find(f => game.of(f).has(Madness)) match {
+            case Some(cc) => cc
+            case None =>
+            if (uncontrolledDefender.nonEmpty) s.opponent.faction
+            else s.faction
+        }
     }
 
     def retreat(s : Side) : Continue = {
         val refugees = s.units.%(_.health == Pained)
 
-        if (refugees.any) {
-            val destinations = game.board.connected(region).%(r => s.opponent.player.at(r).none)
+        if (refugees.none)
+            return proceed()
 
-            if (destinations.none)
-                QAsk(refugees.sortBy(_.uclass.cost)./(u => EliminateNoWayAction(s.faction, u.ref)))
+        s.units.foreach(_.remove(Retreated))
+
+        val destinations = game.board.connected(region).filter { r =>
+            if (isUncontrolledFilth)
+                attackers.units.%(_.region == r).isEmpty
             else
-            if (destinations.num == 1) {
-                log("" + refugees./(_.short).mkString(", ") + " retreated to " + destinations(0))
-                refugees.foreach(u => retreat(u, destinations(0)))
-                proceed()
-            }
-            else
-            if (refugees.num == 1 || s.units.exists(_.has(Retreated)))
-                QAsk(destinations./(RetreatUnitAction(retreater(s), refugees(0).ref, _)))
-            else
-                QAsk(destinations./(RetreatAllAction(retreater(s), s.faction, _)) :+ RetreatSeparatelyAction(retreater(s), s.faction, destinations))
+                s.opponent.player.at(r).exceptUncontrolledFilth(game).isEmpty
         }
-        else
+
+        val chooser: Faction = retreater(s)
+
+        if (destinations.none) {
+            QAsk(refugees.sortBy(_.uclass.cost)./(u => EliminateNoWayAction(chooser, u.ref)))
+        } else if (destinations.num == 1) {
+            val dest = destinations(0)
+            refugees.foreach(u => retreat(u, dest))
+            log("" + refugees./(_.short).mkString(", ") + " retreated to " + dest)
             proceed()
+        } else if (refugees.num == 1 || s.units.exists(_.has(Retreated))) {
+            val u = refugees(0)
+            QAsk(destinations./(d => RetreatUnitAction(chooser, u.ref, d)))
+        } else {
+            val ownerFaction = refugees(0).faction
+            QAsk(destinations./(d =>
+                RetreatAllAction(chooser, ownerFaction, d)) :+
+                RetreatSeparatelyAction(chooser, ownerFaction, destinations)
+            )
+        }
     }
 
     def checkKillSpellbooks(s : Side) {
@@ -500,6 +621,38 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         }
     }
 
+    def checkByatisSpellbook(s: Side): Unit = {
+        val byatisHere = s.units.filter(_.uclass == Byatis)
+        if (byatisHere.isEmpty || ByatisCard.hasSpellbook) return
+
+        val killedOpponentUnits = s.opponent.units.count(_.health == Killed)
+        val byatisKilled        = byatisHere.exists(_.health == Killed)
+
+        if (killedOpponentUnits > 0 && !byatisKilled) {
+            s.player.spellbooks :+= GodOfForgetfulness
+            ByatisCard.hasSpellbook = true
+            log("" + s.faction + " gained " + s.faction.styled(GodOfForgetfulness) + " for " + s.faction.styled(Byatis))
+        }
+    }
+
+    def checkNyogthaSpellbookSingleBattle(s: Side): Unit = {
+        if (NyogthaCard.hasSpellbook) return
+
+        val nyogthasHere  = s.units.%(_.uclass == Nyogtha)
+        val nyogthasAlive = nyogthasHere.forall(_.health != Killed)
+        val inPair        = game.nyogthaPairByFaction.contains(s.faction)
+
+        val hadEnemyGOO =
+            s.opponent.units.exists(_.uclass.utype == GOO) ||
+            game.nyogthaEnemyGOOSeen.getOrElse(s.faction, false)
+
+        if (nyogthasHere.nonEmpty && nyogthasAlive && hadEnemyGOO && !inPair) {
+            s.player.spellbooks :+= NightmareWeb
+            NyogthaCard.hasSpellbook = true
+            log("" + s.faction + " gained " + s.faction.styled(NightmareWeb) + " for " + s.faction.styled(Nyogtha))
+        }
+    }
+
     def proceed(bp : BattlePhase) : Continue = {
         phase = bp
         proceed()
@@ -508,11 +661,25 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     def proceed() : Continue = {
         phase match {
             case BattleStart =>
+                if (attackers.units.exists(_.uclass == Nyogtha) && defenders.units.exists(_.uclass.utype == GOO))
+                    game.nyogthaEnemyGOOSeen += attackers.faction -> true
+                if (defenders.units.exists(_.uclass == Nyogtha) && attackers.units.exists(_.uclass.utype == GOO))
+                    game.nyogthaEnemyGOOSeen += defenders.faction -> true
+
+                if (attackers.units.isEmpty || defenders.units.isEmpty) {
+                    log("No units left to fight")
+                    return proceed(PostBattlePhase)
+                }
+
                 if (attackers.units.any)
                     log("" + attacker + " attacked with " + attackers.units./(_.short).mkString(", ") + " " + attackers.strength.str)
 
-                if (defenders.units.any)
-                    log("" + defender + " defended with " + defenders.units./(_.short).mkString(", ") + " " + defenders.strength.str)
+                if (defenders.units.any) {
+                    if (isUncontrolledFilth)
+                        log("" + "Uncontrolled ".styled("nt") + Filth.name.styled("nt") + " defended with " + defenders.units./(_.uclass.name).mkString(", ").styled("nt") + " " + defenders.strength.str)
+                    else
+                        log("" + defender + " defended with " + defenders.units./(_.short).mkString(", ") + " " + defenders.strength.str)
+                }
 
                 proceed(AttackerPreBattle)
 
@@ -529,7 +696,14 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 proceed(RollAttackers)
 
             case RollAttackers =>
-                RollBattle(attacker, "attack", side(attacker).strength, x => BattleRollAction(attacker, x, RollDefenders))
+                if (isUncontrolledFilth) {
+                    // Skip RollDefenders (Filth have 0 combat)
+                    // If we later introduce uncontrolled units that can fight back, this needs to be adjusted.
+                    RollBattle(attacker, "attack", side(attacker).strength, x => BattleRollAction(attacker, x, ChannelPowerPhase))
+                }
+                else {
+                    RollBattle(attacker, "attack", side(attacker).strength, x => BattleRollAction(attacker, x, RollDefenders))
+                }
 
             case RollDefenders =>
                 RollBattle(defender, "defense", side(defender).strength, x => BattleRollAction(defender, x, ChannelPowerPhase))
@@ -586,10 +760,17 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             case HarbingerKillPhase =>
                 sides.foreach { s =>
                     if (s.has(Harbinger)) {
-                        val gs = s.opponent.units.%(_.health == Killed).%(_.uclass.utype == GOO).%(!_.has(Harbinged))
+                        val raw = s.opponent.units.filter(u => u.health == Killed && u.uclass.utype == GOO && !u.has(Harbinged))
+                        val grouped = raw.groupBy(_.uclass).values.map(_.head).filterNot(u => u.uclass == Nyogtha && game.harbingerNyogthaAwarded.contains(s.faction)).toList
 
-                        if (gs.any)
-                            return QAsk(HarbingerPowerAction(s.faction, gs.head.ref, gs.head.uclass.cost / 2) :: HarbingerESAction(s.faction, gs.head.ref, 2))
+                        if (grouped.nonEmpty) {
+                            val g = grouped.head
+
+                            if (g.uclass == Nyogtha)
+                                game.harbingerNyogthaAwarded += s.faction
+
+                            return QAsk(HarbingerPowerAction(s.faction, g.ref, g.uclass.cost / 2) :: HarbingerESAction(s.faction, g.ref, 2))
+                        }
                     }
                 }
 
@@ -617,9 +798,53 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
                 cannibalism = game.factions.%(f => game.of(f).has(Cannibalism)).%(f => sides.%(_.faction != f).%(_.units.%(_.health == Killed).any).any)
 
+                val regionHere = region
+                val nyogthaDiedHere = (attackers.units ++ defenders.units).exists(u => u.uclass == Nyogtha && u.health == Killed)
+                val enemyGOOHereForAttacker = defenders.units.exists(_.uclass.utype == GOO)
+                val enemyGOOHereForDefender = attackers.units.exists(_.uclass.utype == GOO)
+
+                def foldIntoPair(f: Faction, enemyGOOHere: Boolean): Unit = {
+                    game.nyogthaPairByFaction.get(f) match {
+                        case Some(pair) if pair.contains(regionHere) =>
+                            if (nyogthaDiedHere)
+                                game.nyogthaPairNyogthaDied += f -> true
+                            if (enemyGOOHere)
+                                game.nyogthaPairHadEnemyGOO += f -> true
+
+                        val newCount = game.nyogthaPairProgress.getOrElse(f, 0) + 1
+                        game.nyogthaPairProgress += f -> newCount
+
+                        if (newCount >= pair.size) {
+                            val died   = game.nyogthaPairNyogthaDied.getOrElse(f, false)
+                            val hadGOO = game.nyogthaPairHadEnemyGOO.getOrElse(f, false)
+                            if (!NyogthaCard.hasSpellbook && hadGOO && !died) {
+                                val p = game.of(f)
+                                p.spellbooks :+= NightmareWeb
+                                NyogthaCard.hasSpellbook = true
+                                log("" + f + " gained " + f.styled(NightmareWeb) + " for " + f.styled(Nyogtha))
+                            }
+
+                            game.nyogthaPairByFaction    -= f
+                            game.nyogthaPairProgress     -= f
+                            game.nyogthaPairHadEnemyGOO  -= f
+                            game.nyogthaPairNyogthaDied  -= f
+                        }
+                        case _ =>
+                    }
+                }
+
+                foldIntoPair(attacker, enemyGOOHereForAttacker)
+                foldIntoPair(defender, enemyGOOHereForDefender)
+
                 sides.foreach { s =>
                     if (s.player.has(Berserkergang))
                         s.units.%(_.uclass == GnophKeh).%(_.health == Killed).foreach(_ => s.add(Berserkergang))
+
+                    checkByatisSpellbook(s)
+
+                    if (s.player.units.%(_.uclass == Nyogtha).any) {
+                        checkNyogthaSpellbookSingleBattle(s)
+                    }
                 }
 
                 sides.foreach { s =>
@@ -633,7 +858,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                     if (s.has(Berserkergang)) {
                         val count = s.count(Berserkergang)
                         s.remove(Berserkergang)
-                        val targets = s.opponent.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)
+                        val targets = s.opponent.units.exceptGOO.exceptTerror
                         if (targets.any)
                             if (count >= targets.num) {
                                 log("" + targets./(_.short).mkString(", ") + (targets.num > 1).?(" were ").|(" was ") + "eliminated with " + s.faction.styled(Berserkergang))
@@ -649,11 +874,9 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             case UnholyGroundPhase =>
                 sides.foreach { s =>
                     if (s.player.has(UnholyGround)) {
-                        if (s.opponent.units.%(_.uclass.utype == GOO).any) {
-                            val goos = s.opponent.units.%(_.uclass.utype == GOO)
-                            if (goos.any && game.cathedrals.contains(goos.head.region)) {
-                                return QAsk(game.cathedrals./(r => UnholyGroundAction(s.faction, s.opponent.faction, r)) :+ UnholyGroundIgnoreAction(s.faction))
-                            }
+                        val goosInBattle = s.opponent.units.filter(u => u.uclass.utype == GOO && !unholyGroundEliminatedGOOs.contains(u.ref))
+                        if (goosInBattle.nonEmpty && game.cathedrals.contains(game.battle.region)) {
+                            return QAsk(game.cathedrals.map(r => UnholyGroundAction(s.faction, s.opponent.faction, r, game.battle.region)) :+ UnholyGroundIgnoreAction(s.faction))
                         }
                     }
                 }
@@ -707,10 +930,17 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             case HarbingerPainPhase =>
                 sides.foreach { s =>
                     if (s.has(Harbinger)) {
-                        val gs = s.opponent.units.%(_.health == Pained).%(_.uclass.utype == GOO).%(!_.has(Harbinged))
+                        val raw = s.opponent.units.filter(u => u.health == Pained && u.uclass.utype == GOO && !u.has(Harbinged))
+                        val grouped = raw.groupBy(_.uclass).values.map(_.head).filterNot(u => u.uclass == Nyogtha && game.harbingerNyogthaAwarded.contains(s.faction)).toList
 
-                        if (gs.any)
-                            return QAsk(HarbingerPowerAction(s.faction, gs.head.ref, gs.head.uclass.cost / 2) :: HarbingerESAction(s.faction, gs.head.ref, 2))
+                        if (grouped.nonEmpty) {
+                            val g = grouped.head
+
+                            if (g.uclass == Nyogtha)
+                                game.harbingerNyogthaAwarded += s.faction
+
+                            return QAsk(HarbingerPowerAction(s.faction, g.ref, g.uclass.cost / 2) :: HarbingerESAction(s.faction, g.ref, 2))
+                        }
                     }
                 }
 
@@ -736,10 +966,12 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                     s.units.foreach(u => u.remove(Harbinged))
                 }
 
-                if (retreater(attackers) == retreater(defenders) && sides.%(_.units.%(_.health == Pained).none).none)
-                    return QAsk(RetreatOrderAction(retreater(attackers), attacker, defender) :: RetreatOrderAction(retreater(attackers), defender, attacker))
-                else
+                if (retreater(attackers) == retreater(defenders) && sides.%(_.units.%(_.health == Pained).none).none) {
+                    val chooser = retreater(attackers)
+                    return QAsk(RetreatOrderAction(chooser, attackerFirst = true) :: RetreatOrderAction(chooser, attackerFirst = false) :: Nil)
+                } else {
                     proceed(AttackerDefenderRetreats)
+                }
 
             case AttackerDefenderRetreats =>
                 if (attackers.units.%(_.health == Pained).any)
@@ -790,6 +1022,9 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 hidden.foreach(_.remove(Hidden))
                 game.battled :+= region
                 game.battle = null
+                cosmicUnityTargets = Set.empty
+                game.nyogthaEnemyGOOSeen -= attacker
+                game.nyogthaEnemyGOOSeen -= defender
                 AfterAction(attacker)
 
         }
@@ -820,18 +1055,18 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             0.until(sv).foreach { i =>
                 log("" + f.styled(StarVampire) + " rolled " + rolls(i))
 
-                rolls(i) match {
-                    case Pain if game.of(opponent(f)).power > 0 =>
-                        game.of(opponent(f)).power -= 1
-                        game.of(f).power += 1
-                        log("" + f.styled(StarVampire) + " drained " + ("1 Power").styled("power") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Pain".styled("pain"))
-
-                    case Kill if game.of(opponent(f)).doom > 0 =>
-                        game.of(opponent(f)).doom -= 1
-                        game.of(f).doom += 1
-                        log("" + f.styled(StarVampire) + " drained " + ("1 Doom").styled("doom") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Kill".styled("kill"))
-
-                    case _ =>
+                if (!this.isUncontrolledFilth) {
+                    rolls(i) match {
+                        case Pain if game.of(opponent(f)).power > 0 =>
+                            game.of(opponent(f)).power -= 1
+                            game.of(f).power += 1
+                            log("" + f.styled(StarVampire) + " drained " + ("1 Power").styled("power") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Pain".styled("pain"))
+                        case Kill if game.of(opponent(f)).doom > 0 =>
+                            game.of(opponent(f)).doom -= 1
+                            game.of(f).doom += 1
+                            log("" + f.styled(StarVampire) + " drained " + ("1 Doom").styled("doom") + " from " + opponent(f).styled(opponent(f).name) + " with a " + "Kill".styled("kill"))
+                        case _ =>
+                    }
                 }
             }
 
@@ -850,21 +1085,39 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             proceed()
 
         // RETREAT
-        case RetreatOrderAction(self, a, b) =>
-            if (a == attacker)
+        case RetreatOrderAction(self, attackerFirst) =>
+            if (attackerFirst)
                 proceed(AttackerDefenderRetreats)
             else
                 proceed(DefenderAttackerRetreats)
 
         case RetreatAllAction(self, f, r) =>
-            val refugees = side(f).units.%(_.health == Pained)
-            refugees.foreach(u => retreat(u, r))
-            log("" + refugees./(_.short).mkString(", ") + " retreated to " + r)
-            proceed()
+            val refugees =
+                if (isUncontrolledFilth && f == defender)
+                    defenders.units.%(_.health == Pained)
+                else
+                    side(f).units.%(_.health == Pained)
+
+            if (refugees.isEmpty) {
+                proceed()
+            } else {
+                refugees.foreach(u => retreat(u, r))
+                log("" + refugees./(_.short).mkString(", ") + " retreated to " + r)
+                proceed()
+            }
 
         case RetreatSeparatelyAction(self, f, l) =>
-            val refugees = side(f).units.%(_.health == Pained)
-            QAsk(l./(RetreatUnitAction(self, refugees(0).ref, _)))
+            val refugees =
+                if (isUncontrolledFilth && f == defender)
+                    defenders.units.%(_.health == Pained)
+                else
+                    side(f).units.%(_.health == Pained)
+
+            if (refugees.isEmpty) {
+                proceed()
+            } else {
+                QAsk(l./(RetreatUnitAction(self, refugees.head.ref, _)))
+            }
 
         case EliminateNoWayAction(self, ur) =>
             if (side(self).has(Emissary) && ur.uclass == Nyarlathotep) {
@@ -872,7 +1125,10 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             }
             else {
                 eliminate(game.unit(ur))
-                log("" + self + " had nowhere to retreat and eliminated " + ur.short)
+                if (isUncontrolledFilth)
+                    log("" + "Uncontrolled ".styled("nt") + Filth.name.styled("nt") + " had nowhere to retreat and eliminated " + ur.short)
+                else
+                    log("" + self + " had nowhere to retreat and eliminated " + ur.short)
             }
             side(self).units.foreach(_.health = Alive)
             proceed()
@@ -885,7 +1141,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // DEVOUR
         case DevourPreBattleAction(self) =>
             val o = side(self).opponent
-            QAsk(o.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(u => DevourAction(o.faction, u.ref)))
+            QAsk(o.units.exceptGOO.exceptTerror./(u => DevourAction(o.faction, u.ref)))
 
         case DevourAction(self, ur) =>
             val u = game.unit(ur)
@@ -906,7 +1162,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
         case AbsorberAction(self, ur) =>
             val u = game.unit(ur)
-            QAsk(side(self).units.%(_ != u).%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(t => AbsorbeeAction(self, ur, t.ref)) :+ BattleCancelAction(self))
+            QAsk(side(self).units.%(_ != u).exceptGOO.exceptTerror./(t => AbsorbeeAction(self, ur, t.ref)) :+ BattleCancelAction(self))
 
         case AbsorbeeAction(self, ur, tr) =>
             val u = game.unit(ur)
@@ -919,7 +1175,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // ABDUCT
         case AbductPreBattleAction(self) =>
             val u = side(self).units.%(_.uclass == Nightgaunt).head
-            QAsk(side(self).opponent.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(t => AbductAction(opponent(self), u.ref, t.ref)))
+            QAsk(side(self).opponent.units.exceptGOO.exceptTerror./(t => AbductAction(opponent(self), u.ref, t.ref)))
 
         case AbductAction(self, ur, tr) =>
             val u = game.unit(ur)
@@ -932,7 +1188,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // INVISIBILITY
         case InvisibilityPreBattleAction(self) =>
             val u = side(self).units.%(_.uclass == FlyingPolyp).%(!_.has(Invised)).head
-            QAsk((side(self).opponent.units ++ side(self).units).%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(t => InvisibilityAction(self, u.ref, t.ref)) :+ BattleCancelAction(self))
+            QAsk((side(self).opponent.units ++ side(self).units).exceptGOO.exceptTerror./(t => InvisibilityAction(self, u.ref, t.ref)) :+ BattleCancelAction(self))
 
         case InvisibilityAction(self, ur, tr) =>
             val u = game.unit(ur)
@@ -974,18 +1230,31 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
 
         // HOWL
         case HowlPreBattleAction(self) =>
-            QAsk(side(self).opponent.units./(u => HowlUnitAction(opponent(self), u.ref)))
+            side(self).add(Howl)
+
+            val enemySide = side(self).opponent
+            val enemyUnits = enemySide.units.exceptByatis
+
+            if (enemyUnits.isEmpty)
+                return proceed()
+
+            if (isUncontrolledFilth) {
+                val u = enemyUnits.head
+                QAsk(game.board.connected(region)./(r =>
+                    HowlUncontrolledFilthAction(self, u.ref, r, enemySide.faction)
+                ))
+            } else {
+                QAsk(enemyUnits./(u => HowlUnitAction(enemySide.faction, u.ref)))
+            }
 
         case HowlUnitAction(self, ur) =>
             QAsk(game.board.connected(region)./(r => HowlAction(self, ur, r)))
 
         case HowlAction(self, ur, r) =>
-            val u = game.unit(ur)
-            side(self).units = side(self).units.but(u)
-            game.move(u, r)
-            side(self).opponent.add(Howl)
-            log("" + u.short + " was howled to " + r)
-            proceed()
+            resolveHowl(game.unit(ur), self, side(self), r)
+
+        case HowlUncontrolledFilthAction(self, ur, r, target) =>
+            resolveHowl(game.unit(ur), self, side(target), r)
 
         // HARBINGER
         case HarbingerPowerAction(self, ur, n) =>
@@ -1035,7 +1304,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             eliminate(game.unit(u))
             log("" + u.short + " was eliminated with " + self.styled(Berserkergang))
             if (n > 1)
-                QAsk(side(self).units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(u => BerserkergangAction(self, n - 1, u.ref)))
+                QAsk(side(self).units.exceptGOO.exceptTerror./(u => BerserkergangAction(self, n - 1, u.ref)))
             else
                 proceed()
 
@@ -1074,40 +1343,109 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             proceed()
 
         // UNHOLY GROUND
-        case UnholyGroundAction(self, o, r) =>
-            game.cathedrals = game.cathedrals.but(r)
-            log("Cathedral in " + r + " was removed with " + self.styled(UnholyGround))
-            QAsk(side(o).units.%(_.uclass.utype == GOO)./(u => UnholyGroundEliminateAction(o, self, r, u.ref)))
+        case UnholyGroundAction(self, o, cr, br) =>
+            game.cathedrals = game.cathedrals.but(cr)
+            log("Cathedral in " + cr + " was removed with " + self.styled(UnholyGround))
+
+            val enemyGOOs = side(o).units.filter(u => u.uclass.utype == GOO && !unholyGroundEliminatedGOOs.contains(u.ref))
+            if (enemyGOOs.nonEmpty)
+                QAsk(enemyGOOs.map(u => UnholyGroundEliminateAction(o, self, br, u.ref)))
+            else
+                proceed(NecrophagyPhase)
 
         case UnholyGroundIgnoreAction(self) =>
             proceed(NecrophagyPhase)
 
-        case UnholyGroundEliminateAction(self, f, r, ur) =>
+        case UnholyGroundEliminateAction(self, f, br, ur) =>
             val u = game.unit(ur)
-            eliminate(u)
-            log("" + u.short + " was eliminated with " + f.styled(UnholyGround))
 
-            if (side(self).units.%(_.uclass.utype == GOO).any) {
-                QAsk(game.cathedrals./(r => UnholyGroundAction(f, self, r)) :+ UnholyGroundIgnoreAction(f))
+            if (u.uclass == Nyogtha) {
+                val nyogthasInBattle = game.of(u.faction).all(Nyogtha).filter(game.battle.sides.flatMap(_.units).contains)
+
+                if (nyogthasInBattle.size > 1) {
+                    nyogthasInBattle.foreach { n =>
+                        eliminate(n)
+                        unholyGroundEliminatedGOOs += n.ref
+                        log("" + n.short + " was eliminated with " + f.styled(UnholyGround))
+                    }
+                } else {
+                    eliminate(u)
+                    unholyGroundEliminatedGOOs += u.ref
+                    log("" + u.short + " was eliminated with " + f.styled(UnholyGround))
+                }
+            } else {
+                eliminate(u)
+                unholyGroundEliminatedGOOs += u.ref
+                log("" + u.short + " was eliminated with " + f.styled(UnholyGround))
             }
-            else {
+
+            val remainingEnemyGOOs = side(self).units.exists(u => u.uclass.utype == GOO && !unholyGroundEliminatedGOOs.contains(u.ref))
+            val moreCathedrals = game.cathedrals.nonEmpty
+
+            if (remainingEnemyGOOs && moreCathedrals)
+                QAsk(game.cathedrals.map(r => UnholyGroundAction(f, self, r, br)) :+ UnholyGroundIgnoreAction(f))
+            else
                 proceed(NecrophagyPhase)
-            }
-
 
         // SHRIVELING
         case ShrivelingPreBattleAction(self) =>
             val o = side(self).opponent
-            QAsk(o.units.%(_.uclass.utype != GOO).%(_.uclass.utype != Terror)./(u => ShrivelingAction(self, u.ref)) :+ BattleCancelAction(self))
+            QAsk(o.units.exceptGOO.exceptTerror./(u => ShrivelingAction(self, u.ref)) :+ BattleCancelAction(self))
 
         case ShrivelingAction(self, ur) =>
             val u = game.unit(ur)
-            val p = (u.uclass.utype == Cultist).?(opponent(self).recruitCost(game, u.uclass, region)).|(opponent(self).summonCost(game, u.uclass, region))
+            val isUncontrolled = isUncontrolledFilth
+
+            val p =
+                if (!isUncontrolled)
+                    (u.uclass.utype == Cultist).?(opponent(self).recruitCost(game, u.uclass, region)).|(opponent(self).summonCost(game, u.uclass, region))
+                else 0
+
             side(self).add(Shriveling)
             eliminate(u)
-            side(self).opponent.player.power += p
-            log("" + ur.short + " was shriveled and " + opponent(self) + " got " + p.power)
+
+            if (!isUncontrolled)
+                side(self).opponent.player.power += p
+
+            log(
+                "" + ur.short +
+                " was shriveled" +
+                (if (!isUncontrolled) " and " + opponent(self) + " got " + p.power else "")
+            )
             proceed()
+
+        // COSMIC UNITY
+        case CosmicUnityPreBattleAction(self) =>
+            val o = side(self).opponent
+            val gooUnits = o.units.%(_.uclass.utype == GOO)
+
+            val groupedByGOO = gooUnits.groupBy(_.uclass)
+
+            val options =
+                groupedByGOO.map {
+                    case (Nyogtha, _) =>
+                        CosmicUnityAction(self, gooUnits.find(_.uclass == Nyogtha).get.ref)
+                    case (_, units) =>
+                        CosmicUnityAction(self, units.head.ref)
+                }.toList
+
+            QAsk(options :+ BattleCancelAction(self))
+
+        case CosmicUnityAction(self, ur) =>
+            val u = game.unit(ur)
+            side(self).add(CosmicUnity)
+
+            if (u.uclass == Nyogtha) {
+                val allNyogthas = game.of(u.faction).all(Nyogtha)
+                cosmicUnityTargets ++= allNyogthas.map(_.ref)
+                log("" + self + " targeted both " + u.faction.styled(Nyogtha) + " units with " + self.styled(CosmicUnity))
+            } else {
+                cosmicUnityTargets += ur
+                log("" + self + " targeted " + u.short + " with " + self.styled(CosmicUnity))
+            }
+
+            proceed()
+
     }
 
 }
