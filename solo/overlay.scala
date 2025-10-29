@@ -410,6 +410,11 @@ object Overlays {
 
             case $("High Priest") => loyaltyCard(HighPriestCard.name, HighPriestCard.quantity, HighPriestCard.cost, HighPriestCard.combat, "The High Priest is a new type of Cultist, it is Recruited like an Acolyte. Each High Priest generates 1 Power during the Gather Power Phase, can Create and Control a Gate, and can be Captured.", "Unspeakable Oath", "Ongoing", "At the end of any player's Action (even if it is not your turn), Sacrifice your High Priest (return him to your Pool) and gain 2 Power. This may also be done during the Gather Power and Doom Phases.")
 
+            case $("Byatis") => loyaltyCardIGOO(ByatisCard.name, "" + ByatisCard.combat, ByatisCard.hasSpellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 4 Power, and place Byatis in the Area containing the Gate.", "Toad of Berkeley", "Ongoing", "Byatis may not Move, nor can he be moved with movement-type abilities (such as Arctic Winds or Submerge). He can still be Pained. If there are no enemy Units in Byatis' Area during the Doom Phase, earn 1 Elder Sign.", "Byatis survives a Battle in which at least one enemy Unit is Killed", "God of Forgetfulness", "Action: Cost 1", "Select all enemy Cultists in an Area adjacent to Byatis. Those Cultists are moved into Byatis' Area.")
+            case $("Abhoth") => loyaltyCardIGOO(AbhothCard.name, "Equals the number of Filth Tokens in play (0-12)", AbhothCard.hasSpellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 4 Power, and place Abhoth in the Area containing the Gate.", "Filth", "Action: Cost 1", "Place a Filth Token in any Area.", "Choose One: EITHER your Faction has 4+ different Monster types in play, including Filth Tokens, OR Your faction has 8+ total Monsters in play, including Filth Tokens", "The Brood", "Ongoing", "Gates in Areas containing Filth Tokens do not count during the Doom phase. Does not apply to Abhoth's Faction.")
+            case $("Daoloth") => loyaltyCardIGOO(DaolothCard.name, "" + DaolothCard.combat, DaolothCard.hasSpellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 6 Power, and place Daoloth in the Area containing the Gate.", "Cosmic Unity", "Pre-Battle", "In a Battle involving Daoloth, choose one enemy Great Old One. It rolls no Combat dice (it still gets its Battle Ability, if any).", "A Great Old One is Killed (anywhere on the map)", "Interdimensional", "Ongoing", "When Daoloth enters an Area without a Gate, immediately place a Gate there.")
+            case $("Nyogtha") => loyaltyCardIGOO(NyogthaCard.name, "4 if Nyogtha's Faction declared the Battle, 1 if not.", NyogthaCard.hasSpellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 6 Power, and place all Nyogtha Units from your Pool to the Area containing the Gate.", "From Below", "Ongoing", "Nyogtha is two Units. Any Common Action involving one of these Units can be applied simultaneously to the other as part of the same Action and at no extra cost. When one Nyogtha Unit Moves, so may the other. When one Captures a Cultist, so may the other. If Battle is declared in one's Area, you can also declare a Battle in the other's Area, for free. You only lose this Loyalty Card if both Nyogtha Units have been Killed.", "Nyogtha survives a Battle against an enemy Great Old One", "Nightmare Web", "Ongoing", "If one of the Nyogtha Units is in your pool, you can Awaken it for 2 Power, placing it in any Area in which you have at least one Unit.")
+
 
             case _ =>
                 println("onExternalClick " + s.$.mkString(" | "))
@@ -450,7 +455,7 @@ object Overlays {
     def power(n : Int) = cost(s"${n} Power")
 
     def loyaltyCard(name : String, quantity : Int, cost : Int, combat : Int, obtainText : String, ability: String, phase: String, abilityText : String) = s"""
-        <table class="loyalty-card-table" style="">
+        <table class="loyalty-card-table">
             <thead>
                 <tr>
                     <th style=width:10%>
@@ -497,6 +502,69 @@ object Overlays {
                 </tr>
             </tbody>
         </table>"""
+
+    def loyaltyCardIGOO(name: String, combat: String, hasSpellbook: Boolean, obtainText: String, ability: String, abilityPhase: String, abilityText: String, spellbookRequirement: String, spellbook: String, spellbookPhase: String, spellbookText: String) = {
+        val dimmedClass = if (hasSpellbook) "" else " dimmed"
+        s"""<table class="loyalty-card-table">
+            <thead>
+                <tr>
+                    <th style="width:10%"></th>
+                    <th style="width:38%"></th>
+                    <th style="width:4%"></th>
+                    <th style="width:38%"></th>
+                    <th style="width:10%"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="4">&nbsp;</td></tr>
+                <tr><td colspan="4">&nbsp;</td></tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <div class="h1 black-border" style="margin-right: -3ex; margin-left: -3ex; "><span class="h2 abaddon nt">${name}</span></div>
+                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace(" ", "-"))}">
+                        <div>&nbsp;</div>
+                        <div>
+                            <span class="combat-color black-border">Combat: ${combat.toString}</span>
+                        </div>
+                    </td>
+                    <td></td>
+                    <td>
+                        <div class="black-border">
+                            <span class="nt">${obtainText}</span>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr><td colspan="4">&nbsp;</td></tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <div class="black-border">
+                            <span class="ability-color">${ability}</span>
+                            <span class="cost-color"> (${abilityPhase})</span>
+                            <span class="nt">: ${abilityText}</span>
+                        </div>
+                    </td>
+                    <td></td>
+                    <td>
+                        <div class="black-border">
+                            <span class="nt">${spellbookRequirement}:</span>
+                        </div>
+                        <div>&nbsp;</div>
+                        <div class="black-border">
+                            <span class="ability-color$dimmedClass">${spellbook}</span>
+                            <span class="cost-color$dimmedClass"> (${spellbookPhase})</span>
+                            <span class="nt$dimmedClass">: ${spellbookText}</span>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                <tr><td colspan="4">&nbsp;</td></tr>
+                <tr><td colspan="4">&nbsp;</td></tr>
+            </tbody>
+        </table>"""
+    }
 
     def spellbook(name : String, phase : String, text : String) = s"""
         <table class="spellbook-table" style="">

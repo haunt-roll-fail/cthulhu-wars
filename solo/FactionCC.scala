@@ -2,6 +2,8 @@ package cws
 
 import hrf.colmat._
 
+import cws.SpellbookUtils._
+
 case object Nightgaunt extends FactionUnitClass(CC, "Nightgaunt", Monster, 1)
 case object FlyingPolyp extends FactionUnitClass(CC, "Flying Polyp", Monster, 2)
 case object HuntingHorror extends FactionUnitClass(CC, "Hunting Horror", Monster, 3)
@@ -52,7 +54,7 @@ case object CC extends Faction {
     def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
         units.count(_.uclass == FlyingPolyp) * 1 +
         units.count(_.uclass == HuntingHorror) * 2 +
-        units.count(_.uclass == Nyarlathotep) * (g.of(this).spellbooks.num + g.of(opponent).spellbooks.num) +
+        units.count(_.uclass == Nyarlathotep) * (nonIGOO(g.of(this).spellbooks).num + nonIGOO(g.of(opponent).spellbooks).num) +
         neutralStrength(g, units, opponent)
 
     var ignoredSacrificeHighPriest: Boolean = false

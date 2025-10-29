@@ -124,7 +124,7 @@ class Serialize(val g : Game) {
 object Serialize {
     val factions = $(GC, CC, BG, YS, SL, WW, OW, AN)
 
-    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard)
+    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard, ByatisCard, AbhothCard, DaolothCard, NyogthaCard)
 
     def parseDifficulty(s : String) : Option[Difficulty] = parseSymbol(s).map(_.asInstanceOf[Difficulty])
 
