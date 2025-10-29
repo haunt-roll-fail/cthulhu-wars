@@ -8,6 +8,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
     def costA(g : Game, a : Action) : Int = a match {
         case MoveAction(self, _, _, r) => 1 + g.tax(r, self)
         case AttackAction(self, r, _) => 1 + g.tax(r, self)
+        case AttackUncontrolledFilthAction(self, r, f) => 1 + g.tax(r, self)
+        case FromBelowAttackAction(self, r, f) => g.tax(r, self)
+        case FromBelowAttackUncontrolledFilthAction(self, r, f) => g.tax(r, self)
         case CaptureAction(self, r, _, _) => 1 + g.tax(r, self)
         case BuildGateAction(self, r) => 3 + g.tax(r, self)
         case RecruitAction(self, uc, r) => self.recruitCost(g, uc, r) + g.tax(r, self)
@@ -94,7 +97,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 true |=> -250 -> "dont ritual unless have reasons"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 0 -> "doom done"
@@ -259,7 +262,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 val foes = f.at(r)
 
                 val enemyStr = f.strength(game, foes, self)
-                val ownStr = self.strength(game, allies, f)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
                 val igh = BG.has(Necrophagy).?(BG.all(Ghoul).diff(foes).num).|(0)
 
@@ -276,10 +279,14 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 r.ownGate && allies.num + ihh < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
+                var eby = foes.has(Byatis)
+                var eab = foes.has(Abhoth)
+                var eny = foes(Nyogtha).num
                 var eght = foes(Ghast).num
                 var egug = foes(Gug).num
                 var esht = foes(Shantak).num
                 var esv = foes(StarVampire).num
+                var efi = if (eab) foes(Filth).num else 0
 
                 f match {
                     case GC =>
@@ -364,8 +371,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 ihh -= 1
                         }
 
-                        val enemyAttack = cth.?(6).|(0) + ss * 3 + (f.has(Absorb) && sh > 0).?(ss * 2 + ec * 3 + dp * 3).|(dp) + egug * 3 + esht * 2 + esv
-                        val enemyDefense = ss * f.has(Regenerate).?(2).|(1) + sh + dp + ec + eght + egug + esht + esv
+                        val enemyAttack = cth.?(6).|(0) + ss * 3 + (f.has(Absorb) && sh > 0).?(ss * 2 + ec * 3 + dp * 3).|(dp) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
+                        val enemyDefense = ss * f.has(Regenerate).?(2).|(1) + sh + dp + ec + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny
 
                         val myAttack = nya.?(self.numSB + f.numSB).|(0) + hh * 2 + ihh * 2 + fp * 1
                         val myDefense = ihh + hh + fp + ng + ac
@@ -391,11 +398,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                         active.none && nya && shu && enemyStr <= (allies.num + ihh - 1) * 4 |=> 900000 -> "attack shub 900000"
 
-                        emissary && dy > 0 && (ec + fu + gh + eght + egug + esht + esv) * 4 < ownStr |=> 1000 -> "kill dark youngs"
+                        emissary && dy > 0 && (ec + fu + gh + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny) * 4 < ownStr |=> 1000 -> "kill dark youngs"
 
-                        r.ownGate && shu && !nya && dy + fu + gh + ec + eght + egug + esht + esv == 0 && (ownStr > 1 || ac < BG.power) |=> 1111 -> "chase bg away"
+                        r.ownGate && shu && !nya && dy + fu + gh + ec + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny == 0 && (ownStr > 1 || ac < BG.power) |=> 1111 -> "chase bg away"
 
-                        gh > 0 && ec + fu + dy + eght + egug + esht + esv == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
+                        gh > 0 && ec + fu + dy + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
 
                     case YS =>
                         def ec = foes(Acolyte).num
@@ -410,13 +417,13 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                         nya && kiy && !has && enemyStr <= (allies.num + ihh - 1) * 4 |=> 5555 -> "attack kiy 5555"
 
-                        r.ownGate && !nya && kiy && ((ownStr > enemyStr && ownStr > ec + un + by + eght + egug + esht + esv) || ownStr >= foes.num * 2) && !(have(Nyarlathotep) && self.allSB && power > 1) |=> 4444 -> "chase kiy away"
+                        r.ownGate && !nya && kiy && ((ownStr > enemyStr && ownStr > ec + un + by + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny) || ownStr >= foes.num * 2) && !(have(Nyarlathotep) && self.allSB && power > 1) |=> 4444 -> "chase kiy away"
 
-                        r.ownGate && !nya && has && un <= 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && ownStr > un |=> 1222 -> "chase has away" // Modify? Should apply if low number of ghasts as well as undead, I think.
+                        r.ownGate && !nya && has && un <= 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && efi == 0 && !eby && !eab && eny == 0 && ownStr > un |=> 1222 -> "chase has away" // Modify? Should apply if low number of ghasts as well as undead, I think.
 
-                        un == 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
+                        un == 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && efi == 0 && !eby && !eab && eny == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
 
-                        has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by + eght + egug + esht + esv && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
+                        has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
 
                         !f.active && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
                         emissary && r.enemyGate && r.owner == f && r.owner.has(Passion) && ec > 1 |=> 900 -> "better skirmish ys than capture"
@@ -432,6 +439,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         // Why *3 and *2 here if we only check if more than 1? Was the intention to check if less than ownStr? Like in factor 1?
                         nya && !tsa && ownStr >= 6 && (fs * 3 + sm * 2 + wz) > 1 |=> 100 -> "ok sl attack"
                         //nya && !tsa && ownStr >= 6 && (fs * 3 + sm * 2 + wz + eght + egug * 4 + esht * 3 + esv * 2) > 1 |=> 100 -> "ok sl attack"
+                        // Add efi, eby, eab and any here, if we add neutrals.
 
                         0 -> "todo"
 
@@ -457,14 +465,17 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         val sp = foes(SpawnOW).num
                         val ygs = foes.has(YogSothoth)
 
-                        nya && !ygs && ownStr >= (mu + ab + sp + eght + egug + esht + esv) * 5 |=> 100 -> "ok ow attack"
+                        nya && !ygs && ownStr >= (mu + ab + sp + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny) * 5 |=> 100 -> "ok ow attack"
 
                         0 -> "todo"
 
                     case AN =>
                         allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
-                        AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ((nya && allies.num >= 3 && ownStr >= 6) || (nya && self.has(Emissary)) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
+                        AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((nya && allies.num >= 3 && ownStr >= 6) || (nya && self.has(Emissary)) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
                 }
+
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
                 game.acted || game.battled.any |=> -1000 -> "unlimited battle drains power"
 
@@ -485,6 +496,15 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+        
             case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
@@ -839,8 +859,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
             if (game.battle.attacker != self && game.battle.defender != self) {
                 a match {
-                    case RetreatOrderAction(_, a, b) =>
-                        a.aprxDoom < b.aprxDoom |=> 100 -> "retreat less doom first"
+                    case RetreatOrderAction(_, attackerFirst) =>
+                        val b = game.battle
+                        val first = if (attackerFirst) b.attacker else b.defender
+                        val second = if (attackerFirst) b.defender else b.attacker
+                        (first.aprxDoom < second.aprxDoom) |=> 100 -> "retreat less doom first"
 
                     case RetreatUnitAction(_, u, r) =>
                         rout(u.faction, u.uclass, r)
@@ -903,6 +926,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 def egug = enemies(Gug).num
                 def esht = enemies(Shantak).num
                 def esv = enemies(StarVampire).num
+                def efi = enemies(Filth).num
+
+                def eby = enemies.has(Byatis)
+                def eab = enemies.has(Abhoth)
+                def eny = enemies(Nyogtha).num
 
                 def emissary = have(Emissary) && nya && enemies.goos.none
 
@@ -916,19 +944,19 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 cth && first && ng == 1 && ac + fp + hh == 0 |=> 1000 -> "abduct to avoid devour"
                                 cth && first && ng == 1 && ac + fp + hh > 0 |=> -900 -> "wait for devour"
                                 nya && (cth || !have(Emissary)) |=> -500 -> "stay as shield"
-                                ng > ec + dp + eght && sh + ss + egug + esht + esv > 0 |=> 400 -> "eat good unit"
+                                ng > ec + dp + eght + efi && sh + ss + egug + esht + esv > 0 |=> 400 -> "eat good unit"
                                 true |=> -100 -> "dont bother"
                             case BG =>
                                 nya && ec + gh + fu == 0 && dy == 1 |=> -700 -> "dont if just one dy"
-                                (dy > 0 || egug > 0 || esht > 0 || esv > 0) && gh == 0 && ng > ec + fu + eght |=> 600 -> "eat dark young or good neutral"
+                                (dy > 0 || egug > 0 || esht > 0 || esv > 0) && gh == 0 && ng > ec + fu + eght + efi |=> 600 -> "eat dark young or good neutral"
                                 nya && (shu || !have(Emissary)) |=> -500 -> "stay as shield"
-                                !nya && gh == 0 && eght == 0 |=> 400 -> "eat cultist or unit"
-                                nya && gh + fu + eght == 0 |=> 300 -> "eat good cultist or unit"
+                                !nya && gh == 0 && eght == 0 && efi == 0 |=> 400 -> "eat cultist or unit"
+                                nya && gh + fu + eght + efi == 0 |=> 300 -> "eat good cultist or unit"
                                 true |=> -100 -> "dont bother"
                             case YS =>
                                 nya && (kiy || !have(Emissary)) && !has |=> -500 -> "stay as shield"
                                 ng == 1 && un == 1 |=> -400 -> "lone undead"
-                                ng > ec + un + eght && (by > 0 || egug > 0 || esht > 0 || esv > 0) |=> 300 -> "eat byakhee or good neutral"
+                                ng > ec + un + eght + efi && (by > 0 || egug > 0 || esht > 0 || esv > 0) |=> 300 -> "eat byakhee or good neutral"
                                 has |=> 200 -> "try strip hastur"
                                 true |=> -100 -> "dont bother"
                             case SL =>
@@ -1080,8 +1108,10 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                     case EliminateNoWayAction(_, u) =>
                         elim(battle, u)
 
-                    case RetreatOrderAction(_, a, b) =>
-                        a == self |=> 1000 -> "retreat self first"
+                    case RetreatOrderAction(_, attackerFirst) =>
+                        val b = game.battle
+                        val first = if (attackerFirst) b.attacker else b.defender
+                        (first == self) |=> 1000 -> "retreat self first"
 
                     case RetreatUnitAction(_, u, r) if u.faction != self =>
                         rout(u.faction, u.uclass, r)

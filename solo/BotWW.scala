@@ -20,7 +20,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
         def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
             val enemyStr = f.strength(game, foes, self)
-            val ownStr = self.strength(game, allies, f)
+            val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
             val igh = others.%(_.has(Necrophagy))./(_.all(Ghoul).diff(foes).num).sum
             val ep = f.player
@@ -34,10 +34,14 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
             val rhas = rha.??(3)
             val iths = ith.??((f.doom + 1) / 2)
 
+            var eby = foes.has(Byatis)
+            var eab = foes.has(Abhoth)
+            var eny = foes(Nyogtha).num
             //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
+            var efi = if (eab) foes(Filth).num else 0
 
             f match {
                 case GC =>
@@ -60,9 +64,9 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     var shield = ac + we + gk
 
-                    val ownStr = we + gk * 3 + rhas + iths
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, game, opponent = f)
 
-                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv
+                    var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -79,9 +83,9 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     var shield = ac + we + gk
 
-                    val ownStr = we + gk * 3 + rhas + iths
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, game, opponent = f)
 
-                    var enemyStr = ec * ep.has(Frenzy).??(1) + fu + dy * 2 + shu.??(ep.gates.num + ep.all(Acolyte).num + ep.all(DarkYoung).num * ep.has(RedSign).??(1)) + egug * 3 + esht * 2 + esv
+                    var enemyStr = ec * ep.has(Frenzy).??(1) + fu + dy * 2 + shu.??(ep.gates.num + ep.all(Acolyte).num + ep.all(DarkYoung).num * ep.has(RedSign).??(1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -129,11 +133,11 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                     if (!ith && gk == 0)
                         shield *= 2
 
-                    val ownStr = we + gk * 3 + rhas + iths
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, game, opponent = f)
 
                     var ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
 
-                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv
+                    var enemyStr = fp + (hh + ihh) * 2 + nya.??(f.numSB + self.numSB) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough = shield * 5 > enemyStr * 4 && ownStr > foes.num * 3
 
@@ -157,9 +161,9 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val shield = ac + we + gk
 
-                    val ownStr = we + gk * 3 + rhas + iths
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, game, opponent = f)
 
-                    val enemyStr = (un > 0).??(un - 1) + (by > 0).??(by + 1) + has.??(game.ritualCost) + egug * 3 + esht * 2 + esv
+                    val enemyStr = (un > 0).??(un - 1) + (by > 0).??(by + 1) + has.??(game.ritualCost) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -177,9 +181,9 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                     val shield = ac + we + gk
 
-                    val ownStr = we + gk * 3 + rhas + iths
+                    val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, game, opponent = f)
 
-                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv
+                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -192,7 +196,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
 
                 case AN =>
                     allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
-                    AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ((rha && self.power > 1) || (ith && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
+                    AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((rha && self.power > 1) || (ith && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
             }
         }
 
@@ -253,7 +257,7 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                 power - cost > 8 && maxDoomGain > 5 |=> 1100 -> "minimuch"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -366,7 +370,22 @@ class GameEvaluationWW(game : Game) extends GameEvaluation(game, WW) {
                 val allies = self.at(r)
                 val foes = f.at(r)
 
+                val enemyStr = f.strength(game, foes, self)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
+
                 checkAttack(r, f, allies, foes, 1)
+
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"

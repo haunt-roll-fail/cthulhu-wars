@@ -75,7 +75,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 true |=> -250 -> "dont ritual unless have reasons"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 0 -> "doom done"
@@ -241,7 +241,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 val foes = f.at(r)
 
                 val enemyStr = f.strength(game, foes, self)
-                val ownStr = self.strength(game, allies, f)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
                 ownStr >= 6 && need(Roll6DiceInBattle) && foes(Cthulhu).none |=> 1000 -> "get spellbook"
                 ownStr >= 6 && need(Roll6DiceInBattle) |=> 1000000 -> "get spellbook"
@@ -259,10 +259,14 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                 r.ownGate && allies.num < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
+                var eby = foes.has(Byatis)
+                var eab = foes.has(Abhoth)
+                var eny = foes(Nyogtha).num
                 var eght = foes(Ghast).num
                 var egug = foes(Gug).num
                 var esht = foes(Shantak).num
                 var esv = foes(StarVampire).num
+                var efi = if (eab) foes(Filth).num else 0
 
                 f match {
                     case GC =>
@@ -277,7 +281,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                         def dy = foes(DarkYoung).num
                         def shu = foes.has(ShubNiggurath)
 
-                        gh > 0 && ec + fu + dy + eght + egug + esht + esv == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
+                        gh > 0 && ec + fu + dy + eght + egug + esht + esv + eby.??(4) + eab.??(efi) + eny == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
 
                     case YS =>
                         def ec = foes(Acolyte).num
@@ -292,7 +296,7 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                         un == 1 && by == 0 && eght == 0 && egug == 0 && esht == 0 && esv == 0 && !kiy && !has && (ac == 0 || !YS.has(Zingaya)) && !game.desecrated.contains(r) |=> -1000 -> "dont fight lone undead on undesecrated"
 
-                        has && 0 >= ec + un + by + eght + egug + esht + esv && ownStr > 4 |=> 3334 -> "assassinate has"
+                        has && 0 >= ec + un + by + eght + egug + esht + esv + eby.??(4) + eab.??(efi) + eny && ownStr > 4 |=> 3334 -> "assassinate has"
 
                         f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
 
@@ -307,8 +311,11 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
 
                     case AN =>
                         allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
-                        AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ((tsa && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
+                        AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((tsa && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
                 }
+
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
                 game.acted || game.battled.any |=> -1000 -> "unlimited battle drains power"
 
@@ -320,6 +327,15 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 active.none && (game.acted || game.battled.any) |=> -1000000 -> "unlimited battle drains power"
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 val safe = active.none
@@ -537,6 +553,9 @@ class GameEvaluationSL(game : Game) extends GameEvaluation(game, SL) {
                 uc.uclass.cost == 3 |=> 1700 -> "capture monster 3"
 
                 uc.faction.active |=> 100 -> "active"
+
+            case CaptureUncontrolledFilthAction(_, r, owner) =>
+                true |=> -100000 -> "don't capture uncontrolled filth (for now)"
 
             case AncientSorceryUnitAction(_, Immortal, r, _) =>
                 !have(Tsathoggua) && need(AwakenTsathoggua) && have(FormlessSpawn) && power > 8 |=> 800 -> "get es"

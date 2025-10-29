@@ -162,7 +162,7 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 true |=> -250 -> "dont ritual unless have reasons"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -247,7 +247,7 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 val foes = f.at(r)
 
                 val enemyStr = f.strength(game, foes, self)
-                val ownStr = self.strength(game, allies, f)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
 
                 allies.goos.any && foes.goos.none && f.gates.contains(r) && foes.monsters.any && ofinale(f) && !game.acted && !game.battled.any  |=> 600000 -> "others finale gate attack"
                 allies.goos.any && foes.goos.any && f != CC && ofinale(f) && (power > 4 || f.strength(game, f.at(r), self) < 5 + allies.num * 2) |=> 700000 -> "others finale goo attack"
@@ -275,8 +275,20 @@ class GameEvaluationGC(game : Game) extends GameEvaluation(game, GC) {
                 r.ownGate && allies.goos.any && allies.monsters.none && foes.num <= 2 && f.active && active.%(_ != f).%(_.at(r).any).none |=> 1100 -> "clean up gate"
 
                 allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
-                // Ok to risk Cthulhu with this, I think. Other factions should make sure any own goo has some shield:
-                f == AN && AN.has(Extinction) && foes.monsters.num == 1 && foes(Yothan).any && ownStr >= 6 |=> 1000 -> "attack lone extinct yothan"
+                // Ok to risk Cthulhu with this, I think. Other factions should make sure any own goo has some shield.
+                f == AN && AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ownStr >= 6 |=> 1000 -> "attack lone extinct yothan"
+
+                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 val safe = active.none

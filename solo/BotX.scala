@@ -2,6 +2,9 @@ package cws
 
 import hrf.colmat._
 
+import cws.SpellbookUtils._
+import cws.UnitUtils._
+
 case class Evaluation(weight : Int, desc : String)
 case class ActionEval(action : Action, evaluations : List[Evaluation])
 
@@ -94,7 +97,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def units(uc : UnitClass) = all(uc)
         def count(uc : UnitClass) = all(uc).num
         def allSB = player.hasAllSB
-        def numSB = player.spellbooks.num
+        def numSB = nonIGOO(player.spellbooks).num
         def all = player.all()
         def needs(r : Requirement) = player.needs(r)
         def blind(current : Faction) = willActBeforeFaction(current, f)
@@ -130,7 +133,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def controllers = (ownGate || enemyGate).?(owner.at(r).%(_.canControlGate)).|(Nil)
         def gateOf(f : Faction) = f.gates.contains(r)
         def owner = game.factions.%(_.gates.contains(r)).single.get
-        def capturers = others.%(f => allies.goos.none && (((of(f).monsters.filterNot(_.uclass == Gug).any && !f.at(r).exists(u => game.isIsolatedBrainless(game.of(f), u))) && allies.monsters.none) || of(f).goos.any))
+        def capturers = others.% { f => allies.goos.none && ((f.at(r).monsters.exceptGug.exceptFilth.exceptIsolatedBrainless(game.of(f), game).any && allies.monsters.none) || f.at(r).goos.any) }
         def desecrated = game.desecrated.contains(r)
         def near = game.board.connected(r)
         def near2 = game.board.connected(r).flatMap(n => game.board.connected(n)).%(_ != r).%(!near.contains(_))
@@ -150,7 +153,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def actualMonsters = us.%(_.uclass.utype == Monster)
         def monsters = us.filter(u => u.uclass.utype == Monster || u.uclass.utype == Terror) // Should fit the intent in most cases.
         def goos = us.%(_.uclass.utype == GOO)
-        def notGoos = us.%(_.uclass.utype != GOO)
+        def notGoos = us.exceptGOO
         def apply(uc : UnitClass) = us.%(_.uclass == uc)
         def has(uc : UnitClass) = us.%(_.uclass == uc).any
     }
@@ -180,7 +183,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def pretender = cultist && !capturable && enemyGate
         def shield = friends.goos.any
         def capturable = cultist && capturers.active.any
-        def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && (f.at(u.region).monsters.filterNot(_.uclass == Gug).any && !f.at(u.region).exists(u => game.isIsolatedBrainless(game.of(f), u))))))
+        def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && f.at(u.region).monsters.exceptGug.exceptFilth.exceptIsolatedBrainless(game.of(f), game).any)))
         def vulnerableM = cultist && friends.goos.none && friends.monsters.none
         def vulnerableG = cultist && friends.goos.none
     }
@@ -198,6 +201,23 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
 
     def maxEnemyPower = others./(_.power).max
 
+    def adjustedOwnStrengthForCosmicUnity(ownStr: Int, allies: List[UnitFigure], foes: List[UnitFigure], game: Game, opponent: Faction): Int = {
+        val hasDaoloth = foes.exists(_.uclass == Daoloth)
+        if (!hasDaoloth) return ownStr
+
+        val allyGOOs = allies.filter(_.uclass.utype == GOO)
+        if (allyGOOs.isEmpty) return ownStr
+
+        val nyogthas = allies.filter(_.uclass == Nyogtha)
+        val nyogthaReduction: Int = if (nyogthas.nonEmpty) nyogthas.head.faction.strength(game, nyogthas, opponent) else 0
+
+        val perGOOStrengths: List[Int] = allyGOOs.map(u => u.faction.strength(game, List(u), opponent))
+        val strongestGOOStr = perGOOStrengths.foldLeft(0)(math.max)
+
+        val reduction = math.max(nyogthaReduction, strongestGOOStr)
+        math.max(0, ownStr - reduction)
+    }
+
     def active = others.%(_.active)
 
     def canSummon(u : UnitClass) = self.gates.%(r => power >= self.summonCost(game, u, r)).any && self.pool(u).any
@@ -207,8 +227,20 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
 
     def instantDeathNow = game.ritualTrack(game.ritualMarker) == 999 || game.factions.%(_.doom >= 30).any
     def instantDeathNext = game.ritualTrack(game.ritualMarker) != 999 && game.ritualTrack(game.ritualMarker + 1) == 999
-    def maxDoomGain = self.gates.num + self.all.goos.num * 3
-    def aprxDoomGain = self.gates.num + self.all.goos.num * 1.666
+
+    def validGatesForRitual: List[Region] = {
+        self.gates.filter { r =>
+            val filthHere = game.factions.exists { other =>
+                other != self &&
+                game.of(other).has(TheBrood) &&
+                game.of(other).at(r).exists(_.uclass == Filth)
+            }
+            !filthHere
+        }
+    }
+
+    def maxDoomGain = validGatesForRitual.num + self.all.goos.num * 3
+    def aprxDoomGain = validGatesForRitual.num + self.all.goos.num * 1.666
 
     def willActBeforeFaction(current : Faction, f : Faction) : Boolean = {
         if (power == 0)

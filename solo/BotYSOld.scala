@@ -62,7 +62,7 @@ class GameEvaluationYSOld(game : Game) extends GameEvaluation(game, YS) {
                 !self.allSB |=> -1000 -> "spellbooks first"
 
             case LoyaltyCardAction(_, _, _) =>
-                true |=> -10000 -> "don't obtain loyalty cards (for now)"
+                true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -220,6 +220,15 @@ class GameEvaluationYSOld(game : Game) extends GameEvaluation(game, YS) {
                     case AN =>
                         0 -> "todo"
                 }
+
+            case AttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
+
+            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
+                true |=> -100000 -> "don't use from below (for now)"
 
             case CaptureAction(_, r, f, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"

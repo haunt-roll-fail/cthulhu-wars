@@ -2,6 +2,8 @@ package cws
 
 import hrf.colmat._
 
+// Neutral Monsters
+
 // name, doomCost (to obtain), powerCost (to obtain), quantity, cost (to summon), combat
 case object GhastCard extends LoyaltyCard("Ghast", 2, 0, 4, 2, 0)
 case object GugCard extends LoyaltyCard("Gug", 2, 0, 2, 1, 3)
@@ -17,6 +19,8 @@ case object Ghast extends UnitClass("Ghast", Monster, 2)
 case object Gug extends UnitClass("Gug", Monster, 1)
 case object Shantak extends UnitClass("Shantak", Monster, 2)
 case object StarVampire extends UnitClass("Star Vampire", Monster, 2)
+
+// High Priests
 
 case object HighPriestCard extends LoyaltyCard("High Priest", 0, 0, 1, 3, 0)
 case object HighPriestIcon extends UnitClass("High Priest Icon", Token, 0)
