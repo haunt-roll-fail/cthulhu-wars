@@ -61,5 +61,5 @@ case object BG extends Faction {
         ) +
         neutralStrength(g, units, opponent)
 
-    var ignoredSacrificeHighPriest: Boolean = false
+    var ignoredSacrificeHighPriest : Boolean = false
 }

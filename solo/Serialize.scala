@@ -37,59 +37,83 @@ class Serialize(val g : Game) {
     trait Expr
     case class ESymbol(value : String) extends Expr
     case class EInt(value : Int) extends Expr
-    case class EElderSign(value : Int) extends Expr
+    case class EDouble(value : Double) extends Expr
     case class EBool(value : Boolean) extends Expr
     case class EString(value : String) extends Expr
-    case class EOffer(a : String, b : Int) extends Expr
-    case class EUnitRef(a : String, b : String, c : Int) extends Expr
     case object ENone extends Expr
     case class ESome(value : Expr) extends Expr
-    case class EList(value : List[Expr]) extends Expr
+    case class EList(values : List[Expr]) extends Expr
+    case class EPair(pair : (Expr, Expr)) extends Expr
+    case class EMap(values : List[EPair]) extends Expr
     case class EApply(f : String, params : List[Expr]) extends Expr
 
-    def space[* : P] = P( CharsWhileIn(" \r\n", 0) )
+    case class EElderSign(value : Int) extends Expr
+    case class EOffer(a : String, b : Int) extends Expr
+    case class EUnitRef(a : String, b : String, c : Int) extends Expr
 
-    def symbol[* : P] = P( (CharIn("A-Z") ~ CharsWhileIn("A-Za-z0-9")).! ).map(ESymbol)
+    def space[* : P] = P{ CharsWhileIn(" \r\n", 0) }
 
-    def number[* : P] = P( CharsWhileIn("0-9\\-").! ).map(_.toInt).map(EInt)
+    def symbol[* : P] = P{ (CharIn("A-Z") ~ CharsWhileIn("A-Za-z0-9").?).! }.map(ESymbol)
 
-    def string[* : P] = P( "\"" ~/ CharsWhile(c => c != '\"' && c != '\\').! ~ "\"").map(EString)
+    def number[* : P] = P{ ("-".? ~ CharsWhileIn("0-9")).! }.map(_.toInt).map(EInt)
 
-    def pfalse[* : P] = P( "false" ).map(_ => EBool(false))
+    def fractional[* : P] = P{ ("-".? ~ CharsWhileIn("0-9") ~ "." ~ CharsWhileIn("0-9")).! }.map(_.toDouble).map(EDouble)
 
-    def ptrue[* : P] = P( "true" ).map(_ => EBool(true))
+    def string[* : P] = P{ "\"" ~/ CharsWhile(c => c != '\"' && c != '\\', 0).! ~ "\"" }.map(EString)
+
+    def pfalse[* : P] = P{ "false" }.map(_ => EBool(false))
+
+    def ptrue[* : P] = P{ "true" }.map(_ => EBool(true))
+
+    def list[* : P] = P{ "[" ~/ params ~ "]" }.map(EList)
+
+    def map[* : P] = P{ "{" ~/ pairs ~ "}" }.map(EMap)
+
+    def pairs[* : P] = P{ pair.rep(sep = ","./) }.map(_.$)
+
+    def pair[* : P] = P{ expr ~ "->" ~ expr }.map(EPair)
+
+    def some[* : P] = P{ "Some" ~ space ~ "(" ~/ expr ~ ")" }.map(o => ESome(o))
+
+    def none[* : P] = P{ "None" }.map(o => ENone)
+
+    def base[* : P] : P[Expr] = P{ some | none | action | symbol | fractional | number | pfalse | ptrue | list | map | string }
+
+    def main[* : P] : P[Expr] = P{ action | symbol }
+
+    def action[* : P] = P{ space ~ symbol ~ space ~ "(" ~/ space ~ params ~ space ~ ")" ~ space }.map(o => EApply(o._1.value, o._2))
+
+    def params[* : P] = P{ expr.rep(sep = ","./) }.map(_.$)
+
+
+    def unitref[* : P] = P( symbol ~ "/" ~ symbol ~ "/" ~ number ).map(o => EUnitRef(o._1.value, o._2.value, o._3.value))
 
     def es[* : P] = P( "$" ~ ("0" | "1" | "2" | "3").! ).map(_.toInt).map(EElderSign)
 
     def offer[* : P] = P( symbol ~ "->" ~ number ).map(o => EOffer(o._1.value, o._2.value))
 
-    def unitref[* : P] = P( symbol ~ "/" ~ symbol ~ "/" ~ number ).map(o => EUnitRef(o._1.value, o._2.value, o._3.value))
+    def expr[* : P] : P[Expr] = P{ space ~ ( unitref | es | offer | base ) ~ space }
 
-    def some[* : P] = P( "Some" ~ space ~ "(" ~/ expr ~ ")").map(o => ESome(o))
 
-    def none[* : P] = P( "None" ).map(o => ENone)
+    def parseAction(ss : String) : Action = {
+        val s = ss.replace("&gt;", ">")
 
-    def list[* : P] = P( "[" ~/ params ~ "]").map(EList)
+        if (s.startsWith("// "))
+            CommentAction(s.drop("// ".length))
+        else {
+            val sss =
+                if (s.startsWith("AwakenAction(") && s.split(",").length == 3)
+                    s.replace(")", ", -1)")
+                else
+                if (s.startsWith("MainDoneFertilityAction("))
+                    s.replace("MainDoneFertilityAction(", "EndAction(")
+                else
+                    s
 
-    def expr[* : P] : P[Expr] = P( space ~ (some | none | action | unitref | offer | symbol | number | pfalse | ptrue | es | list | string ) ~ space )
-
-    def action[* : P] = P( space ~ symbol ~ space ~ "(" ~/ space ~ params ~ space ~ ")" ~ space).map(o => EApply(o._1.value, o._2))
-
-    def params[* : P] = P( expr.rep(sep = ","./) ).map(_.toList)
-
-    def parseAction(s : String) : Action = {
-        val ss =
-            if (s.startsWith("AwakenAction(") && s.split(",").length == 3)
-                s.replace(")", ", -1)")
-            else
-            if (s.startsWith("MainDoneFertilityAction("))
-                s.replace("MainDoneFertilityAction(", "EndAction(")
-            else
-                s
-
-        parse(ss, action(_)) match {
-            case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
-            case Parsed.Failure(label, index, extra) => throw new Error(s + "\n" + label + " " + index + " " + extra)
+            parse(sss, main(_)) match {
+                case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
+                case Parsed.Failure(label, index, extra) => throw new Error(s + "\n" + label + " " + index + " " + extra)
+            }
         }
     }
 
@@ -114,7 +138,7 @@ class Serialize(val g : Game) {
     }
 
     //def parseRegion(s : String) : Option[Region] = g.board.regions.%(_.name.split(" ").mkString("") == s).single
-    def parseRegion(s: String): Option[Region] = {
+    def parseRegion(s : String) : Option[Region] = {
         val normalized = s.replaceAll(" ", "")
         val allRegions = g.board.regions :+ SL.slumber
         allRegions.find(r => r.name.replaceAll(" ", "") == normalized)
@@ -132,7 +156,7 @@ object Serialize {
 
     def parseGameOption(s : String) : Option[GameOption] = GameOptions.all.%(_.toString == s).single
 
-    def parseLoyaltyCard(s: String): Option[LoyaltyCard] = loyaltyCards.find(_.productPrefix == s)
+    def parseLoyaltyCard(s : String) : Option[LoyaltyCard] = loyaltyCards.find(_.productPrefix == s)
 
     def parseSymbol(s : String) : Option[Any] = Reflect.lookupLoadableModuleClass("cws." + s + "$").map(_.loadModule())
 

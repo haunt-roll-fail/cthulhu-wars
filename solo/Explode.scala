@@ -23,6 +23,7 @@ object Explode {
         case a : More => false
         case a : Cancel => false
         case a : Soft => false
+        case a : VoidAction => false
         case _ => true
     }
 

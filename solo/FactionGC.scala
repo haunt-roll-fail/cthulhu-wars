@@ -60,5 +60,5 @@ case object GC extends Faction {
         units.count(_.uclass == Cthulhu) * 6 +
         neutralStrength(g, units, opponent)
 
-    var ignoredSacrificeHighPriest: Boolean = false
+    var ignoredSacrificeHighPriest : Boolean = false
 }

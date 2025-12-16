@@ -217,7 +217,14 @@ object CthulhuWarsSolo {
     def setupUI() {
         val (hash, quick) = dom.window.location.hash.drop(1) @@ {
             case "quick" => ("", true)
-            case h => (h, false)
+            case h if h != "" => (h, false)
+            case _ =>
+                val path = dom.window.location.pathname
+
+                if (path.startsWith("/play/"))
+                    (path.drop("/play/".length), false)
+                else
+                    ("", false)
         }
 
         val location = dom.window.location.href.take(dom.window.location.href.length - dom.window.location.hash.length)
@@ -230,6 +237,7 @@ object CthulhuWarsSolo {
         // val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
         val redirect = location != server
         // val redirect = false // making online games work with AN, as per hauntrollfail's advice
+        val localReplay = false
 
         val logDiv = getElem("log")
 
@@ -328,8 +336,8 @@ object CthulhuWarsSolo {
            .mkString("\n")
 
         def onlineGameName = {
-            val n = List("Power", "Doom", "Glory", "Destiny", "Might", "Fight", "Betrayal", "Fate", "Eternity", "Existance", "Time", "Space", "Agony", "Pain", "Torment", "Anything", "Sacrifice", "Death", "Despair").sortBy(_ => math.random())
-            val c = List("for", "against", "versus", "through", "and", "of", "in", "as").sortBy(_ => math.random())
+            val n = $("Power", "Doom", "Glory", "Destiny", "Might", "Fight", "Betrayal", "Fate", "Eternity", "Existance", "Time", "Space", "Agony", "Pain", "Torment", "Anything", "Sacrifice", "Death", "Despair", "Rage", "Curse", "Fear", "Undefined", "Shift", "Colour", "Gate", "Break", "Desparation", "Ritual", "Dread", "Discord", "Slaughter").sortBy(_ => math.random())
+            val c = $("for", "against", "versus", "through", "and", "of", "in", "as").sortBy(_ => math.random())
             n.head + " " + c.head + " " + n.last
         }
 
@@ -473,7 +481,7 @@ object CthulhuWarsSolo {
                             UIPerform(game, actions(0))
                         else {
                             setup.difficulty(faction) match {
-                                case Human =>
+                                case Human | Recorded =>
                                     UIQuestion(faction, game, actions)
                                 case Debug =>
                                     UIQuestionDebug(faction, game, actions)
@@ -558,7 +566,7 @@ object CthulhuWarsSolo {
             case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
                 val defaultProcessing = Processing(None, None, None)
                 val tint =
-                    if (unit == Filth && game.isAbhothAbsent)
+                    if (unit == Filth && displayGame.isAbhothAbsent)
                         defaultProcessing
                     else {
                         faction @@ {
@@ -1256,7 +1264,8 @@ object CthulhuWarsSolo {
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.take(n).foreach { a =>
-                    g.perform(a)
+                    if (a.is[VoidAction].not)
+                        g.perform(a)
                 }
 
                 overrideGame = |(g)
@@ -1278,11 +1287,13 @@ object CthulhuWarsSolo {
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.indexed./ { (a, i) =>
-                    val (l, c) = g.perform(a)
+                    if (a.is[VoidAction].not) {
+                        val (l, c) = g.perform(a)
 
-                    l.foreach(s => log(s, showUndo(i + 1)))
+                        l.foreach(s => log(s, showUndo(i + 1)))
 
-                    cc = c
+                        cc = c
+                    }
                 }
 
                 game = g
@@ -1294,7 +1305,7 @@ object CthulhuWarsSolo {
             }
 
             def performUndoOnline(n : Int) : Unit = {
-                postF(server + "rollback/" + hash + "/" + (n + 3), "") {
+                postF(server + "rollback-v2/" + hash + "/" + (n + 3), "") {
                     dom.document.location.assign(dom.document.location.href)
                 }
             }
@@ -1345,12 +1356,17 @@ object CthulhuWarsSolo {
 
                                 Some((false, 10))
                             }
-                            case UIPerform(g, a) if hash != "" && self == None => {
+                            case UIPerform(g, UpdateAction) => {
+                                queue :+= UIRead(g)
+
+                                Some((false, 10))
+                            }
+                            case UIPerform(g, a) if hash != "" && self == None && localReplay.not => {
                                 queue :+= UIRead(g)
 
                                 Some((false, 30))
                             }
-                            case UIPerform(g, a) if hash != "" && Explode.isRecorded(a) => {
+                            case UIPerform(g, a) if hash != "" && Explode.isRecorded(a) && localReplay.not => {
                                 postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a)) {
                                     queue :+= UIRead(g)
 
@@ -1376,16 +1392,26 @@ object CthulhuWarsSolo {
                             case UIParse(g, recorded) => {
                                 var cc : Continue = null
 
+                                val initial = actions.none
+
                                 recorded./ { aa =>
                                     val a = serializer.parseAction(aa)
 
                                     actions +:= a
 
-                                    val (l, c) = game.perform(a)
+                                    if (a.is[ReloadAction.type] && initial.not) {
+                                        println("reloading...")
+                                        dom.document.location.assign(dom.document.location.href)
+                                        return None
+                                    }
 
-                                    l.foreach(s => log(s, showUndo(actions.num)))
+                                    if (a.is[VoidAction].not) {
+                                        val (l, c) = game.perform(a)
 
-                                    cc = c
+                                        l.foreach(s => log(s, showUndo(actions.num)))
+
+                                        cc = c
+                                    }
                                 }
 
                                 queue :+= askFaction(game, cc)
@@ -1415,7 +1441,7 @@ object CthulhuWarsSolo {
                                     case _ => 30
                                  }
 
-                                if (recorded.any && hash == "") {
+                                if (recorded.any && hash == "" && localReplay.not) {
                                     if (recorded.num > actions.num && !paused)
                                         queue :+= UIPerform(game, serializer.parseAction(recorded(actions.num).replace("&gt;", ">")))
                                 }
@@ -1451,15 +1477,37 @@ object CthulhuWarsSolo {
                                 val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%>(_ > 0)
                                 ask(q(g), options./((e, q) => "[" + e.styled("es") + "]" + " of " + q), n => perform(draw(options(n)._1, true)))
 
-                            case UIQuestion(f, g, actions) if f != null && hash != "" && Some(f) != self => {
+                            case UIQuestion(f, g, actions) if f != null && hash != "" && Some(f) != self && localReplay.not => {
                                 ask("Waiting for " + f, Nil, n => {})
                                 queue :+= UIRead(g)
                                 Some((false, 50))
                             }
-                            case UIQuestion(f, g, actions) => {
+                            case UIQuestion(f, g, aa) => {
                                 cancelUndo()
 
-                                askM(actions./(a => a.question(g) -> a.option(g)), n => perform(actions(n)), Option(f)./(_.style + "-border"))
+                                var checking = true
+
+                                def backgroundCheck() {
+                                    setTimeout(500) {
+                                        if (checking) {
+                                            getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
+                                                if (ll.splt("\n").but("").any) {
+                                                    checking = false
+
+                                                    ask("Waiting for update" + ll, Nil, n => {})
+
+                                                    perform(UpdateAction)
+                                                }
+                                                else
+                                                    backgroundCheck()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                backgroundCheck()
+
+                                askM(aa./(a => a.question(g) -> a.option(g)), n => { checking = false ; perform(aa(n)) }, Option(f)./(_.style + "-border"))
                             }
                             case UIQuestionDebug(f, g, actions) => {
                                 cancelUndo()
@@ -1936,7 +1984,8 @@ object CthulhuWarsSolo {
                     case None =>
                 }
 
-                dom.window.history.pushState("initilaize", "", "/play/" + hash)
+                if (dom.window.location.pathname.startsWith("/play/").not)
+                    dom.window.history.pushState("initilaize", "", "/play/" + hash)
 
                 if (role != "$") {
                     get(server + "read/" + hash + "/0") { read =>
@@ -1944,6 +1993,34 @@ object CthulhuWarsSolo {
 
                         if (logs(0) != version)
                             log("Incorrect game version: " + logs(0).hl)
+
+                        val title = dom.document.createElement("div")
+                        title.innerHTML = s"""
+                            <div style="
+                                position: absolute;
+                                left: 0%;
+                                top: 0%;
+                                width: 100%;
+                                height: 100%;
+                                z-index: 1;
+                                pointer-events: none;
+                            ">
+                                <div style="
+                                    color: rgb(255, 255, 255);
+                                    font-size: 100%;
+                                    font-weight: bold;
+                                    filter: drop-shadow(rgb(0, 0, 0) 0px 0px 6px) drop-shadow(rgb(0, 0, 0) 0px 0px 6px) drop-shadow(rgb(0, 0, 0) 0px 0px 6px);
+                                    text-align: left;
+                                ">
+                                    <span data-elem="text">
+                                        ${logs(1)}
+                                    </span>
+                                </div>
+                            </div>"""
+
+                        mapSmall.appendChild(title)
+
+                        dom.document.title = logs(1) + " - Cthulhu Wars HRF"
 
                         log(logs(1).styled("nt"))
 
@@ -1963,7 +2040,7 @@ object CthulhuWarsSolo {
         }
         else {
             def topMenu() {
-                ask("Cthulhu Wars", List("Quick game".hl, "Hotseat game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online game".hl), "Extra", "About", "Test").take(menu), {
+                ask("Cthulhu Wars", List("Quick Game".hl, "Local Game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online Game".hl), "Extra", "About", "Test").take(menu), {
                     case 999_0 =>
                         val n = 1
                         val pn = n + 3

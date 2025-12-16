@@ -96,7 +96,7 @@ case class BattleRollAction(f : Faction, rolls : List[BattleRoll], next : Battle
 case class AssignKillAction(self : Faction, count : Int, faction : Faction, ur : UnitRef) extends BaseFactionAction("Assign " + (count > 1).??(count.styled("highlight") + " ") + ("Kill" + (count > 1).??("s")).styled("kill"), ur.short)
 case class AssignPainAction(self : Faction, count : Int, faction : Faction, ur : UnitRef) extends BaseFactionAction("Assign " + (count > 1).??(count.styled("highlight") + " ") + ("Pain" + (count > 1).??("s")).styled("pain"), ur.short)
 
-case class RetreatOrderAction(self: Faction, attackerFirst: Boolean) extends BaseFactionAction("Retreat order",
+case class RetreatOrderAction(self : Faction, attackerFirst : Boolean) extends BaseFactionAction("Retreat order",
     g => {
         val b = g.battle
         val attackerLabel = if (b != null) "" + b.attacker else "Attacker"
@@ -116,7 +116,7 @@ case class RetreatOrderAction(self: Faction, attackerFirst: Boolean) extends Bas
 
 case class EliminateNoWayAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Nowhere to retreat, a pained unit is eliminated", ur.short)
 
-case class RetreatAllAction(self: Faction, f: Faction, r: Region) extends BaseFactionAction(
+case class RetreatAllAction(self : Faction, f : Faction, r : Region) extends BaseFactionAction(
     g => {
         val b = g.battle
         val factionLabel =
@@ -132,6 +132,7 @@ case class RetreatAllAction(self: Faction, f: Faction, r: Region) extends BaseFa
 case class RetreatSeparatelyAction(self : Faction, f : Faction, destinations : List[Region]) extends BaseFactionAction(None, "Retreat separately") with More
 
 case class RetreatUnitAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction("Retreat " + ur.short, r)
+
 
 // GC
 case class DevourPreBattleAction(self : Faction) extends OptionFactionAction(Devour) with PreBattleQuestion
@@ -198,6 +199,9 @@ case class ShrivelingPreBattleAction(self : Faction) extends OptionFactionAction
 case class ShrivelingAction(self : Faction, ur : UnitRef) extends BaseFactionAction(Shriveling, ur.short)
 
 
+
+
+
 class Side(val faction : Faction, val player : Player, var units : $[UnitFigure], var strength : Int = 0, var rolls : $[BattleRoll] = $, var opponent : Side = null) {
     def has(s : Spellbook) = player.oncePerAction.contains(s)
     def add(s : Spellbook) { player.oncePerAction :+= s }
@@ -206,7 +210,7 @@ class Side(val faction : Faction, val player : Player, var units : $[UnitFigure]
 }
 
 class Battle(val game : Game, val region : Region, val attacker : Faction, val defender : Faction, log : (=> String) => Unit, uncontrolledDefender : String = "") {
-    def isUncontrolledFilth: Boolean = uncontrolledDefender == Filth.name
+    def isUncontrolledFilth : Boolean = uncontrolledDefender == Filth.name
 
     private val attackerUnits = {
         game.of(attacker).at(region).exceptUncontrolledFilth(game)
@@ -223,7 +227,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             all.exceptFilth
     }
 
-    private def refreshDefenderUnits(): Unit = {
+    private def refreshDefenderUnits() : Unit = {
         val stillHere = game.of(defender).at(region)
         defenders.units = defenders.units.filter(stillHere.contains)
     }
@@ -236,9 +240,9 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     val sides = List(attackers, defenders)
     var hidden : List[UnitFigure] = Nil
     var cannibalism : List[Faction] = Nil
-    var cosmicUnityTargets: Set[UnitRef] = Set.empty
+    var cosmicUnityTargets : Set[UnitRef] = Set.empty
 
-    var unholyGroundEliminatedGOOs: Set[UnitRef] = Set.empty
+    var unholyGroundEliminatedGOOs : Set[UnitRef] = Set.empty
 
     def opponent(f : Faction) = if (f == attacker) defender else if (f == defender) attacker else { log("Unknown faction in battle " + f); null }
     def units(f : Faction) = side(f).units
@@ -260,7 +264,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         sides.foreach(s => s.units = s.units.but(u))
     }
 
-    def resolveHowl(u: UnitFigure, movedBy: Faction, targetSide: Side, r: Region): Continue = {
+    def resolveHowl(u : UnitFigure, movedBy : Faction, targetSide : Side, r : Region) : Continue = {
         if (!targetSide.units.contains(u)) {
             return proceed()
         }
@@ -494,7 +498,8 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
     def hitter(s : Side) : Faction = {
         if (s.opponent.has(Vengeance))
             return s.opponent.faction
-        else if (uncontrolledDefender.nonEmpty)
+        else
+        if (uncontrolledDefender.nonEmpty)
             return s.opponent.faction
 
         return s.faction
@@ -542,7 +547,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         return DelayedContinue(50, Ask(f, s.units.%(u => canAssignPains(u) > 0).sortBy(_.uclass.cost)./(u => AssignPainAction(f, pains - assigned, s.faction, u.ref))))
     }
 
-    def retreater(s: Side) : Faction = {
+    def retreater(s : Side) : Faction = {
         game.factions.find(f => game.of(f).has(Madness)) match {
             case Some(cc) => cc
             case None =>
@@ -566,7 +571,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 s.opponent.player.at(r).exceptUncontrolledFilth(game).isEmpty
         }
 
-        val chooser: Faction = retreater(s)
+        val chooser : Faction = retreater(s)
 
         if (destinations.none) {
             QAsk(refugees.sortBy(_.uclass.cost)./(u => EliminateNoWayAction(chooser, u.ref)))
@@ -621,9 +626,10 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         }
     }
 
-    def checkByatisSpellbook(s: Side): Unit = {
+    def checkByatisSpellbook(s : Side) : Unit = {
         val byatisHere = s.units.filter(_.uclass == Byatis)
-        if (byatisHere.isEmpty || ByatisCard.hasSpellbook) return
+        if (byatisHere.isEmpty || ByatisCard.hasSpellbook)
+            return
 
         val killedOpponentUnits = s.opponent.units.count(_.health == Killed)
         val byatisKilled        = byatisHere.exists(_.health == Killed)
@@ -635,8 +641,9 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         }
     }
 
-    def checkNyogthaSpellbookSingleBattle(s: Side): Unit = {
-        if (NyogthaCard.hasSpellbook) return
+    def checkNyogthaSpellbookSingleBattle(s : Side) : Unit = {
+        if (NyogthaCard.hasSpellbook)
+            return
 
         val nyogthasHere  = s.units.%(_.uclass == Nyogtha)
         val nyogthasAlive = nyogthasHere.forall(_.health != Killed)
@@ -803,7 +810,7 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 val enemyGOOHereForAttacker = defenders.units.exists(_.uclass.utype == GOO)
                 val enemyGOOHereForDefender = attackers.units.exists(_.uclass.utype == GOO)
 
-                def foldIntoPair(f: Faction, enemyGOOHere: Boolean): Unit = {
+                def foldIntoPair(f : Faction, enemyGOOHere : Boolean) : Unit = {
                     game.nyogthaPairByFaction.get(f) match {
                         case Some(pair) if pair.contains(regionHere) =>
                             if (nyogthaDiedHere)
@@ -962,6 +969,13 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
                 proceed(MadnessPhase)
 
             case MadnessPhase =>
+                sides.foreach { s =>
+                    s.units.foreach(u => u.health = u.health match {
+                        case Spared(now) => now
+                        case s => s
+                    })
+                }
+
                 sides.foreach { s =>
                     s.units.foreach(u => u.remove(Harbinged))
                 }
@@ -1332,7 +1346,8 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
         // MILLION FAVORED ONES
         case MillionFavoredOnesAction(self, r, uc, nw) =>
             log("" + self + " promoted " + self.styled(uc) + " in " + r + " to " + nw./(self.styled).mkString(", "))
-            val x = side(self).units.%(_.uclass == uc).head
+            val l = side(self).units.%(_.uclass == uc)
+            val x = l.%(_.region == r).starting | l.first // l.first for backward compatibility
             exempt(x)
             game.eliminate(x)
             nw.foreach(n => game.place(self, n, r))
@@ -1399,7 +1414,8 @@ class Battle(val game : Game, val region : Region, val attacker : Faction, val d
             val p =
                 if (!isUncontrolled)
                     (u.uclass.utype == Cultist).?(opponent(self).recruitCost(game, u.uclass, region)).|(opponent(self).summonCost(game, u.uclass, region))
-                else 0
+                else
+                    0
 
             side(self).add(Shriveling)
             eliminate(u)
