@@ -4,9 +4,9 @@ import scala.collection._
 
 object colmat {
 
-    def random(): Double = java.lang.Math.random()
-    def random(less : Int): Int = java.lang.Math.floor(java.lang.Math.random() * less).toInt
-    def randomInRange(min : Int, max : Int): Int = java.lang.Math.floor(java.lang.Math.random() * (max - min + 1)).toInt + min
+    def random() : Double = java.lang.Math.random()
+    def random(less : Int) : Int = java.lang.Math.floor(java.lang.Math.random() * less).toInt
+    def randomInRange(min : Int, max : Int) : Int = java.lang.Math.floor(java.lang.Math.random() * (max - min + 1)).toInt + min
     def max(x : Int, y : Int) : Int = java.lang.Math.max(x, y)
     def min(x : Int, y : Int) : Int = java.lang.Math.min(x, y)
     def max(x : Double, y : Double) : Double = java.lang.Math.max(x, y)
@@ -152,7 +152,7 @@ object colmat {
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
         def shuffleSeed(s : Int) = new scala.util.Random(s).shuffle(l)
-        def occurrences[K](d : T => K): Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
+        def occurrences[K](d : T => K) : Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
 
         def :-(x : T) = l.diff(List(x))
         def of[U : ClassTag] : List[T with U] = l.collect { case m : U => m.asInstanceOf[T with U] }
@@ -195,7 +195,7 @@ object colmat {
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
         def shuffleSeed(s : Int) = new scala.util.Random(s).shuffle(l)
-        def occurrences[K](d : T => K): Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
+        def occurrences[K](d : T => K) : Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
 
         def :-(x : T) = l.diff(List(x))
         def of[U : ClassTag] : List[T with U] = l.collect { case m : U => m.asInstanceOf[T with U] }
@@ -318,9 +318,9 @@ object colmat {
         def but(l : $[T]) = o.filterNot(x => l.contains(x))
         def has(x : T) = o.contains(x)
 
-        def /~[U](p: T => Option[U]) = o.flatMap(p)
-        def /~[U](p: T => Array[U])(implicit d : DummyImplicit) = o.toList.flatMap(x => p(x))
-        def /~[U](p: T => Seq[U]) = o.toList.flatMap(x => p(x))
+        def /~[U](p : T => Option[U]) = o.flatMap(p)
+        def /~[U](p : T => Array[U])(implicit d : DummyImplicit) = o.toList.flatMap(x => p(x))
+        def /~[U](p : T => Seq[U]) = o.toList.flatMap(x => p(x))
         def |!(e : => String) = o.getOrElse { throw new Error(e) }
     }
 

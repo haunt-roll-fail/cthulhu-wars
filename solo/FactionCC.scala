@@ -57,5 +57,5 @@ case object CC extends Faction {
         units.count(_.uclass == Nyarlathotep) * (nonIGOO(g.of(this).spellbooks).num + nonIGOO(g.of(opponent).spellbooks).num) +
         neutralStrength(g, units, opponent)
 
-    var ignoredSacrificeHighPriest: Boolean = false
+    var ignoredSacrificeHighPriest : Boolean = false
 }

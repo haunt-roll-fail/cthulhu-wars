@@ -67,7 +67,7 @@ object EarthMap3 extends Board {
         case AN => nonFactionRegions
     }
 
-    def gateXYO(r: Region): (Int, Int) = r match {
+    def gateXYO(r : Region) : (Int, Int) = r match {
         case ArcticOcean => (933, 77)
         case Europe => (1240,245)
         case Asia => (1605, 350)
@@ -158,7 +158,7 @@ object EarthMap4v35 extends Board {
         case AN => nonFactionRegions
     }
 
-    def gateXYO(r: Region): (Int, Int) = r match {
+    def gateXYO(r : Region) : (Int, Int) = r match {
         case ArcticOcean => (933, 77)
         case Scandinavia => (1135, 165)
         case Europe => (1110, 255)
@@ -253,7 +253,7 @@ object EarthMap4v53 extends Board {
         case AN => nonFactionRegions
     }
 
-    def gateXYO(r: Region): (Int, Int) = r match {
+    def gateXYO(r : Region) : (Int, Int) = r match {
         case ArcticOcean => (933, 77)
         case Europe => (1240,245)
         case Asia => (1605, 350)
@@ -356,7 +356,7 @@ object EarthMap5 extends Board {
         case AN => nonFactionRegions
     }
 
-    def gateXYO(r: Region): (Int, Int) = r match {
+    def gateXYO(r : Region) : (Int, Int) = r match {
         case ArcticOcean => (933, 77)
         case Scandinavia => (1135, 165)
         case Europe => (1110, 255)
@@ -469,7 +469,7 @@ object EarthMap6 extends Board {
         case AN => nonFactionRegions
     }
 
-    def gateXYO(r: Region): (Int, Int) = r match {
+    def gateXYO(r : Region) : (Int, Int) = r match {
         case BeringSea => (85, 55)
         case ArcticOcean => (1075, 60)
         case Scandinavia => (1135, 165)

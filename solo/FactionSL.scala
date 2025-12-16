@@ -57,5 +57,5 @@ case object SL extends Faction {
         units.count(_.uclass == Tsathoggua) * (max(2, g.of(opponent).power)) +
         neutralStrength(g, units, opponent)
 
-    var ignoredSacrificeHighPriest: Boolean = false
+    var ignoredSacrificeHighPriest : Boolean = false
 }

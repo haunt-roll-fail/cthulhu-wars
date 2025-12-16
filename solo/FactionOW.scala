@@ -50,7 +50,7 @@ case object OW extends Faction {
         case YogSothoth => g.of(this).at(r, SpawnOW).any.?(6).|(999)
     }
 
-    def isFactionGOO(u: UnitFigure): Boolean =
+    def isFactionGOO(u : UnitFigure) : Boolean =
         u.uclass.utype == GOO && !u.uclass.isInstanceOf[IGOO]
 
     def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
@@ -60,5 +60,5 @@ case object OW extends Faction {
         units.count(_.uclass == YogSothoth) * (2 * g.factions.%(_ != this)./(g.of(_).all(GOO).count(isFactionGOO)).sum) +
         neutralStrength(g, units, opponent)
 
-    var ignoredSacrificeHighPriest: Boolean = false
+    var ignoredSacrificeHighPriest : Boolean = false
 }

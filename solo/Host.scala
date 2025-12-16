@@ -50,9 +50,9 @@ object Host {
 
         val numberOfPlayers = 4
 
-        var allComb: List[List[Faction]] = null
-        var customComb: List[List[Faction]] = null
-        var factions: List[Faction] = null
+        var allComb : List[List[Faction]] = null
+        var customComb : List[List[Faction]] = null
+        var factions : List[Faction] = null
 
         if (numberOfPlayers == 3) {
             allComb = allFactions.combinations(3).$
@@ -88,7 +88,7 @@ object Host {
                 }
 
                 try {
-                    var game: Game = null
+                    var game : Game = null
                     if (numberOfPlayers == 3) {
                         game = new Game(EarthMap3, RitualTrack.for3, randomSeating(ff), true, Nil)
                     }

@@ -454,7 +454,7 @@ object Overlays {
 
     def power(n : Int) = cost(s"${n} Power")
 
-    def loyaltyCard(name : String, quantity : Int, cost : Int, combat : Int, obtainText : String, ability: String, phase: String, abilityText : String) = s"""
+    def loyaltyCard(name : String, quantity : Int, cost : Int, combat : Int, obtainText : String, ability : String, phase : String, abilityText : String) = s"""
         <table class="loyalty-card-table">
             <thead>
                 <tr>
@@ -503,7 +503,7 @@ object Overlays {
             </tbody>
         </table>"""
 
-    def loyaltyCardIGOO(name: String, combat: String, hasSpellbook: Boolean, obtainText: String, ability: String, abilityPhase: String, abilityText: String, spellbookRequirement: String, spellbook: String, spellbookPhase: String, spellbookText: String) = {
+    def loyaltyCardIGOO(name : String, combat : String, hasSpellbook : Boolean, obtainText : String, ability : String, abilityPhase : String, abilityText : String, spellbookRequirement : String, spellbook : String, spellbookPhase : String, spellbookText : String) = {
         val dimmedClass = if (hasSpellbook) "" else " dimmed"
         s"""<table class="loyalty-card-table">
             <thead>

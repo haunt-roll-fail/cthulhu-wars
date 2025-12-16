@@ -104,7 +104,7 @@ case class Bot3(faction : Faction) {
 
         val maxEnemyPower = others./(_.power).max
 
-        def adjustedOwnStrengthForCosmicUnity(ownStr: Int, allies: List[UnitFigure], foes: List[UnitFigure], game: Game, opponent: Faction): Int = {
+        def adjustedOwnStrengthForCosmicUnity(ownStr : Int, allies : List[UnitFigure], foes : List[UnitFigure], game : Game, opponent : Faction) : Int = {
             val hasDaoloth = foes.exists(_.uclass == Daoloth)
             if (!hasDaoloth) return ownStr
 
@@ -112,9 +112,9 @@ case class Bot3(faction : Faction) {
             if (allyGOOs.isEmpty) return ownStr
 
             val nyogthas = allies.filter(_.uclass == Nyogtha)
-            val nyogthaReduction: Int = if (nyogthas.nonEmpty) nyogthas.head.faction.strength(game, nyogthas, opponent) else 0
+            val nyogthaReduction : Int = if (nyogthas.nonEmpty) nyogthas.head.faction.strength(game, nyogthas, opponent) else 0
 
-            val perGOOStrengths: List[Int] = allyGOOs.map(u => u.faction.strength(game, List(u), opponent))
+            val perGOOStrengths : List[Int] = allyGOOs.map(u => u.faction.strength(game, List(u), opponent))
             val strongestGOOStr = perGOOStrengths.foldLeft(0)(math.max)
 
             val reduction = math.max(nyogthaReduction, strongestGOOStr)
@@ -131,7 +131,7 @@ case class Bot3(faction : Faction) {
         val instantDeathNow = game.ritualTrack(game.ritualMarker) == 999 || game.factions.%(_.doom >= 30).any
         val instantDeathNext = game.ritualTrack(game.ritualMarker) != 999 && game.ritualTrack(game.ritualMarker + 1) == 999
 
-        def validGatesForRitual: List[Region] = {
+        def validGatesForRitual : List[Region] = {
             self.gates.filter { r =>
                 val filthHere = game.factions.exists { other =>
                     other != self &&
