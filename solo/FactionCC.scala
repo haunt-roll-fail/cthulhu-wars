@@ -2,7 +2,6 @@ package cws
 
 import hrf.colmat._
 
-import cws.SpellbookUtils._
 
 case object Nightgaunt extends FactionUnitClass(CC, "Nightgaunt", Monster, 1)
 case object FlyingPolyp extends FactionUnitClass(CC, "Flying Polyp", Monster, 2)
@@ -29,15 +28,15 @@ case object CaptureCultist extends Requirement("Capture cultist")
 case object AwakenNyarlathotep extends Requirement("Awaken Nyarlathotep")
 
 
-case object CC extends Faction {
+case object CC extends Faction { f =>
     def name = "Crawling Chaos"
     def short = "CC"
     def style = "cc"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Flight, Harbinger)
-    override def spellbooks = $(Abduct, Invisibility, SeekAndDestroy, Emissary, ThousandForms, Madness)
+    override def library = $(Abduct, Invisibility, SeekAndDestroy, Emissary, ThousandForms, Madness)
     override def requirements(options : $[GameOption]) = $(Pay4Power, Pay6Power, Gates3Power12, Gates4Power15, CaptureCultist, AwakenNyarlathotep)
 
     val allUnits =
@@ -47,15 +46,13 @@ case object CC extends Faction {
         3.times(Nightgaunt) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case Nyarlathotep => g.of(this).gates.contains(r).?(10).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u match {
+        case Nyarlathotep => f.gates.has(r).?(10).|(999)
     }
 
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == FlyingPolyp) * 1 +
-        units.count(_.uclass == HuntingHorror) * 2 +
-        units.count(_.uclass == Nyarlathotep) * (nonIGOO(g.of(this).spellbooks).num + nonIGOO(g.of(opponent).spellbooks).num) +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(FlyingPolyp).num * 1 +
+        units(HuntingHorror).num * 2 +
+        units(Nyarlathotep).%!(_.has(Zeroed)).num * (f.spellbooks.num + opponent.spellbooks.num) +
+        neutralStrength(units, opponent)
 }

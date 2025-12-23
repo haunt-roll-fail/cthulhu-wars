@@ -67,10 +67,16 @@ object colmat {
         def @@(t : T => Nothing) = t(o)
         def @@?[U](t : T => U) : U = t(o)
         def as[U : ClassTag] : Option[U] = Some(o).collect({ case m : U => m })
+        def sure[U : ClassTag] : U = o match {
+            case m : U => m
+            case x => throw new Error("" + x + " is not of class " + implicitly[ClassTag[U]])
+        }
         def check[U : ClassTag](f : U => Boolean) : Boolean = Some(o).map({ case m : U => f(m) ; case _ => false }).getOrElse(false)
         def is[U : ClassTag] : Boolean = Some(o).collect({ case m : U => m }).any
         def tap[U](f : T => U) = { f(o) ; o }
         def use[U](f : T => U) = f(o)
+        def useIf(cond : Boolean)(f : T => T) = if (cond) f(o) else o
+        def useIf(cond : T => Boolean)(f : T => T) = if (cond(o)) f(o) else o
         def mut[U, R <: T](u : Option[U])(f : (T, U) => R) = u.map(u => f(o, u)).getOrElse(o)
     }
 
@@ -78,6 +84,7 @@ object colmat {
         def ***(n : Int) = List.fill(n)(v)
         def in(l : Set[T]) = l.contains(v)
         def in(l : Seq[T]) = l.contains(v)
+        def in(l : Option[T]) = l.contains(v)
         def in(a : T, l : Seq[T]) = a == v || l.contains(v)
         def in(l : T*) = l.contains(v)
     }
@@ -124,6 +131,11 @@ object colmat {
             case Seq(e) => Some(e)
             case _ => None
         }
+        def option : |[T] = $ match {
+            case Seq(e) => Some(e)
+            case Nil => None
+            case _ => throw new Error("non-single list " + l)
+        }
         def only = single.get
         def any = l.nonEmpty
         def none = l.isEmpty
@@ -152,6 +164,7 @@ object colmat {
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
         def shuffleSeed(s : Int) = new scala.util.Random(s).shuffle(l)
+
         def occurrences[K](d : T => K) : Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
 
         def :-(x : T) = l.diff(List(x))
@@ -159,6 +172,14 @@ object colmat {
         def notOf[U : ClassTag] : List[T] = l.filter { case m : U => false ; case _ => true }
 
         def indexed = IndexedList(l.zipWithIndex)
+
+        def zp[U, V](ll2 : U)(implicit conv : U => List[V]) = {
+            val l2 = conv(ll2)
+            if (l.num == ll2.num)
+                l.lazyZip(l2)
+            else
+                throw new Error("unequal zip " + l + " zip " + l2)
+        }
 
     }
 
@@ -202,6 +223,7 @@ object colmat {
         def notOf[U : ClassTag] : List[T] = l.filter { case m : U => false ; case _ => true }
 
         def indexed = IndexedList(l.zipWithIndex)
+        def zip[U](m : $[U]) = if (l.num == m.num) l.lazyZip(m) else throw new Error("lists zip unequal length\n" + l + "\n" + m)
     }
 
     implicit class ListTuplesUtils[A, B](val l : List[(A, B)]) extends AnyVal {
@@ -237,6 +259,7 @@ object colmat {
         def /~[U](p : (T, Int) => IterableOnce[U]) = l.flatMap { case (e, i) => p(e, i) }
         def indices = l.map { case (e, i) => i }
         def values = l.map { case (e, i) => e }
+        def foldLeft[U](q : U)(f : (U, T, Int) => U) = l.foldLeft(q) { case (q, (p, i)) => f(q, p, i) }
     }
 
     implicit class ArrayUtils[T](val array : Array[T]) extends AnyVal {
@@ -256,10 +279,11 @@ object colmat {
         def ::[U, That](b : U)(implicit conv : BiConverter[T, U, That]) : List[That] = List[That](conv.fromUtoR(b), conv.fromTtoR(a))
     }
 
-    implicit class BooleanUtils(val b : Boolean) {
+    implicit class BooleanUtils(val b : Boolean) extends AnyVal {
         def not = !b
         def ?[T](f : => T) = if (b) Some(f) else None
         def ??[T](f : => Option[T]) = if (b) f else None
+        def ??(f : => Boolean) = if (b) f else false
         def ??(f : => String) = if (b) f else ""
         def ??(f : => Int) = if (b) f else 0
         def ??[T](f : => List[T]) = if (b) f else Nil
@@ -344,6 +368,19 @@ object colmat {
         def ÷↑(d : Int) = (n /:/ d).ceil.toInt
         def ÷↓(d : Int) = (n /:/ d).floor.toInt
 
+        def atMost(limit : Int) = min(n, limit)
+        def upTo(limit : Int) = min(n, limit)
+        def upperLimit(limit : Int) = min(n, limit)
+        def noMoreThan(limit : Int) = min(n, limit)
+        def high(limit : Int) = min(n, limit)
+        def hi(limit : Int) = min(n, limit)
+
+        def atLeast(limit : Int) = max(n, limit)
+        def noLessThan(limit : Int) = max(n, limit)
+        def lowerLimit(limit : Int) = max(n, limit)
+        def low(limit : Int) = max(n, limit)
+        def lo(limit : Int) = max(n, limit)
+
         def formatted(s : String) : String = s.format(n)
         def times[T](v : T) : List[T] = List.fill(n)(v)
         def timesDo(v : () => Unit) : Unit = 1.to(n).foreach(_ => v())
@@ -369,28 +406,28 @@ object colmat {
         def formatted(s : String) = s.format(r)
     }
 
-    trait Void {
+    trait VoidGuard {
         def apply() : true
     }
 
-    class BreakVoid(active : Boolean, break : () => Nothing) extends Void {
+    class BreakVoid(active : Boolean, break : () => Nothing) extends VoidGuard {
         def apply() : true = if (active) break() else true
     }
 
-    class ThrowVoid(active : Boolean) extends Void {
+    class ThrowVoid(active : Boolean) extends VoidGuard {
         def apply() : true = throw new Error("VOID")
     }
 
-    class CallbackBreakVoid(active : Boolean, break : () => Nothing, callback : () => Unit) extends Void {
+    class CallbackBreakVoid(active : Boolean, break : () => Nothing, callback : () => Unit) extends VoidGuard {
         override def apply() : true = { callback(); if (active) break() else true }
     }
 
-    object NoVoid extends Void {
+    object NoVoid extends VoidGuard {
         def apply() = true
     }
 
-    object Void {
-        implicit def voidToTrue(v : Void) : true = v.apply()
+    object VoidGuard {
+        implicit def voidToTrue(v : VoidGuard) : true = v.apply()
     }
 
     class Randomness(l : List[Int]) {

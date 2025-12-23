@@ -14,18 +14,16 @@ import Html._
 
 import util.canvas._
 
-import cws.SpellbookUtils._
-import cws.UnitUtils._
 
 sealed trait UIAction
 case object UIStop extends UIAction
 case class UILog(s : String) extends UIAction
 case class UIPerform(game : Game, action : Action) extends UIAction
-case class UIQuestion(faction : Faction, game : Game, actions : List[Action]) extends UIAction
-case class UIQuestionDebug(faction : Faction, game : Game, actions : List[Action]) extends UIAction
+case class UIQuestion(faction : Faction, game : Game, actions : $[Action]) extends UIAction
+case class UIQuestionDebug(faction : Faction, game : Game, actions : $[Action]) extends UIAction
 
 case class UIRead(game : Game) extends UIAction
-case class UIParse(game : Game, recorded : List[String]) extends UIAction
+case class UIProcess(game : Game, recorded : $[Action]) extends UIAction
 
 case class UIRollD6(game : Game, question : Game => String, roll : Int => Action) extends UIAction
 case class UIRollBattle(game : Game, question : Game => String, n : Int, o : List[BattleRoll] => Action) extends UIAction
@@ -86,8 +84,8 @@ class CachedBitmap(val node : dom.Element) {
 }
 
 case class GameOverAction(winners : List[Faction], msg : String) extends Action with Soft {
-    def question = (game : Game) => winners.none.?("Winner is Humanity").|((winners.num == 1).?("Winner is " + winners.head).|("Winners are " + winners.mkString(", ")))
-    def option = (game : Game) => msg
+    def question(implicit game : Game) = winners.none.?("Winner is Humanity").|((winners.num == 1).?("Winner is " + winners.head).|("Winners are " + winners.mkString(", ")))
+    def option(implicit game : Game) = msg
 }
 
 object CthulhuWarsSolo {
@@ -283,8 +281,10 @@ object CthulhuWarsSolo {
 
         var scrollTop = 0.0
 
-        def askM(qos : List[(String, String)], onResult : Int => Unit, style : Option[String] = None) : None.type = {
+        def askM(headers : $[String], qos : $[(String, String)], onResult : Int => Unit, style : Option[String] = None) : None.type = {
             clear(actionDiv)
+
+            headers.foreach(h => actionDiv.appendChild(newDiv("", h)))
 
             var prev : String = null
 
@@ -417,8 +417,8 @@ object CthulhuWarsSolo {
 
             val serializer = new Serialize(game)
 
-            def askFaction(game : Game, c : Continue) : UIAction = {
-                def dontAttack(factions : List[Faction])(a : Action) = factions.map(f => !Explode.isOffense(game, f)(a)).reduce(_ && _)
+            def askFaction(c : Continue)(implicit game : Game) : UIAction = {
+                def dontAttack(factions : List[Faction])(a : Action) = factions.map(f => !Explode.isOffense(f)(a)(game)).reduce(_ && _)
 
                 def filterAttack(actions : List[Action], factions : List[Faction]) = actions.%(dontAttack(factions)).some.|(actions)
 
@@ -427,7 +427,7 @@ object CthulhuWarsSolo {
                         UIPerform(game, action)
 
                     case DelayedContinue(_, continue) =>
-                        askFaction(game, continue)
+                        askFaction(continue)
 
                     case RollD6(question, roll) if setup.dice =>
                         UIPerform(game, roll((1::2::3::4::5::6).maxBy(_ => random())))
@@ -477,7 +477,7 @@ object CthulhuWarsSolo {
                         if (!confirm && actions.size == 1)
                             UIPerform(game, actions(0))
                         else
-                        if (!confirm && actions(0).isInstanceOf[SpellbookAction] && actions.num == game.of(faction).unclaimedSB)
+                        if (!confirm && actions(0).isInstanceOf[SpellbookAction] && actions.num == faction.unclaimedSB)
                             UIPerform(game, actions(0))
                         else {
                             setup.difficulty(faction) match {
@@ -487,39 +487,39 @@ object CthulhuWarsSolo {
                                     UIQuestionDebug(faction, game, actions)
                                 case Easy =>
                                     UIPerform(game, faction match {
-                                        case GC => Bot3(GC).ask(game, actions, 0.5)
-                                        case CC => Bot3(CC).ask(game, actions, 0.2)
-                                        case BG => Bot3(BG).ask(game, actions, 0.6)
-                                        case YS => Bot3(YS).ask(game, actions, 0.3)
-                                        case SL => BotSL   .ask(game, actions, 0.2)
-                                        case WW => BotWW   .ask(game, actions, 0.2)
-                                        case OW => BotOW   .ask(game, actions, 0.2)
-                                        case AN => BotAN   .ask(game, actions, 0.2)
+                                        case GC => Bot3(GC).ask(actions, 0.5)(game)
+                                        case CC => Bot3(CC).ask(actions, 0.2)(game)
+                                        case BG => Bot3(BG).ask(actions, 0.6)(game)
+                                        case YS => Bot3(YS).ask(actions, 0.3)(game)
+                                        case SL => BotSL   .ask(actions, 0.2)(game)
+                                        case WW => BotWW   .ask(actions, 0.2)(game)
+                                        case OW => BotOW   .ask(actions, 0.2)(game)
+                                        case AN => BotAN   .ask(actions, 0.2)(game)
                                     })
                                 case Normal =>
                                     UIPerform(game, faction match {
-                                        case GC => BotGC   .ask(game, actions, 0.03)
-                                        case CC => BotCC   .ask(game, actions, 0.03)
-                                        case BG => Bot3(BG).ask(game, actions, 0.03)
-                                        case YS => BotYS   .ask(game, actions, 0.03)
-                                        case SL => BotSL   .ask(game, actions, 0.03)
-                                        case WW => BotWW   .ask(game, actions, 0.03)
-                                        case OW => BotOW   .ask(game, actions, 0.03)
-                                        case AN => BotAN   .ask(game, actions, 0.03)
+                                        case GC => BotGC   .ask(actions, 0.03)(game)
+                                        case CC => BotCC   .ask(actions, 0.03)(game)
+                                        case BG => Bot3(BG).ask(actions, 0.03)(game)
+                                        case YS => BotYS   .ask(actions, 0.03)(game)
+                                        case SL => BotSL   .ask(actions, 0.03)(game)
+                                        case WW => BotWW   .ask(actions, 0.03)(game)
+                                        case OW => BotOW   .ask(actions, 0.03)(game)
+                                        case AN => BotAN   .ask(actions, 0.03)(game)
                                     })
                                 case AllVsHuman =>
                                     val aa = Explode.explode(game, actions)
                                     val fr = setup.seating.but(faction).filter(f => setup.difficulty(f) == AllVsHuman)
                                     val as = filterAttack(aa, fr)
                                     UIPerform(game, faction match {
-                                        case GC => BotGC   .ask(game, as, 0.03)
-                                        case CC => BotCC   .ask(game, as, 0.03)
-                                        case BG => Bot3(BG).ask(game, as, 0.03)
-                                        case YS => BotYS   .ask(game, as, 0.03)
-                                        case SL => BotSL   .ask(game, as, 0.03)
-                                        case WW => BotWW   .ask(game, as, 0.03)
-                                        case OW => BotOW   .ask(game, as, 0.03)
-                                        case AN => BotAN   .ask(game, as, 0.03)
+                                        case GC => BotGC   .ask(as, 0.03)(game)
+                                        case CC => BotCC   .ask(as, 0.03)(game)
+                                        case BG => Bot3(BG).ask(as, 0.03)(game)
+                                        case YS => BotYS   .ask(as, 0.03)(game)
+                                        case SL => BotSL   .ask(as, 0.03)(game)
+                                        case WW => BotWW   .ask(as, 0.03)(game)
+                                        case OW => BotOW   .ask(as, 0.03)(game)
+                                        case AN => BotAN   .ask(as, 0.03)(game)
                                     })
 
 
@@ -565,22 +565,18 @@ object CthulhuWarsSolo {
 
             case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
                 val defaultProcessing = Processing(None, None, None)
-                val tint =
-                    if (unit == Filth && displayGame.isAbhothAbsent)
-                        defaultProcessing
-                    else {
-                        faction @@ {
-                            case GC => Processing(|("#77a055"), |("#222222"), None)
-                            case CC => Processing(|("#4977b3"), |("#111111"), None)
-                            case BG => Processing(|("#cd3233"), None, |("#555555"))
-                            case YS => Processing(|("#ffd000"), |("#663344"), None)
-                            case WW => Processing(|("#88a9be"), |("#5577aa"), None)
-                            case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
-                            case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
-                            case AN => Processing(|("#47a5bc"), |("#333333"), None)
-                            case _  => defaultProcessing
-                        }
-                    }
+
+                val tint = faction @@ {
+                    case GC => Processing(|("#77a055"), |("#222222"), None)
+                    case CC => Processing(|("#4977b3"), |("#111111"), None)
+                    case BG => Processing(|("#cd3233"), None, |("#555555"))
+                    case YS => Processing(|("#ffd000"), |("#663344"), None)
+                    case WW => Processing(|("#88a9be"), |("#5577aa"), None)
+                    case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
+                    case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
+                    case AN => Processing(|("#47a5bc"), |("#333333"), None)
+                    case _  => defaultProcessing
+                }
 
                 val rect : DrawRect = unit match {
                     case Gate => { DrawRect("gate", None, x - 38, y - 38, 76, 76) }
@@ -701,7 +697,7 @@ object CthulhuWarsSolo {
             var oldGates : List[Region] = Nil
             var horizontal = true
 
-            def drawMap(game : Game) {
+            def drawMap(implicit game : Game) {
                 val upscale = 2
 
                 val width = map.node.clientWidth * dom.window.devicePixelRatio
@@ -780,22 +776,21 @@ object CthulhuWarsSolo {
                 }
 
                 var saved = oldPositions
-                oldPositions = Nil
+                oldPositions = $
 
-                var draws : List[DrawItem] = Nil
+                var draws : $[DrawItem] = $
 
                 game.board.regions.foreach { r =>
                     val (px, py) = gateXY(r)
                     val gated = game.gates.contains(r)
 
-                    val controler = game.factions.%(f => game.of(f).gates.contains(r)).single
-                    val keeper = controler.flatMap(f => game.of(f).at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && game.of(f).has(RedSign))).headOption)
-                    val others = game.factions.%(f => !game.of(f).gates.contains(r)).%(game.of(_).at(r).num > 0).sortBy(f => f.strength(game, game.of(f).at(r), f))
+                    val controler = game.factions.%(_.gates.has(r)).single
+                    val keeper = controler.flatMap(f => f.at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).headOption)
 
-                    var fixed : List[DrawItem] = Nil
-                    var all : List[DrawItem] = Nil
-                    var sticking : List[DrawItem] = Nil
-                    var free : List[DrawItem] = Nil
+                    var fixed : $[DrawItem] = $
+                    var all : $[DrawItem] = $
+                    var sticking : $[DrawItem] = $
+                    var free : $[DrawItem] = $
 
                     if (gated)
                         fixed +:= DrawItem(r, null, Gate, Alive, px, py)
@@ -805,8 +800,8 @@ object CthulhuWarsSolo {
                         case _ =>
                     }
 
-                    game.factions.foreach { f =>
-                        game.of(f).at(r).diff(keeper.toList).foreach { u =>
+                    (game.factions ++ game.neutrals.keys).foreach { f =>
+                        f.at(r).diff(keeper.toList).foreach { u =>
                             all +:= DrawItem(r, f, u.uclass, u.health, 0, 0)
                         }
                     }
@@ -817,7 +812,7 @@ object CthulhuWarsSolo {
                     if (game.cathedrals.contains(r))
                         all +:= DrawItem(r, null, Cathedral, Alive, 0, 0)
 
-                    if (game.factions.%(game.of(_).iceage./(_ == r).|(false)).any)
+                    if (game.factions.%(_.iceAge.?(_ == r)).any)
                         all +:= DrawItem(r, null, IceAgeToken, Alive, 0, 0)
 
                     all.foreach { d =>
@@ -900,31 +895,29 @@ object CthulhuWarsSolo {
 
             val statusBitmaps = statuses.take(seating.num)./(s => new CachedBitmap(s))
 
-            def factionStatus(game : Game, f : Faction, b : CachedBitmap) {
+            def factionStatus(f : Faction, b : CachedBitmap)(implicit game : Game) {
                 if (!game.factions.contains(f))
                     return
 
-                val p = game.of(f)
-
-                def div(styles : String*)(content : String) = if (styles.isEmpty) "<div>" + content + "</div>" else "<div class=\"" + styles.mkString(" ") + "\">" + content + "</div>"
+                def div(styles : String*)(content : String) = if (styles.none) "<div>" + content + "</div>" else "<div class=\"" + styles.mkString(" ") + "\">" + content + "</div>"
                 def r(content : String) = div("right")(content)
 
                 val name = div("name")("" + f + "")
                 val nameS = div("name")(f.styled(f.short) + "")
-                val power = div()(p.hibernating.?(("" + p.power + " Power").styled("hibernate")).|((p.power > 0).?(p.power.power).|("0 Power")))
-                val powerS = div()(p.hibernating.?(("" + p.power + "P").styled("hibernate")).|((p.power > 0).?(("" + p.power + "P").styled("power")).|("0P")))
-                val doom = div()(("" + p.doom + " Doom").styled("doom") + p.es.any.?(" + " + (p.es.num == 1).?("ES").|("" + p.es.num + " ES").styled("es")).|(""))
-                val doomL = div()(("" + p.doom + " Doom").styled("doom") + p.es.any.?(" + " + (p.es.num == 1).?("Elder Sign").|("" + p.es.num + " Elder Signs").styled("es")).|(""))
-                val doomS = div()(("" + p.doom + "D").styled("doom") + p.es.any.?("+" + ("" + p.es.num + "ES").styled("es")).|(""))
+                val power = div()(f.hibernating.?(("" + f.power + " Power").styled("hibernate")).|((f.power > 0).?(f.power.power).|("0 Power")))
+                val powerS = div()(f.hibernating.?(("" + f.power + "P").styled("hibernate")).|((f.power > 0).?(("" + f.power + "P").styled("power")).|("0P")))
+                val doom = div()(("" + f.doom + " Doom").styled("doom") + f.es.any.?(" + " + (f.es.num == 1).?("ES").|("" + f.es.num + " ES").styled("es")).|(""))
+                val doomL = div()(("" + f.doom + " Doom").styled("doom") + f.es.any.?(" + " + (f.es.num == 1).?("Elder Sign").|("" + f.es.num + " Elder Signs").styled("es")).|(""))
+                val doomS = div()(("" + f.doom + "D").styled("doom") + f.es.any.?("+" + ("" + f.es.num + "ES").styled("es")).|(""))
 
-                val sb = nonIGOO(p.spellbooks)./{ sb =>
+                val sb = f.spellbooks./{ sb =>
                     val full = sb.full
                     val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
                     val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
-                    p.can(sb).?(d).|(d.styled("used"))
+                    f.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
-                (1.to(6 - nonIGOO(p.spellbooks).num - p.requirements.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
-                p.requirements./{ r =>
+                (1.to(6 - f.spellbooks.num - f.unfulfilled.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
+                f.unfulfilled./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
                     val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
                     d
@@ -933,20 +926,22 @@ object CthulhuWarsSolo {
                 val iconSpacing = 30
                 val baseRightOffset = 3
 
-                val lcis = p.loyaltyCards.zipWithIndex.map { case (lc, i) =>
-                    val icon = lc.name match {
-                        case "Ghast" => GhastIcon
-                        case "Gug"   => GugIcon
-                        case "Shantak"   => ShantakIcon
-                        case "Star Vampire"   => StarVampireIcon
-                        case "Byatis"   => ByatisIcon
-                        case "Abhoth"   => AbhothIcon
-                        case "Daoloth"   => DaolothIcon
-                        case "Nyogtha"   => NyogthaIcon
-                        case "High Priest"   => HighPriestIcon
+                val lcis = f.loyaltyCards.zipWithIndex.map { case (lc, i) =>
+                    val spellbook = lc match {
+                        case ByatisCard => |(f.upgrades.has(GodOfForgetfulness))
+                        case AbhothCard => |(f.upgrades.has(TheBrood))
+                        case DaolothCard => |(f.upgrades.has(Interdimensional))
+                        case NyogthaCard => |(f.upgrades.has(NightmareWeb))
+                        case _ => None
                     }
 
-                    val d = DrawItem(null, f, icon, Alive, 0, 0)
+                    val sb = spellbook @@ {
+                        case Some(true) => ", true"
+                        case Some(false) => ", false"
+                        case None => ""
+                    }
+
+                    val d = DrawItem(null, f, lc.icon, Alive, 0, 0)
                     val unitName = lc.name.replace("\\", "\\\\").replace("\"", "&quot;")
                     val factionShort = f.short.replace("\"", "&quot;")
 
@@ -955,9 +950,9 @@ object CthulhuWarsSolo {
                     s"""<img class='loyalty-card-icon'
                         src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace(" ", "-"))}'
                         style='right:${right}px;'
-                        onclick='event.stopPropagation(); onExternalClick("${unitName}")'
-                        onpointerover='onExternalOver("${unitName}")'
-                        onpointerout='onExternalOut("${unitName}")' />"""
+                        onclick='event.stopPropagation(); onExternalClick("${unitName}"${sb})'
+                        onpointerover='onExternalOver("${unitName}"${sb})'
+                        onpointerout='onExternalOut("${unitName}"${sb})' />"""
                 }.mkString("")
 
                 val h = 450
@@ -999,8 +994,8 @@ object CthulhuWarsSolo {
 
                 if (f == SL && game.gates.contains(SL.slumber)) {
                     dd(DrawItem(null, f, Gate, Alive, w - 46, 56).rect)
-                    val cultistOrHP = p.at(SL.slumber, Cultist) ++ p.at(SL.slumber, HighPriest)
-                    if (cultistOrHP.nonEmpty) {
+                    val cultistOrHP = f.at(SL.slumber, Cultist) ++ f.at(SL.slumber, HighPriest)
+                    if (cultistOrHP.any) {
                         val unit = cultistOrHP.head
                         dd(DrawItem(null, unit.faction, unit.uclass, Alive, w - 46, 56).rect)
                     }
@@ -1008,16 +1003,16 @@ object CthulhuWarsSolo {
 
                 var smx = 0
                 game.factions.%(_ != f).foreach { e =>
-                    if (game.of(e).borrowed.contains(f.abilities.head)) {
+                    if (e.borrowed.contains(f.abilities.head)) {
                         dd(DrawItem(null, e, SerpentMan, Alive, w - 46 + smx, 86).rect)
                         smx -= 20
                     }
                 }
 
-                val deep = if (p.at(GC.deep).any) {
+                val deep = if (f.at(GC.deep).any) {
                     var draws = List(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
 
-                    val sortedDeep = p.at(GC.deep).filterNot(_.uclass == Cthulhu).sortWith(game.sortAllUnits(p))
+                    val sortedDeep = f.at(GC.deep).filterNot(_.uclass == Cthulhu).sortWith(game.sortAllUnits(f))
 
                     while (draws.num - 1 < sortedDeep.num) {
                         val last = draws.last
@@ -1153,9 +1148,9 @@ object CthulhuWarsSolo {
                 } else Nil
 
                 val captured = {
-                    var draws : List[DrawItem] = Nil
+                    var draws : $[DrawItem] = Nil
 
-                    game.factions.%(_ != f)./~(e => game.of(e).at(f.prison)).foreach { u =>
+                    game.factions.%(_ != f)./~(e => e.at(f.prison)).foreach { u =>
                         val (prisonXOffset, prisonYOffset) = u.uclass match {
                             case Filth        => (8, -15)
                             case _            => (0, 0)
@@ -1186,7 +1181,7 @@ object CthulhuWarsSolo {
 
             def updateStatus() {
                 0.until(seating.num).foreach { n =>
-                    factionStatus(displayGame, displayGame.factions(n), statusBitmaps(n))
+                    factionStatus(displayGame.factions(n), statusBitmaps(n))(displayGame)
                 }
 
                 mapWest.innerHTML = (board.west :+ GC.deep)./(r => processStatus(displayGame.regionStatus(r), "p8")).mkString("")
@@ -1198,6 +1193,49 @@ object CthulhuWarsSolo {
             dom.window.onresize = e => updateStatus()
 
             var token : Double = 0.0
+
+            var savedUIAction : |[UIAction] = None
+            var savedContinue : |[Continue] = None
+
+            class BackgroundCheckToken(random : Double)
+
+            var backgroundCheckThread : |[BackgroundCheckToken] = None
+
+            def startBackgroundCheck() {
+                if (backgroundCheckThread.none) {
+                    val t = new BackgroundCheckToken(math.random())
+                    backgroundCheckThread = |(t)
+                    executeBackgroundCheck(t)
+                }
+            }
+
+            def executeBackgroundCheck(token : BackgroundCheckToken) {
+                if (backgroundCheckThread.has(token)) {
+                    setTimeout(500) {
+                        if (backgroundCheckThread.has(token)) {
+                            getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
+                                if (backgroundCheckThread.has(token)) {
+                                    if (ll.splt("\n").but("").any) {
+                                        backgroundCheckThread = None
+
+                                        // ask("Waiting for update >" + ll + "<", $, n => {})
+                                        ask("Waiting for update", $, n => {})
+
+                                        perform(UpdateAction)
+                                    }
+                                    else {
+                                        executeBackgroundCheck(token)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            def stopBackgroundCheck() {
+                backgroundCheckThread = None
+            }
 
             def perform(action : Action) {
                 queue :+= UIPerform(game, action)
@@ -1264,7 +1302,7 @@ object CthulhuWarsSolo {
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.take(n).foreach { a =>
-                    if (a.is[VoidAction].not)
+                    if (a.is[Void].not)
                         g.perform(a)
                 }
 
@@ -1282,24 +1320,25 @@ object CthulhuWarsSolo {
 
                 log(version)
 
-                var cc : Continue = null
+                var cc : Continue = StartContinue
 
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.indexed./ { (a, i) =>
-                    if (a.is[VoidAction].not) {
+                    if (a.is[Void].not) {
                         val (l, c) = g.perform(a)
 
                         l.foreach(s => log(s, showUndo(i + 1)))
 
-                        cc = c
+                        if (a.is[OutOfTurn].not)
+                            cc = c
                     }
                 }
 
                 game = g
                 overrideGame = None
 
-                queue = $(askFaction(game, cc))
+                queue = $(askFaction(cc)(game))
 
                 startUI()
             }
@@ -1310,40 +1349,19 @@ object CthulhuWarsSolo {
                 }
             }
 
+
             def updateUI() : Option[(Boolean, Int)] = {
                 queue.@@ {
                     case head :: rest =>
                         queue = rest
+                        // println(head)
                         head match {
                             case UILog(l) => {
-                                // log(l, () => { dom.window.alert(actions.num.toString) })
                                 log(l, showUndo(actions.num))
 
                                 Some((false, (l == DottedLine).?(16).|(5)))
                             }
                             case UIPerform(g, a : GameOverAction) if a.msg == "Save replay" => {
-                            /*
-                                val name = version + " replay from " + (new js.Date()).toLocaleString()
-                                val data = (name +: (g.factions./(_.short).mkString("-") + " " + g.options./(_.toString).mkString(" ")) +: actions.reverse./(serializer.write)).mkString("\n")
-                                val result = original.replace("<div id=\"replay\"></div>", "<div id=\"replay\">\n" + data + "\n</div>")
-
-                                val blob = {
-                                    import scala.scalajs.js.typedarray._
-                                    import scala.scalajs.js.JSConverters._
-
-                                    new dom.Blob(js.Array(result.getBytes().toTypedArray), new dom.BlobPropertyBag { `type` = "text/html" })
-                                }
-
-                                val link = dom.document.createElement("a").asInstanceOf[html.Anchor]
-                                link.href = dom.URL.createObjectURL(blob)
-                                link.asInstanceOf[js.Dynamic].download = name.replace(" ", "_").replace("/", "-").replace(":", "-") + ".html"
-                                dom.document.body.appendChild(link)
-                                link.click()
-
-                                val winners = a.winners
-                                queue :+= UIQuestion(null, game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
-                            */
-
                                 val ir = hrf.html.ImageResources(Map(), Map(), hrf.HRF.imageCache)
                                 val resources = hrf.html.Resources(ir, () => Map())
                                 val title = "Cthulhu Wars " + Info.version + " Replay"
@@ -1359,7 +1377,14 @@ object CthulhuWarsSolo {
                             case UIPerform(g, UpdateAction) => {
                                 queue :+= UIRead(g)
 
+                                Some((false, 0))
+                            }
+                            case UIPerform(g, a : OutOfTurnReturn) => {
+                                queue = savedUIAction.$ ++ queue
+                                savedUIAction = None
                                 Some((false, 10))
+                                // updateUI()
+                                // None
                             }
                             case UIPerform(g, a) if hash != "" && self == None && localReplay.not => {
                                 queue :+= UIRead(g)
@@ -1377,26 +1402,26 @@ object CthulhuWarsSolo {
                             }
                             case UIRead(g) => {
                                 getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
-                                    queue :+= UIParse(g, ll.split("\n").toList.filter(_ != ""))
+                                    queue :+= UIProcess(g, ll.splt("\n").but("")./(serializer.parseAction))
 
                                     startUI()
                                 }
 
                                 None
                             }
-                            case UIParse(g, recorded) if recorded.none => {
+                            case UIProcess(g, recorded) if recorded.none => {
                                 queue :+= UIRead(g)
 
                                 Some((false, 30))
                             }
-                            case UIParse(g, recorded) => {
-                                var cc : Continue = null
+                            case UIProcess(g, recorded) => {
+                                savedUIAction = None
+
+                                var cc : |[Continue] = savedContinue
 
                                 val initial = actions.none
 
-                                recorded./ { aa =>
-                                    val a = serializer.parseAction(aa)
-
+                                recorded./ { a =>
                                     actions +:= a
 
                                     if (a.is[ReloadAction.type] && initial.not) {
@@ -1405,16 +1430,19 @@ object CthulhuWarsSolo {
                                         return None
                                     }
 
-                                    if (a.is[VoidAction].not) {
+                                    if (a.is[Void].not) {
                                         val (l, c) = game.perform(a)
 
                                         l.foreach(s => log(s, showUndo(actions.num)))
 
-                                        cc = c
+                                        if (a.is[OutOfTurn].not)
+                                            cc = |(c)
                                     }
                                 }
 
-                                queue :+= askFaction(game, cc)
+                                savedContinue = cc
+
+                                queue :+= askFaction(cc.get)(game)
 
                                 Some((true, 0))
                             }
@@ -1446,7 +1474,7 @@ object CthulhuWarsSolo {
                                         queue :+= UIPerform(game, serializer.parseAction(recorded(actions.num).replace("&gt;", ">")))
                                 }
                                 else
-                                    queue :+= askFaction(game, c)
+                                    queue :+= askFaction(c)(game)
 
                                 Some((true, t))
                             }
@@ -1454,21 +1482,21 @@ object CthulhuWarsSolo {
                                 ask(q(g), (1::2::3::4::5::6)./("[" + _.styled("power") + "]"), x => perform(roll(x)))
                             }
                             case UIRollBattle(g, q, n, roll) if n <= 3 => {
-                                def apr(br : BattleRoll) = 0.to(n).toList./(n => List.fill(n)(br))
+                                def apr(br : BattleRoll) = 0.to(n)./(_.times(br))
                                 val results = apr(Kill)./~(k => apr(Pain)./~(p => apr(Miss)./(m => k ++ p ++ m))).%(_.num == n)
                                 val os = results./(roll)
                                 ask(q(g), results./(_.mkString(" ")), v => perform(roll(results(v))))
                             }
                             case UIRollBattle(g, q, n, roll) => {
-                                val osK = 0.to(n).toList./(k => List.fill(k)(Kill))./(x => x.any.?(x.mkString(" ")).|("None"))
+                                val osK = 0.to(n)./(_.times(Kill))./(x => x.any.?(x.mkString(" ")).|("None"))
                                 ask(q(g) + "<br/>" + "Number of " + "Kills".styled("kill"), osK, kills => {
                                     if (kills == n) {
                                         perform(roll(List.fill(kills)(Kill)))
                                     }
                                     else {
-                                        val osP = 0.to(n - kills).toList./(p => List.fill(p)(Pain))./(x => x.any.?(x.mkString(" ")).|("None"))
+                                        val osP = 0.to(n - kills)./(_.times(Pain))./(x => x.any.?(x.mkString(" ")).|("None"))
                                         ask(q(g) + "<br/>" + "Number of " + "Pains".styled("pain"), osP, pains => {
-                                            perform(roll(List.fill(kills)(Kill) ++ List.fill(pains)(Pain) ++ List.fill(n - kills - pains)(Miss)))
+                                            perform(roll(List.fill(kills)(Kill) ++ pains.times(Pain) ++ (n - kills - pains).times(Miss)))
                                         })
                                     }
                                 })
@@ -1477,37 +1505,19 @@ object CthulhuWarsSolo {
                                 val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%>(_ > 0)
                                 ask(q(g), options./((e, q) => "[" + e.styled("es") + "]" + " of " + q), n => perform(draw(options(n)._1, true)))
 
-                            case UIQuestion(f, g, actions) if f != null && hash != "" && Some(f) != self && localReplay.not => {
-                                ask("Waiting for " + f, Nil, n => {})
-                                queue :+= UIRead(g)
-                                Some((false, 50))
+                            case UIQuestion(f, g, actions) if f != null && hash != "" && self.has(f).not && localReplay.not => {
+                                val extra = self./~(g.outOfTurn)
+
+                                startBackgroundCheck()
+
+                                askM($(self.any.??("" + self.get + "<br/><br/>") + "Waiting for " + f + "<br/>“" + actions.first.safeQ(g) + "”<br/><br/>"), extra./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; savedUIAction = |(head) ; perform(extra(n)) }, self./(_.style + "-border"))
                             }
                             case UIQuestion(f, g, aa) => {
                                 cancelUndo()
 
-                                var checking = true
+                                startBackgroundCheck()
 
-                                def backgroundCheck() {
-                                    setTimeout(500) {
-                                        if (checking) {
-                                            getF(server + "read/" + hash + "/" + (actions.num + 3)) { ll =>
-                                                if (ll.splt("\n").but("").any) {
-                                                    checking = false
-
-                                                    ask("Waiting for update" + ll, Nil, n => {})
-
-                                                    perform(UpdateAction)
-                                                }
-                                                else
-                                                    backgroundCheck()
-                                            }
-                                        }
-                                    }
-                                }
-
-                                backgroundCheck()
-
-                                askM(aa./(a => a.question(g) -> a.option(g)), n => { checking = false ; perform(aa(n)) }, Option(f)./(_.style + "-border"))
+                                askM($, aa./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; perform(aa(n)) }, |(f)./(_.style + "-border"))
                             }
                             case UIQuestionDebug(f, g, actions) => {
                                 cancelUndo()
@@ -1515,7 +1525,7 @@ object CthulhuWarsSolo {
                                 val aa = Explode.explode(g, actions)
 
                                 val sorted = if (f == BG)
-                                    Bot3(BG).eval(g, aa).sortBy(-_.evaluations.map(_.weight).sum)
+                                    Bot3(BG).eval(aa)(g).sortBy(-_.evaluations.map(_.weight).sum)
                                 else
                                 if (f == null) {
                                     (BotYS.eval(g, aa).sortWith(BotYS.compare).take(1) ++ BotYSOld.eval(g, aa).sortWith(BotYSOld.compare).take(1))./(ae => ae.copy(evaluations = ae.evaluations.%(_.desc != "random"))).distinct
@@ -1533,7 +1543,7 @@ object CthulhuWarsSolo {
                                     bot.eval(g, aa).sortWith(bot.compare)
                                 }
 
-                                askM(sorted./(wa => wa.action.question(g).some.|(" ") -> (wa.action.option(g) + " (" + wa.evaluations.headOption./(_.weight)./(v => v.styled((v > 0).?("power").|("doom"))).|("0") + ")" + "<br/>" +
+                                askM($, sorted./(wa => wa.action.question(g).some.|(" ") -> (wa.action.option(g) + " (" + wa.evaluations.headOption./(_.weight)./(v => v.styled((v > 0).?("power").|("doom"))).|("0") + ")" + "<br/>" +
                                     wa.evaluations./(e =>
                                         ("(" + e.weight.styled((e.weight > 0).?("power").|("doom")) + " -> " + e.desc + ")").styled("expl")
                                     ).mkString("<br/>"))),
@@ -1593,7 +1603,7 @@ object CthulhuWarsSolo {
 
             if (hash != "") {
                 if (recorded.any || self == None) {
-                    queue :+= UIParse(game, recorded)
+                    queue :+= UIProcess(game, recorded./(serializer.parseAction))
 
                     startUI()
                 }
@@ -1621,7 +1631,7 @@ object CthulhuWarsSolo {
             val setup = new Setup(seatings(0), Human)
 
             def setupQuestions() {
-                askM(
+                askM($,
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
@@ -1785,7 +1795,7 @@ object CthulhuWarsSolo {
             val setup = new Setup(seatings(0), Human)
 
             def setupQuestions() {
-                askM(
+                askM($,
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
@@ -2120,31 +2130,16 @@ object CthulhuWarsSolo {
                         case 2 | 3 | 4 =>
                             topMenu()
                     })
-                    case 4 => ask("Cthulhu Wars Solo", List("<a href='https://boardgamegeek.com/filepage/152635/cthulhu-wars-solo-hrf-19' target='_blank'><div>Project Homepage</div></a>", "Developed by " + "Haunt Roll Fail".hl, "Additional AI programming by " + "ricedwlit".hl, "Ancients"/*.styled("AN")*/ + " faction developed by " + "Legrasse81".hl, "Board game by " + "Peterson Games".hl, "All graphics in the app belong to Petersen Games.<br>Used with permission.", "Back"), {
-                        case 0 =>
-                            val base = allFactions.take(4)
-                            ask("Choose faction", base./(f => f.toString) :+ "Back", nf => {
-                                if (nf < base.num) {
-                                    val setup = new Setup(randomSeating(base), AllVsHuman)
-                                    setup.difficulty += base(nf) -> Human
-                                    startGame(setup)
-                                }
-                                else
-                                    topMenu()
-                            })
-                        case 1 =>
-                            topMenu()
-                        case 2 =>
-                            topMenu()
-                        case 3 =>
-                            topMenu()
-                        case 4 =>
-                            topMenu()
-                        case 5 =>
-                            topMenu()
-                        case 6 =>
-                            topMenu()
-                    })
+                    case 4 =>
+                        ask("Cthulhu Wars Solo", $(
+                            "<a href='https://boardgamegeek.com/filepage/152635/cthulhu-wars-solo-hrf-19' target='_blank'><div>Project Homepage</div></a>",
+                            "Developed by " + "Haunt Roll Fail".hl,
+                            "Additional AI programming by " + "ricedwlit".hl,
+                            "Ancients, High Priests, Neutral Monsters, Independent Great Old Ones developed by " + "Legrasse81".hl,
+                            "Board game by " + "Peterson Games".hl,
+                            "All graphics in the app belong to Petersen Games.<br>Used with permission.",
+                            "Back"
+                        ), { _ => topMenu() })
                     case 5 =>
                         val setup = new Setup(randomSeating($(GC, BG, WW)), Normal)
                         setup.difficulty += GC -> Human

@@ -4,7 +4,9 @@ import hrf.colmat._
 
 case object Ghoul extends FactionUnitClass(BG, "Ghoul", Monster, 1)
 case object Fungi extends FactionUnitClass(BG, "Fungi from Yuggoth", Monster, 2)
-case object DarkYoung extends FactionUnitClass(BG, "Dark Young", Monster, 3)
+case object DarkYoung extends FactionUnitClass(BG, "Dark Young", Monster, 3) {
+    override def canControlGate(u : UnitFigure)(implicit game : Game) = u.faction.has(RedSign)
+}
 case object ShubNiggurath extends FactionUnitClass(BG, "Shub-Niggurath", GOO, 8)
 
 case object Fertility extends FactionSpellbook(BG, "Fertility Cult")
@@ -25,15 +27,15 @@ case object Eliminate2Cultists extends Requirement("Elminiate two cultists")
 case object AwakenShubNiggurath extends Requirement("Awaken Shub-Niggurath")
 
 
-case object BG extends Faction {
+case object BG extends Faction { f =>
     def name = "Black Goat"
     def short = "BG"
     def style = "bg"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Fertility, Avatar)
-    override def spellbooks = $(Frenzy, Ghroth, Necrophagy, RedSign, BloodSacrifice, ThousandYoung)
+    override def library = $(Frenzy, Ghroth, Necrophagy, RedSign, BloodSacrifice, ThousandYoung)
     override def requirements(options : $[GameOption]) = $(Spread4, Spread6, Spread8, SpreadSocial, Eliminate2Cultists, AwakenShubNiggurath)
 
     val allUnits =
@@ -43,23 +45,24 @@ case object BG extends Faction {
         2.times(Ghoul) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case ShubNiggurath => (g.of(this).gates.contains(r)).?((g.of(this).all(Cultist).num >= 2).?(8).|(998)).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u match {
+        case ShubNiggurath => (f.gates.has(r)).?((f.all(Cultist).num >= 2).?(8).|(998)).|(999)
     }
 
-    override def summonCost(g : Game, u : UnitClass, r : Region) = u.cost - (u.is[FactionUnitClass] && g.of(this).has(ThousandYoung) && g.of(this).has(ShubNiggurath)).??(1)
+    override def summonCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
+        case Ghoul | Fungi | DarkYoung if f.has(ThousandYoung) && f.has(ShubNiggurath) => u.cost - 1
+        case _ => u.cost
+    }
 
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == Acolyte) * g.of(this).has(Frenzy).?(1).|(0) +
-        units.count(_.uclass == HighPriest) * g.of(this).has(Frenzy).?(1).|(0) +
-        units.count(_.uclass == Fungi) * 1 +
-        units.count(_.uclass == DarkYoung) * 2 +
-        units.count(_.uclass == ShubNiggurath) * (
-            g.of(this).gates.num +
-            g.of(this).all(Cultist).num +
-            g.of(this).all(DarkYoung).num * g.of(this).has(RedSign).?(1).|(0)
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(Acolyte).num * f.has(Frenzy).??(1) +
+        units(HighPriest).num * f.has(Frenzy).??(1) +
+        units(Fungi).num * 1 +
+        units(DarkYoung).num * 2 +
+        units(ShubNiggurath).%!(_.has(Zeroed)).num * (
+            f.gates.num +
+            f.all(Cultist).num +
+            f.all(DarkYoung).num * f.has(RedSign).??(1)
         ) +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+        neutralStrength(units, opponent)
 }
