@@ -26,15 +26,15 @@ case object GooMeetsGoo extends Requirement("GOO in area with enemy GOO")
 case object AwakenYogSothoth extends Requirement("Awaken Yog-Sothoth")
 
 
-case object OW extends Faction {
+case object OW extends Faction { f =>
     def name = "Opener of the Way"
     def short = "OW"
     def style = "ow"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(BeyondOne, KeyAndGate)
-    override def spellbooks = $(TheyBreakThrough, DreadCurse, MillionFavoredOnes, ChannelPower, DragonAscending, DragonDescending)
+    override def library = $(TheyBreakThrough, DreadCurse, MillionFavoredOnes, ChannelPower, DragonAscending, DragonDescending)
     override def requirements(options : $[GameOption]) = $(EightGates) ++
         $((options.has(PlayerCount(3)) || (options.has(PlayerCount(4)) && options.has(Opener4P10Gates))).?(TenGates).|(TwelveGates)) ++
         $(UnitsAtEnemyGates, LoseUnitInBattle, GooMeetsGoo, AwakenYogSothoth)
@@ -46,19 +46,14 @@ case object OW extends Faction {
         4.times(Mutant) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case YogSothoth => g.of(this).at(r, SpawnOW).any.?(6).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
+        case YogSothoth => f.at(r, SpawnOW).any.?(6).|(999)
     }
 
-    def isFactionGOO(u : UnitFigure) : Boolean =
-        u.uclass.utype == GOO && !u.uclass.isInstanceOf[IGOO]
-
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == Mutant) * 1 +
-        units.count(_.uclass == Abomination) * 2 +
-        units.count(_.uclass == SpawnOW) * 3 +
-        units.count(_.uclass == YogSothoth) * (2 * g.factions.%(_ != this)./(g.of(_).all(GOO).count(isFactionGOO)).sum) +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(Mutant).num * 1 +
+        units(Abomination).num * 2 +
+        units(SpawnOW).num * 3 +
+        units(YogSothoth).%!(_.has(Zeroed)).num * (2 * factions.but(f)./(_.all.factionGOOs.num).sum) +
+        neutralStrength(units, opponent)
 }

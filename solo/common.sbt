@@ -1,6 +1,6 @@
 name := "Cthulhu Wars Solo HRF"
 
-version := "1.13"
+version := "1.18-dev"
 
 scalaVersion := "2.13.16"
 
@@ -19,3 +19,7 @@ scalacOptions := Seq(
 )
 
 libraryDependencies += "com.lihaoyi" %%% "fastparse" % "3.0.2"
+
+bspEnabled := false
+
+maxErrors := 5

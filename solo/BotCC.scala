@@ -2,28 +2,26 @@ package cws
 
 import hrf.colmat._
 
-object BotCC extends BotX(g => new GameEvaluationCC(g))
+object BotCC extends BotX(implicit g => new GameEvaluationCC)
 
-class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
-    def costA(g : Game, a : Action) : Int = a match {
-        case MoveAction(self, _, _, r) => 1 + g.tax(r, self)
-        case AttackAction(self, r, _) => 1 + g.tax(r, self)
-        case AttackUncontrolledFilthAction(self, r, f) => 1 + g.tax(r, self)
-        case FromBelowAttackAction(self, r, f) => g.tax(r, self)
-        case FromBelowAttackUncontrolledFilthAction(self, r, f) => g.tax(r, self)
-        case CaptureAction(self, r, _, _) => 1 + g.tax(r, self)
-        case BuildGateAction(self, r) => 3 + g.tax(r, self)
-        case RecruitAction(self, uc, r) => self.recruitCost(g, uc, r) + g.tax(r, self)
-        case SummonAction(self, uc, r) => self.summonCost(g, uc, r) + g.tax(r, self)
-        case AwakenAction(self, uc, r, cost) => cost + g.tax(r, self)
+class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
+    def costA(a : Action) : Int = a match {
+        case MoveAction(self, _, _, r) => 1 + game.tax(r, self)
+        case AttackAction(self, r, _) => 1 + game.tax(r, self)
+        case FromBelowAttackAction(self, r, f) => game.tax(r, self)
+        case CaptureAction(self, r, _, _) => 1 + game.tax(r, self)
+        case BuildGateAction(self, r) => 3 + game.tax(r, self)
+        case RecruitAction(self, uc, r) => self.recruitCost(uc, r) + game.tax(r, self)
+        case SummonAction(self, uc, r) => self.summonCost(uc, r) + game.tax(r, self)
+        case AwakenAction(self, uc, r, cost) => cost + game.tax(r, self)
         case Pay4PowerMainAction(_) => 4
         case Pay6PowerMainAction(_) => 6
         case Pay10PowerMainAction(_) => 10
         case _ => 0
     }
 
-    def eval(a : Action) : List[Evaluation] = {
-        var result : List[Evaluation] = Nil
+    def eval(a : Action) : $[Evaluation] = {
+        var result : $[Evaluation] = $
 
         implicit class condToEval(val bool : Boolean) {
             def |=> (e : (Int, String)) { Stats.triggerR(self, e._2, bool); if (bool) result +:= Evaluation(e._1, e._2) }
@@ -31,8 +29,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
         // Crawling Chaos
         val has1000f = can(ThousandForms) && have(Nyarlathotep)
-        has1000f && a != ThousandFormsMainAction(self) && costA(game, a) > 0 && power - costA(game, a) < 1 |=> -4000 -> "dont spend last power if 1000F unused"
-        has1000f && a != ThousandFormsMainAction(self) && costA(game, a) > 0 && power - costA(game, a) < 1 && active.none |=> -1000000 -> "dont spend last power if 1000F unused"
+        has1000f && a != ThousandFormsMainAction(self) && costA(a) > 0 && power - costA(a) < 1 |=> -4000 -> "dont spend last power if 1000F unused"
+        has1000f && a != ThousandFormsMainAction(self) && costA(a) > 0 && power - costA(a) < 1 && active.none |=> -1000000 -> "dont spend last power if 1000F unused"
 
         a match {
             case FirstPlayerAction(_, f) =>
@@ -96,7 +94,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 self.pool.goos.any |=> -200 -> "not all goos in play"
                 true |=> -250 -> "dont ritual unless have reasons"
 
-            case LoyaltyCardAction(_, _, _) =>
+            case NeutralMonstersAction(_, _, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -121,18 +119,18 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 if (kiyScreamCapture && !self.allSB) {
                     val r = YS.player.goo(KingInYellow).region
-                    o.allies.cultists.any && o.allies.cultists.num < 4 && r.near.%(_ == o).any && self.strength(game, o.allies.monsters, YS) <= r.foes(Undead).num + 1 |=> -1000 -> "kiy scream capture"
+                    o.allies.cultists.any && o.allies.cultists.num < 4 && r.near.%(_ == o).any && self.strength(o.allies.monsterly, YS) <= r.foes(Undead).num + 1 |=> -1000 -> "kiy scream capture"
                     d.allies.cultists.any && o.allies.cultists.num < 4 && r.near.%(_ == d).any && d.ownStr <= r.foes(Undead).num + 1 && d.ownGate |=> 900 -> "kiy scream capture"
                 }
 
-                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.foes.monsters.%(_.faction.power > 0).any |=> -2000 -> "dont lose the gate"
-                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.near.%(_.foes.monsters.%(_.faction.power > 1).any).any |=> -1900 -> "dont lose the gate"
-                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.near.%(_.near.%(_.foes.monsters.%(_.faction.power > 2).any).any).any |=> -1800 -> "dont lose the gate"
+                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.foes.monsterly.%(_.faction.power > 0).any |=> -2000 -> "dont lose the gate"
+                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.near.%(_.foes.monsterly.%(_.faction.power > 1).any).any |=> -1900 -> "dont lose the gate"
+                power == 1 && o.ownGate && o.allies.num == 2 && active.%(_.at(o).goos.any).none && o.near.%(_.near.%(_.foes.monsterly.%(_.faction.power > 2).any).any).any |=> -1800 -> "dont lose the gate"
 
                 active.none && self.gates.num < 4 && power > 1 && have(Emissary) && d.enemyGate && (d.owner != YS || (!hasturThreat && !kiyThreat)) && d.controllers.num == 1 && d.of(d.owner).goos.none |=> (5 * 100000 / 3) -> "go get a gate"
 
-                d.enemyGate && self.gates.num < 4 && (!d.owner.active || d.owner.power < power) && (d.owner != YS || !hasturThreat) && d.controllers.num == 1 && d.controllers.monsters.none && d.foes.goos.none && d.owner.blind(self) && power > 1 |=> 999 -> "go get a gate"
-                d.enemyGate && self.gates.num < 4 && (!d.owner.active || d.owner.power < power) && (d.owner != YS || !hasturThreat) && d.controllers.num == 2 && d.controllers.monsters.none && d.foes.goos.none && d.owner.blind(self) && power > 2 |=> 990 -> "go get a gate"
+                d.enemyGate && self.gates.num < 4 && (!d.owner.active || d.owner.power < power) && (d.owner != YS || !hasturThreat) && d.controllers.num == 1 && d.controllers.monsterly.none && d.foes.goos.none && d.owner.blind(self) && power > 1 |=> 999 -> "go get a gate"
+                d.enemyGate && self.gates.num < 4 && (!d.owner.active || d.owner.power < power) && (d.owner != YS || !hasturThreat) && d.controllers.num == 2 && d.controllers.monsterly.none && d.foes.goos.none && d.owner.blind(self) && power > 2 |=> 990 -> "go get a gate"
                 d.enemyGate && self.gates.num < 4 && (!d.owner.active || d.owner.power < power) && (d.owner != YS || !hasturThreat) && d.owner.power + 1 < power && d.foes.goos.none && have(Emissary) && power > 2 |=> 900 -> "go get a gate"
                 d.enemyGate |=> -d.controllers.num -> "controllers"
 
@@ -140,7 +138,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 o.foes(Hastur).any |=> 2800 -> "no not hastur"
                 d.foes(Cthulhu).any && d.of(GC).num > d.allies.num |=> -2600 -> "no not cthulhu"
                 o.foes(Cthulhu).any && o.of(GC).num > o.allies.num && GC.power > 0 |=> 2400 -> "no not cthulhu"
-                o.ownGate && active.%(_.at(o).monsters.any).any && o.allies.monsters.none |=> -1500 -> "protect gate"
+                o.ownGate && active.%(_.at(o).monsterly.any).any && o.allies.monsterly.none |=> -1500 -> "protect gate"
 
                 d.foes(Hastur).any && power > 1 && YS.power == 0 && have(Abduct).?(d.allies(Nightgaunt).num).|(0) + have(Invisibility).?(d.allies(FlyingPolyp).num).|(0) >= d.of(YS).num - 1 |=> 3333 -> "assassinate hastur"
 
@@ -204,10 +202,10 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 350 -> "ic temporary free gate"
                 !u.gateKeeper && d.freeGate && d.foes.goos.any  && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate with goo"
                 o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.ownGate |=> 60 -> "flee from capture to own gate"
-                o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.allies.monsters.any |=> 59 -> "flee from capture to monster"
+                o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.allies.monsterly.any |=> 59 -> "flee from capture to monster"
                 o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.empty |=> 58 -> "flee from capture"
 
-                others.%(f => f.power > 0 || f.has(Passion)).%(f => o.of(f).goos.none && o.of(f).monsters.none).none |=> -300 -> "why move"
+                others.%(f => f.power > 0 || f.has(Passion)).%(f => o.of(f).goos.none && o.of(f).monsterly.none).none |=> -300 -> "why move"
 
                 d.foes.goos.any && d.allies.goos.none |=> -250 -> "dont move to enemy goos"
                 o.capturers.%(_.active).any && d.capturers.none && o.allies.cultists.num == 1 |=> 220 -> "move from capture"
@@ -216,7 +214,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 d.ownGate && d.allies.cultists.num >= 2 |=> -210 -> "move to own gate"
                 !o.ownGate && d.allies.goos.any |=> 200 -> "move to goo"
                 d.ownGate && d.allies.cultists.num == 1 |=> 190 -> "move to own gate with single cultist"
-                d.allies.monsters.any |=> 80 -> "move to monsters"
+                d.allies.monsterly.any |=> 80 -> "move to monsters"
                 d.ownGate |=> 70 -> "move to own gate"
                 d.foes.any |=> -50 -> "dont move to foes"
                 o.gate |=> -10 -> "move from gate"
@@ -227,7 +225,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 // Works best in early game when it's "safe" to leave cultists alone.
                 wwLoneCultistPolarGate(1) && (WW.exists.?(d == game.board.starting(WW).but(game.starting(WW)).head)|(false)) |=> 1500 -> "move monster to block ww getting 2nd gate at opp pole"
 
-                o.ownGate && o.allies.goos.none && o.allies.monsters.num == 1 && active.%(_.at(o).goos.none).%(_.at(o).monsters.any).any |=> -2000 -> "dont abandon gate"
+                o.ownGate && o.allies.goos.none && o.allies.monsterly.num == 1 && active.%(_.at(o).goos.none).%(_.at(o).monsterly.any).any |=> -2000 -> "dont abandon gate"
 
                 d.ownGate && d.capturers.any && d.capturers.%(_.active).any && d.capturers.%(_.active).%(_.at(d).goos.any).none |=> 1100 -> "protect gate"
 
@@ -235,7 +233,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 uc == FlyingPolyp && (o.noGate || o.enemyGate || o.foes.none) && have(Nyarlathotep) && power > 2 && o.foes.goos.none && d.foes.goos.any && d.foes(Hastur).none && (d.foes(Cthulhu).none || d.allies.any || power > 3) && (others.%(_.at(d).goos.any).%(!_.active).any) |=> 700 -> "maybe shield"
 
-                o.ownGate && u.friends.goos.none && u.friends.monsters.none && u.friends.cultists.num == 1 |=> -600 -> "dont leave lone cultist on gate"
+                o.ownGate && u.friends.goos.none && u.friends.monsterly.none && u.friends.cultists.num == 1 |=> -600 -> "dont leave lone cultist on gate"
 
                 o.foes.goos.any |=> -500 -> "stay with enemy goos"
 
@@ -245,7 +243,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 d.ownGate && canSummon(uc) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
 
-                o.allies.cultists.none && d.ownGate && d.allies.monsters.none |=> 50 -> "move"
+                o.allies.cultists.none && d.ownGate && d.allies.monsterly.none |=> 50 -> "move"
 
                 o.allies.cultists.none && d.enemyGate && d.allies.none |=> 2 -> "move"
 
@@ -257,12 +255,18 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 u.is(FlyingPolyp) |=> -1 -> "fp stay"
                 u.is(HuntingHorror) |=> 1 -> "hh move"
 
+            case AttackAction(_, r, f) if f.neutral =>
+                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
+
+            case FromBelowAttackAction(_, r, f) if f.neutral =>
+                true |=> -100000 -> "don't use from below (for now)"
+
             case AttackAction(_, r, f) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
-                val enemyStr = f.strength(game, foes, self)
-                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(game, allies, f), allies, foes, game, opponent = f)
+                val enemyStr = f.strength(foes, self)
+                val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(allies, f), allies, foes, opponent = f)
 
                 val igh = BG.has(Necrophagy).?(BG.all(Ghoul).diff(foes).num).|(0)
 
@@ -474,8 +478,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((nya && allies.num >= 3 && ownStr >= 6) || (nya && self.has(Emissary)) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
                 }
 
-                game.of(f).has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
-                game.of(f).has(Abhoth) && game.of(f).has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
+                f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
+                f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
                 game.acted || game.battled.any |=> -1000 -> "unlimited battle drains power"
 
@@ -496,15 +500,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
-            case AttackUncontrolledFilthAction(_, r, f) =>
-                true |=> -100000 -> "don't attack uncontrolled filth (for now)"
-
             case FromBelowAttackAction(_, r, f) =>
                 true |=> -100000 -> "don't use from below (for now)"
 
-            case FromBelowAttackUncontrolledFilthAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-        
             case CaptureAction(_, r, f, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
@@ -556,16 +554,16 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
             case RecruitAction(_, HighPriest, r) =>
                 true |=> -100000 -> "inactivated"
-                
+
             case SummonAction(_, Nightgaunt, r) =>
                 // Defense against WW setting up 2nd gate at opposite pole.  Summon this turn in order to move next turn
-                r.distanceToWWOppPole <= 2 && wwLoneCultistPolarGate(2) && r.allies.monsters.none |=> 1500 ->"cheap summon to stop WW 2nd gate at opp pole"
+                r.distanceToWWOppPole <= 2 && wwLoneCultistPolarGate(2) && r.allies.monsterly.none |=> 1500 ->"cheap summon to stop WW 2nd gate at opp pole"
 
-                true |=> (-r.allies.monsters.num) -> "monsters count"
+                true |=> (-r.allies.monsterly.num) -> "monsters count"
 
-                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.foes.monsters.%(_.faction.power > 0).any |=> 2000 -> "dont lose the gate"
-                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.near.%(_.foes.monsters.%(_.faction.power > 1).any).any |=> 1900 -> "dont lose the gate"
-                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.near.%(_.near.%(_.foes.monsters.%(_.faction.power > 2).any).any).any |=> 1800 -> "dont lose the gate"
+                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.foes.monsterly.%(_.faction.power > 0).any |=> 2000 -> "dont lose the gate"
+                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.near.%(_.foes.monsterly.%(_.faction.power > 1).any).any |=> 1900 -> "dont lose the gate"
+                power == 1 && r.allies.num == 1 && active.%(_.at(r).goos.any).none && r.near.%(_.near.%(_.foes.monsterly.%(_.faction.power > 2).any).any).any |=> 1800 -> "dont lose the gate"
 
                 power > 1 && r.allies.goos.any && r.foes.goos(Hastur).none && others.%(_.at(r).goos.any).%(!_.active).any |=> 850 -> "shield"
 
@@ -574,7 +572,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.foes(KingInYellow).any |=> -150 -> "ng bad against kiy"
                 r.near.%(_.foes(KingInYellow).any).any |=> -110 -> "ng bad against kiy"
                 r.near.%(n => n.noGate && n.of(YS).any && YS.power > 5).any |=> -100 -> "ng bad against kiy"
-                YS.has(KingInYellow) && YS.power >= 2 && r.allies.monsters.num == r.allies.monsters(Nightgaunt).num && r.allies.goos.none |=> -90 -> "ng bad against kiy"
+                YS.has(KingInYellow) && YS.power >= 2 && r.allies.monsterly.num == r.allies(Nightgaunt).num && r.allies.goos.none |=> -90 -> "ng bad against kiy"
                 YS.power >= 6 |=> -80 -> "ng bad against kiy"
 
                 self.pool(Nightgaunt).num == 1 && self.pool(FlyingPolyp).num > 0 && power == 2 |=> -500 -> "summon fp instead"
@@ -583,13 +581,13 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.capturers.%(_.active).any && r.capturers.%(_.active).%(_.at(r).goos.any).none |=> 1800 -> "prevent capture"
                 r.capturers.any && r.capturers.%(_.at(r).goos.any).none |=> 250 -> "prevent later capture"
                 r.foes.cultists.%(_.vulnerableM).any |=> 200 -> "summon to capture"
-                r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
-                r.allies.monsters.none |=> 140 -> "no monsters"
-                r.allies.cultists.num == 1 && r.allies.monsters.any |=> 130 -> "one cultist"
+                r.allies.cultists.num == 1 && r.allies.monsterly.none |=> 150 -> "lone cultist"
+                r.allies.monsterly.none |=> 140 -> "no monsters"
+                r.allies.cultists.num == 1 && r.allies.monsterly.any |=> 130 -> "one cultist"
                 r.allies.goos.any |=> 100 -> "summon to nya"
 
             case SummonAction(_, FlyingPolyp, r) =>
-                true |=> (-r.allies.monsters.num) -> "monsters count"
+                true |=> (-r.allies.monsterly.num) -> "monsters count"
 
                 power > 2 && r.allies.goos.any && r.foes.goos(Hastur).none && others.%(_.at(r).goos.any).%(!_.active).any |=> 800 -> "shield"
 
@@ -600,13 +598,13 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.capturers.%(_.active).any && r.capturers.%(_.active).%(_.at(r).goos.any).none |=> 1800 -> "prevent capture"
                 r.foes(KingInYellow).any && r.foes(Hastur).none |=> 230 -> "fight kiy"
                 r.foes.cultists.%(_.vulnerableM).any |=> 200 -> "summon to capture"
-                r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
-                r.allies.monsters.none |=> 140 -> "no monsters"
-                r.allies.cultists.num == 1 && r.allies.monsters.any |=> 130 -> "one cultist"
+                r.allies.cultists.num == 1 && r.allies.monsterly.none |=> 150 -> "lone cultist"
+                r.allies.monsterly.none |=> 140 -> "no monsters"
+                r.allies.cultists.num == 1 && r.allies.monsterly.any |=> 130 -> "one cultist"
                 r.allies.goos.any |=> 100 -> "summon to nya"
 
             case SummonAction(_, HuntingHorror, r) =>
-                true |=> (-r.allies.monsters.num) -> "monsters count"
+                true |=> (-r.allies.monsterly.num) -> "monsters count"
 
                 have(Nyarlathotep) && !have(ThousandForms) && need(Pay4Power) && power > 4 && power < 8 |=> -300 -> "better pay 4 power for 1000f"
 
@@ -618,9 +616,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.controllers.num == 1 && r.controllers.%(_.capturable).any && r.foes.goos.none |=> 1900 -> "prevent losing gate"
                 r.capturers.%(_.active).any && r.capturers.%(_.active).%(_.at(r).goos.any).none |=> 1800 -> "prevent capture"
                 r.foes.cultists.%(_.vulnerableG).any |=> 200 -> "summon to capture"
-                r.allies.cultists.num == 1 && r.allies.monsters.none |=> 150 -> "lone cultist"
-                r.allies.monsters.none |=> 140 -> "no monsters"
-                r.allies.cultists.num == 1 && r.allies.monsters.any |=> 130 -> "one cultist"
+                r.allies.cultists.num == 1 && r.allies.monsterly.none |=> 150 -> "lone cultist"
+                r.allies.monsterly.none |=> 140 -> "no monsters"
+                r.allies.cultists.num == 1 && r.allies.monsterly.any |=> 130 -> "one cultist"
                 r.allies.goos.any |=> 100 -> "summon to nya"
 
             case AwakenAction(_, _, r, _) =>
@@ -634,7 +632,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 r.allies.%(_.capturable).any |=> 250 -> "prevent capture"
                 r.foes.%(_.vulnerableG).any |=> 200 -> "awaken to capture"
                 r.allies.%(_.vulnerableM).any |=> 150 -> "allies vulnerable"
-                r.foes.monsters.any |=> 100 -> "awaken to defend"
+                r.foes.monsterly.any |=> 100 -> "awaken to defend"
                 r.near.%(_.foes(KingInYellow).any).any |=> 50 -> "awaken near kiy"
 
             case AvatarReplacementAction(_, _, r, o, uc) =>
@@ -645,11 +643,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 u.cultist && o.capturers.%(_.active).%(_ != BG).any |=> -100 -> "dont send cultist to be captured"
                 u.cultist && o.capturers.none |=> 150 -> "no capturers"
                 u.cultist && o.capturers.any && o.capturers.%(_.active).none |=> 100 -> "no capturers with power"
-                u.monster && o.foes.%(_.capturable).any && power > 0 |=> 200 -> "send to capture"
-                u.monster && u.friends.cultists.any && u.friends.monsters.none && r.foes.monsters./(_.faction).%(_ != BG).%(_.active).any |=> -200 -> "dont sent temp defender"
-                u.monster && o.allies.cultists.any && o.allies.monsters.none |=> 50 -> "protect cultist"
+                u.monsterly && o.foes.%(_.capturable).any && power > 0 |=> 200 -> "send to capture"
+                u.monsterly && u.friends.cultists.any && u.friends.monsterly.none && r.foes.monsterly./(_.faction).%(_ != BG).%(_.active).any |=> -200 -> "dont sent temp defender"
+                u.monsterly && o.allies.cultists.any && o.allies.monsterly.none |=> 50 -> "protect cultist"
 
-            case RevealESAction(_, es, false, _) if game.of(self).es != es =>
+            case RevealESAction(_, es, false, _) if self.es != es =>
                 true |=> -10000 -> "better reveal all"
 
             case RevealESAction(_, _, _, _) =>
@@ -671,7 +669,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 c.friends.cultists.any && c.region.capturers.any |=> 700 -> "can be captured many"
                 c.friends.goos.any |=> -500 -> "nya huggers"
                 c.friends.cultists.any |=> 400 -> "cultist friends"
-                c.friends.monsters.none |=> 300 -> "cultist friends"
+                c.friends.monsterly.none |=> 300 -> "cultist friends"
 
             case GiveWorstMonsterAskAction(_, _, uc, r, _)  =>
                 result = eval(SummonAction(self, uc, r))
@@ -730,11 +728,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
         }
 
         // BATTLE
-        if (game.battle != null) {
-            val battle = game.battle
+        if (game.battle.any) {
+            implicit val battle = game.battle.get
 
-            def elim(battle : Battle, u : UnitFigure) {
-                u.is(Nyarlathotep) && have(Emissary) && battle.units(battle.opponent(self)).goos.none |=> 1000 -> "emissary or what"
+            def elim(u : UnitFigure) {
+                u.is(Nyarlathotep) && have(Emissary) && self.opponent.forces.goos.none |=> 1000 -> "emissary or what"
                 u.is(Nightgaunt) |=> 400 -> "elim ng"
                 u.is(Acolyte) |=> 800 -> "elim acolyte"
                 u.is(FlyingPolyp) |=> 200 -> "elim fp"
@@ -742,9 +740,9 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 u.is(Nyarlathotep) |=> -1 -> "elim nya"
             }
 
-            def retreat(battle : Battle, u : UnitFigure) {
+            def retreat(u : UnitFigure) {
                 u.uclass == Acolyte |=> 600 -> "retr acolyte"
-                u.gateKeeper && battle.region.allies.num - battle.side(self).opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
+                u.gateKeeper && battle.region.allies.num - self.opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
 
                 u.uclass == Nightgaunt |=> 100 -> "retr ng"
                 u.uclass == FlyingPolyp |=> 200 -> "retr fp"
@@ -752,7 +750,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 u.uclass == Nyarlathotep && u.region.foes.goos(Hastur).%(_.health == Alive).any |=> 2000 -> "retr nya from hastur"
                 u.uclass == Nyarlathotep && u.region.foes.goos.%(!_.is(Hastur)).%(_.health == Alive).any |=> -1500 -> "nya stays with goo"
                 u.uclass == Nyarlathotep && u.region.foes.goos.%(_.is(RhanTegoth)).%(_.faction.power > 0).any |=> -1500 -> "nya stays with rha"
-                u.uclass == Nyarlathotep && u.region.ownGate && (u.region.allies.monsters.none || u.region.foes.goos.any) && u.region.foes.any |=> -500 -> "nya holds to gate"
+                u.uclass == Nyarlathotep && u.region.ownGate && (u.region.allies.monsterly.none || u.region.foes.goos.any) && u.region.foes.any |=> -500 -> "nya holds to gate"
                 u.uclass == Nyarlathotep |=> 400 -> "nya moves anyway"
             }
 
@@ -762,11 +760,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 u match {
                     case Acolyte =>
-                        r.allies.monsters.any |=> 1000 -> "send cultist to be captured by monsters"
+                        r.allies.monsterly.any |=> 1000 -> "send cultist to be captured by monsters"
                         r.allies.goos.any |=> 1000 -> "send cultist to be captured by goos"
                         r.foes.none |=> 200 -> "send cultist where no foes"
                         f.at(r).%(!_.cultist).none |=> 200 -> "send where no friends"
-                        f.at(r).%(_.monster).any |=> -1000 -> "dont send where friends"
+                        f.at(r).%(_.monsterly).any |=> -1000 -> "dont send where friends"
                         f.at(r).%(_.goo).any |=> -3000 -> "dont send to goo"
                         r.freeGate |=> -2000 -> "dont send cultist to empty gate"
                         r.ownGate |=> -100 -> "dont send cultist to own gate"
@@ -857,13 +855,10 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 }
             }
 
-            if (game.battle.attacker != self && game.battle.defender != self) {
+            if (game.battle./~(_.sides).has(self).not) {
                 a match {
-                    case RetreatOrderAction(_, attackerFirst) =>
-                        val b = game.battle
-                        val first = if (attackerFirst) b.attacker else b.defender
-                        val second = if (attackerFirst) b.defender else b.attacker
-                        (first.aprxDoom < second.aprxDoom) |=> 100 -> "retreat less doom first"
+                    case RetreatOrderAction(_, a, b) =>
+                        a.aprxDoom < b.aprxDoom |=> 100 -> "retreat less doom first"
 
                     case RetreatUnitAction(_, u, r) =>
                         rout(u.faction, u.uclass, r)
@@ -872,10 +867,10 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                 }
             }
             else {
-                val opponent = battle.opponent(self)
-                val allies = battle.units(self)
-                val enemies = battle.units(opponent)
-                val first = battle.attacker == self
+                val opponent = self.opponent
+                val allies = self.forces
+                val enemies = self.opponent.forces
+                val attacking = battle.attacker == self
 
                 def ac = allies(Acolyte).num
                 def ng = allies(Nightgaunt).num
@@ -936,13 +931,13 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                 a match {
                     case DevourAction(_, u) =>
-                        elim(battle, u)
+                        elim(u)
 
                     case AbductPreBattleAction(_) =>
                         opponent match {
                             case GC =>
-                                cth && first && ng == 1 && ac + fp + hh == 0 |=> 1000 -> "abduct to avoid devour"
-                                cth && first && ng == 1 && ac + fp + hh > 0 |=> -900 -> "wait for devour"
+                                cth && attacking && ng == 1 && ac + fp + hh == 0 |=> 1000 -> "abduct to avoid devour"
+                                cth && attacking && ng == 1 && ac + fp + hh > 0 |=> -900 -> "wait for devour"
                                 nya && (cth || !have(Emissary)) |=> -500 -> "stay as shield"
                                 ng > ec + dp + eght + efi && sh + ss + egug + esht + esv > 0 |=> 400 -> "eat good unit"
                                 true |=> -100 -> "dont bother"
@@ -971,7 +966,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
 
                     case InvisibilityAction(_, ifp, u) =>
                         val invises = allies(FlyingPolyp).%(!_.has(Invised)).num
-                        if (!first && !nya && battle.enemyStr >= battle.ownStr * 2) {
+                        if (!attacking && !nya && opponent.str >= self.str * 2) {
                             u.uclass == HuntingHorror |=> 120000 -> "hide self"
                             ifp == u |=> 110000 -> "hide self"
                         }
@@ -981,11 +976,11 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 nya && (cth || !have(Emissary)) && u.faction == self |=> -100000 -> "dont hide shields"
                                 nya && !cth && have(Emissary) && u.uclass == HuntingHorror |=> 90000 -> "hide hh when emissary"
                                 nya && !cth && have(Emissary) && u == ifp |=> 85000 -> "hide self when emissary"
-                                cth && first && ifp == u && ac + ng + hh + ihh == 0 && fp == 1 |=> 90000 -> "hide self to avoid devour"
-                                !first && cth && !nya && ec + dp > 1 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from cthulhu"
-                                !first && cth && !nya && ec + dp > 1 && u == ifp |=> 70000 -> "hide self from cthulhu"
-                                first && u.uclass == Shoggoth && ec + dp > 0 && opponent.has(Absorb) && fp >= sh |=> 60000 -> "prevent absorb"
-                                !first && u.uclass == Shoggoth && u.has(Absorbed) && u.count(Absorbed) == enemies./(_.count(Absorbed)).max |=> 50000 -> "hide max absorb"
+                                cth && attacking && ifp == u && ac + ng + hh + ihh == 0 && fp == 1 |=> 90000 -> "hide self to avoid devour"
+                                !attacking && cth && !nya && ec + dp > 1 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from cthulhu"
+                                !attacking && cth && !nya && ec + dp > 1 && u == ifp |=> 70000 -> "hide self from cthulhu"
+                                attacking && u.uclass == Shoggoth && ec + dp > 0 && opponent.has(Absorb) && fp >= sh |=> 60000 -> "prevent absorb"
+                                !attacking && u.uclass == Shoggoth && u.has(Absorbed) && u.count(Absorbed) == enemies./(_.count(Absorbed)).max |=> 50000 -> "hide max absorb"
                                 u.uclass == Starspawn |=> 40000 -> "hide starspawn"
                                 u.uclass == Gug && u.faction == opponent |=> 32000 -> "hide enemy gug"
                                 u.uclass == Shoggoth |=> 30000 -> "hide shoggoth"
@@ -1002,8 +997,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 nya && (shu || !have(Emissary)) && u.faction == self |=> -100000 -> "dont hide shields"
                                 nya && !shu && have(Emissary) && u.uclass == HuntingHorror |=> 90000 -> "hide hh when emissary"
                                 nya && !shu && have(Emissary) && u == ifp |=> 85000 -> "hide self when emissary"
-                                !first && shu && !nya && ec + gh + fu > 1 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from shub"
-                                !first && shu && !nya && ec + gh + fu > 1 && u == ifp |=> 70000 -> "hide self from shub"
+                                !attacking && shu && !nya && ec + gh + fu > 1 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from shub"
+                                !attacking && shu && !nya && ec + gh + fu > 1 && u == ifp |=> 70000 -> "hide self from shub"
                                 u.uclass == Gug && u.faction == opponent |=> 60000 -> "hide enemy gug"
                                 u.uclass == DarkYoung && (shu || !nya) |=> 50000 -> "hide dark young"
                                 u.uclass == Shantak && u.faction == opponent |=> 48000 -> "hide enemy shantak"
@@ -1021,8 +1016,8 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                                 nya && !has && (kiy || !have(Emissary)) && u.faction == self |=> -100000 -> "dont hide shields"
                                 nya && !has && !kiy && have(Emissary) && u.uclass == HuntingHorror |=> 90000 -> "hide hh when emissary"
                                 nya && !has && !kiy && have(Emissary) && u == ifp |=> 85000 -> "hide self when emissary"
-                                !first && has && !nya && ec + un + by > 0 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from hastur"
-                                !first && has && !nya && ec + un + by > 0 && u == ifp |=> 70000 -> "hide self from hastur"
+                                !attacking && has && !nya && ec + un + by > 0 && u.uclass == HuntingHorror |=> 80000 -> "hide hh from hastur"
+                                !attacking && has && !nya && ec + un + by > 0 && u == ifp |=> 70000 -> "hide self from hastur"
                                 u.uclass == Gug && u.faction == opponent |=> 65000 -> "hide enemy gug"
                                 u.uclass == Byakhee && invises >= by |=> 60000 -> "hide all byakhee"
                                 u.uclass == Shantak && u.faction == opponent |=> 55000 -> "hide enemy shantak"
@@ -1052,7 +1047,7 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                     case SeekAndDestroyAction(_, _, r) =>
                         opponent match {
                             case GC =>
-                                first && cth && ac + ng + fp + hh == 0 && ihh == 1 |=> -3000 -> "dont seek devour"
+                                attacking && cth && ac + ng + fp + hh == 0 && ihh == 1 |=> -3000 -> "dont seek devour"
                                 emissary && dp + sh + ss + egug + esht + esv > 0 |=> -3000 -> "dont seek emissary"
 
                             case BG =>
@@ -1076,14 +1071,14 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         }
 
                         true |=> 2000 -> "seek seek destroy destroy"
-                        r.ownGate && r.allies.goos.none && r.allies.monsters.num == 1 && r.foes.monsters.%(_.faction.power > 0).any |=> -2500 -> "dont lose gate"
+                        r.ownGate && r.allies.goos.none && r.allies.monsterly.num == 1 && r.foes.monsterly.%(_.faction.power > 0).any |=> -2500 -> "dont lose gate"
                         true |=> r.allies.cultists.num -> "more cultists"
-                        nya && !emissary && allies.num == 1 && battle.enemyStr > 0 |=> 3000 -> "shield nya"
-                        nya && !emissary && allies.num == 2 && battle.enemyStr > 6 |=> 3500 -> "shield nya"
+                        nya && !emissary && allies.num == 1 && self.opponent.str > 0 |=> 3000 -> "shield nya"
+                        nya && !emissary && allies.num == 2 && self.opponent.str > 6 |=> 3500 -> "shield nya"
 
                     case DemandSacrificeKillsArePainsAction(_) =>
-                        battle.strength(self) < battle.strength(battle.opponent(self)) |=> 1000 -> "less str"
-                        battle.strength(self) > battle.strength(battle.opponent(self)) |=> -1000 -> "more str"
+                        self.str < opponent.str |=> 1000 -> "less str"
+                        self.str > opponent.str |=> -1000 -> "more str"
 
                     case HarbingerPowerAction(_, _, n) =>
                         n == 2 |=> 200 -> "harb 2 power"
@@ -1100,18 +1095,16 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                         power > 4 |=> 350 -> "enough power"
 
                     case AssignKillAction(_, _, _, u) =>
-                        elim(battle, u)
+                        elim(u)
 
                     case AssignPainAction(_, _, _, u) =>
-                        retreat(battle, u)
+                        retreat(u)
 
                     case EliminateNoWayAction(_, u) =>
-                        elim(battle, u)
+                        elim(u)
 
-                    case RetreatOrderAction(_, attackerFirst) =>
-                        val b = game.battle
-                        val first = if (attackerFirst) b.attacker else b.defender
-                        (first == self) |=> 1000 -> "retreat self first"
+                    case RetreatOrderAction(_, a, b) =>
+                        a == self |=> 1000 -> "retreat self first"
 
                     case RetreatUnitAction(_, u, r) if u.faction != self =>
                         rout(u.faction, u.uclass, r)
@@ -1119,30 +1112,30 @@ class GameEvaluationCC(game : Game) extends GameEvaluation(game, CC) {
                     case RetreatUnitAction(_, u, r) =>
                         u.cultist && r.allies.goos.any |=> 2000 -> "send cultist to be protectd by goos"
                         u.cultist && r.foes.goos.any |=> -1500 -> "dont send cultist to feed enemy goo"
-                        u.cultist && r.allies.monsters.any |=> 1000 -> "send cultist to be protected by monsters"
+                        u.cultist && r.allies.monsterly.any |=> 1000 -> "send cultist to be protected by monsters"
                         u.cultist && r.foes.none && !r.gate |=> 200 -> "send cultist where no foes"
                         u.cultist && r.foes.none && r.freeGate |=> 4000 -> "send cultist to free gate"
                         u.cultist && r.ownGate |=> 100 -> "sent cultist to own gate"
                         u.cultist && r.enemyGate |=> -100 -> "dont send cultist to enemy gate"
                         u.cultist && r.freeGate |=> -300 -> "dont send cultist to free gate"
 
-                        u.monster && r.allies.%(_.capturable).any && !r.foes.goos.any |=> 1000 -> "send monster to prevent capture"
+                        u.monsterly && r.allies.%(_.capturable).any && !r.foes.goos.any |=> 1000 -> "send monster to prevent capture"
                         u.goo && r.allies.%(_.capturable).any |=> 1000 -> "send goo to prevent capture"
 
-                        u.monster && r.foes.%(_.vulnerableM).any && !r.foes.goos.any && r.allies.goos.none && r.allies.monsters.none |=> 1000 -> "send monster to capture"
+                        u.monsterly && r.foes.%(_.vulnerableM).any && !r.foes.goos.any && r.allies.goos.none && r.allies.monsterly.none |=> 1000 -> "send monster to capture"
                         u.goo && r.foes.%(_.vulnerableG).any |=> 1000 -> "send goo to capture"
 
-                        u.monster && r.allies.goos.any && r.foes.goos.any |=> 1500 -> "send monster to friendly goo with enemy goo"
-                        u.monster && r.allies.goos.any |=> 500 -> "send monster to friendly goo"
+                        u.monsterly && r.allies.goos.any && r.foes.goos.any |=> 1500 -> "send monster to friendly goo with enemy goo"
+                        u.monsterly && r.allies.goos.any |=> 500 -> "send monster to friendly goo"
                         u.goo && r.allies.goos.any |=> 500 -> "send goo to friendly goo"
 
-                        u.monster && r.ownGate |=> 400 -> "send monster to own gate"
+                        u.monsterly && r.ownGate |=> 400 -> "send monster to own gate"
                         u.goo && r.ownGate |=> 400 -> "send goo to own gate"
 
-                        u.monster && r.freeGate |=> 300 -> "send monster to free gate"
+                        u.monsterly && r.freeGate |=> 300 -> "send monster to free gate"
                         u.goo && r.freeGate |=> 300 -> "send goo to free gate"
 
-                        u.monster && r.enemyGate |=> 300 -> "send monster to enemy gate"
+                        u.monsterly && r.enemyGate |=> 300 -> "send monster to enemy gate"
                         u.goo && r.enemyGate |=> 300 -> "send goo to enemy gate"
 
                         if (u.goo)

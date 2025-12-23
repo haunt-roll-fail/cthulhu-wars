@@ -26,15 +26,15 @@ case object AwakenRhanTegoth extends Requirement("Awaken Rhan Tegoth")
 case object AwakenIthaqua extends Requirement("Awaken Ithaqua")
 
 
-case object WW extends Faction {
+case object WW extends Faction { f =>
     def name = "Windwalker"
     def short = "WW"
     def style = "ww"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Hibernate, Eternal, Ferox)
-    override def spellbooks = $(Cannibalism, Howl, Berserkergang, ArcticWind, IceAge, Herald)
+    override def library = $(Cannibalism, Howl, Berserkergang, ArcticWind, IceAge, Herald)
     override def requirements(options : $[GameOption]) = $(FirstPlayer, OppositeGate, AnotherFactionAllSpellbooks, AnytimeGainElderSigns, AwakenRhanTegoth, AwakenIthaqua)
 
     val allUnits =
@@ -44,22 +44,20 @@ case object WW extends Faction {
         4.times(Wendigo) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case RhanTegoth => g.board.starting(this).contains(r).?(6).|(999)
-        case Ithaqua => (g.board.starting(this).contains(r) && (g.gates.contains(r) || g.factions.but(this).%(e => g.of(e).ugate./(_.region == r).|(false)).any) && !g.of(this).requirements.contains(AwakenRhanTegoth)).?(6).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
+        case RhanTegoth => game.board.starting(f).has(r).?(6).|(999)
+        case Ithaqua => (game.board.starting(f).has(r) && (game.gates.has(r) || game.unitGates.has(r)) && f.needs(AwakenRhanTegoth).not).?(6).|(999)
     }
 
-    override def summonCost(g : Game, u : UnitClass, r : Region) = u match {
-        case GnophKeh => g.of(this).inPool(GnophKeh).num
+    override def summonCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
+        case GnophKeh => f.inPool(GnophKeh).num
         case _ => u.cost
     }
 
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == Wendigo) * 1 +
-        units.count(_.uclass == GnophKeh) * 3 +
-        units.count(_.uclass == RhanTegoth) * 3 +
-        units.count(_.uclass == Ithaqua) * ((g.of(opponent).doom + 1) / 2) +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(Wendigo).num * 1 +
+        units(GnophKeh).num * 3 +
+        units(RhanTegoth).%!(_.has(Zeroed)).num * 3 +
+        units(Ithaqua).%!(_.has(Zeroed)).num * ((opponent.doom + 1) / 2) +
+        neutralStrength(units, opponent)
 }

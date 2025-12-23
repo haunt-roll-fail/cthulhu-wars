@@ -43,7 +43,7 @@ abstract class Loader[T] {
         lazy val t = then
         val tt = () => t
 
-        if (left.isEmpty)
+        if (left.none)
             tt()
         else
             waitlist +:= tt -> left

@@ -27,17 +27,17 @@ case object PerformRitual extends Requirement("Perform ritual")
 case object AwakenTsathoggua extends Requirement("Awaken Tsathoggua")
 
 
-case object SL extends Faction {
+case object SL extends Faction { f =>
     def name = "Sleeper"
     def short = "SL"
     def style = "sl"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     def slumber = Region("Slumber", Slumber)
 
     override def abilities = $(DeathFromBelow, Lethargy)
-    override def spellbooks = $(Burrow, EnergyNexus, AncientSorcery, CaptureMonster, DemandSacrifice, CursedSlumber)
+    override def library = $(Burrow, EnergyNexus, AncientSorcery, CaptureMonster, DemandSacrifice, CursedSlumber)
     override def requirements(options : $[GameOption]) = $(Pay3SomeoneGains3, Pay3EverybodyGains1, Pay3EverybodyLoses1, Roll6DiceInBattle, PerformRitual, AwakenTsathoggua)
 
     val allUnits =
@@ -47,15 +47,13 @@ case object SL extends Faction {
         2.times(Wizard) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case Tsathoggua => (g.of(this).at(r, FormlessSpawn).any).?((g.of(this).has(Immortal) && !g.of(this).needs(AwakenTsathoggua)).?(4).|(8)).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
+        case Tsathoggua => (f.at(r, FormlessSpawn).any).?((f.has(Immortal) && f.needs(AwakenTsathoggua).not).?(4).|(8)).|(999)
     }
 
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == SerpentMan) * 1 +
-        units.count(_.uclass == FormlessSpawn) * (g.of(this).all(FormlessSpawn).num + g.of(this).all(Tsathoggua).num) +
-        units.count(_.uclass == Tsathoggua) * (max(2, g.of(opponent).power)) +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(SerpentMan).num * 1 +
+        units(FormlessSpawn).num * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) +
+        units(Tsathoggua).%!(_.has(Zeroed)).num * max(2, opponent.power) +
+        neutralStrength(units, opponent)
 }

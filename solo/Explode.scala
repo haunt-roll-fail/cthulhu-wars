@@ -23,7 +23,7 @@ object Explode {
         case a : More => false
         case a : Cancel => false
         case a : Soft => false
-        case a : VoidAction => false
+        case a : Void => false
         case _ => true
     }
 
@@ -55,22 +55,22 @@ object Explode {
         result
     }
 
-    def isOffense(game : Game, friend : Faction)(a : Action) = a match {
-        case MoveAction(self : Faction, _, _, dest) if self != friend && game.of(friend).gates.contains(dest) => true
+    def isOffense(friend : Faction)(a : Action)(implicit game : Game) = a match {
+        case MoveAction(self : Faction, _, _, dest) if self != friend && friend.gates.contains(dest) => true
         case AttackAction(_, _, f) if f == friend => true
         case CaptureAction(_, _, f, _) if f == friend => true
         case AvatarAction(self, _, _, f) if self != friend && f == friend => true
         case ThousandFormsAskAction(f, _, _, _, _, _, power) if f == friend && power > 0 => true
         case DreamsAction(_, _, f) if f == friend => true
-        case UnsubmergeAction(self, r) if self != friend && game.of(friend).gates.contains(r) => true
-        case HWINTBNAction(self, _, r) if self != friend && game.of(friend).gates.contains(r) => true
-        case ShriekAction(self, r) if self != friend && game.of(friend).gates.contains(r) => true
+        case UnsubmergeAction(self, r) if self != friend && friend.gates.contains(r) => true
+        case HWINTBNAction(self, _, r) if self != friend && friend.gates.contains(r) => true
+        case ShriekAction(self, r) if self != friend && friend.gates.contains(r) => true
 
         case BuildGateAction(self, r) if game.turn == 1 => false
         case BuildGateAction(GC, r) if game.starting(GC) == r => false
         case BuildGateAction(WW, r) if game.board.starting(WW).contains(r) => false
-        case BuildGateAction(CC, r) if game.of(CC).all(Nyarlathotep).none => false
-        case BuildGateAction(YS, r) if game.of(YS).all(Hastur).none => false
+        case BuildGateAction(CC, r) if CC.all(Nyarlathotep).none => false
+        case BuildGateAction(YS, r) if YS.all(Hastur).none => false
         // Implement something for AN here? It's used for survival mode.
         case BuildGateAction(_, r) => true
 

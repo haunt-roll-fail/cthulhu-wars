@@ -2,17 +2,15 @@ package cws
 
 import hrf.colmat._
 
-import cws.SpellbookUtils._
-import cws.UnitUtils._
 
 case class Evaluation(weight : Int, desc : String)
 case class ActionEval(action : Action, evaluations : List[Evaluation])
 
 class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
-    def sortByAbs(a : List[Int]) : List[Int] =
+    def sortByAbs(a : $[Int]) : $[Int] =
         a.sortBy(v => -v.abs)
 
-    def compareEL(aaa : List[Int], bbb : List[Int]) : Int =
+    def compareEL(aaa : $[Int], bbb : $[Int]) : Int =
         (aaa, bbb) match {
             case (a :: aa, b :: bb) => (a == b).?(compareEL(aa, bb)).|((a > b).?(1).|(-1))
             case (0 :: _, Nil) => 0
@@ -24,10 +22,10 @@ class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
 
     def compare(a : ActionEval, b : ActionEval) = compareEL(sortByAbs(a.evaluations./(_.weight)), sortByAbs(b.evaluations./(_.weight))) > 0
 
-    def ask(game : Game, actions : List[Action], error : Double) : Action =
-        askE(game, Explode.explode(game, actions), error)
+    def ask(actions : $[Action], error : Double)(game : Game) : Action =
+        askE(Explode.explode(game, actions), error)(game)
 
-    def askE(game : Game, actions : List[Action], error : Double) : Action = {
+    def askE(actions : $[Action], error : Double)(game : Game) : Action = {
         if (actions.num == 1)
             return actions.head
 
@@ -60,16 +58,17 @@ class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
         v.head.action
     }
 
-    def eval(game : Game, actions : List[Action]) : List[ActionEval] = {
+    def eval(game : Game, actions : $[Action]) : $[ActionEval] = {
         val ev = ge(game)
         actions./{ a => ActionEval(a, ev.eval(a)) }
     }
 }
 
-object NoPlayer extends Player(SL)($)
 
-abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
+abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) {
     val others = game.factions.%(_ != self)
+
+    object NoPlayer extends Player(SL)(game)
 
     implicit class SelfFactionClassify(val f : F) {
         def realDoom = self.doom + self.player.es./(_.value).sum
@@ -78,28 +77,14 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
     implicit class FactionClassify(val f : Faction) {
         def player = game.players.get(f).getOrElse(NoPlayer)
         def exists = game.players.contains(f)
-        def power = player.power
-        def active = power > 0 && !player.hibernating
-        def gates = player.gates
-        def doom = player.doom
-        def es = player.es.num
-        def aprxDoom = doom + (es * 1.67).round.toInt
-        def maxDoom = doom + min(6, es) * 3 + max(0, es - 6) * 2
-        def at(r : Region) = player.at(r)
-        def at(r : Region, uc : UnitClass) = player.at(r, uc)
+        def aprxDoom = f.doom + (f.es.num * 1.67).round.toInt
+        def maxDoom = f.doom + min(6, f.es.num) * 3 + max(0, f.es.num - 6) * 2
         def pool = player.inPool()
-        def has(uc : UnitClass) = all.has(uc)
-        def has(sb : Spellbook) = player.has(sb)
-        def can(sb : Spellbook) = player.can(sb)
-        def goo(uc : UnitClass) = all(uc).single.get
-        def goos = all.%(_.uclass.utype == GOO)
-        def cultists = all.cultists.num
-        def units(uc : UnitClass) = all(uc)
-        def count(uc : UnitClass) = all(uc).num
+        def cultists = f.all.cultists.num
+        def units(uc : UnitClass) = f.all(uc)
+        def count(uc : UnitClass) = f.all(uc).num
         def allSB = player.hasAllSB
-        def numSB = nonIGOO(player.spellbooks).num
-        def all = player.all()
-        def needs(r : Requirement) = player.needs(r)
+        def numSB = player.spellbooks.num
         def blind(current : Faction) = willActBeforeFaction(current, f)
     }
 
@@ -123,7 +108,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def allies = self.at(r)
         def foes = others./~(_.at(r))
         def of(f : Faction) = f.at(r)
-        def str(f : Faction) = f.strength(game, of(f), self)
+        def str(f : Faction) = f.strength(of(f), self)
         def ownStr = str(self)
         def gate = game.gates.contains(r)
         def noGate = !gate
@@ -133,7 +118,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def controllers = (ownGate || enemyGate).?(owner.at(r).%(_.canControlGate)).|(Nil)
         def gateOf(f : Faction) = f.gates.contains(r)
         def owner = game.factions.%(_.gates.contains(r)).single.get
-        def capturers = others.% { f => allies.goos.none && ((f.at(r).monsters.exceptGug.exceptFilth.exceptIsolatedBrainless(game.of(f), game).any && allies.monsters.none) || f.at(r).goos.any) }
+        def capturers = allies.goos.none.??(others.%(f => f.at(r).goos.any || (allies.monsterly.none && f.at(r).monsterly.%(_.canCapture).any)))
         def desecrated = game.desecrated.contains(r)
         def near = game.board.connected(r)
         def near2 = game.board.connected(r).flatMap(n => game.board.connected(n)).%(_ != r).%(!near.contains(_))
@@ -147,14 +132,8 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def distanceToWWOppPole : Int = (WW.exists).?(game.board.distance(r, game.board.starting(WW).but(game.starting(WW)).head))|Int.MaxValue
     }
 
-    implicit class UnitListClassify(val us : List[UnitFigure]) {
+    implicit class UnitListClassify(val us : $[UnitFigure]) {
         def active = us.%(_.active)
-        def cultists = us.%(_.uclass.utype == Cultist)
-        def actualMonsters = us.%(_.uclass.utype == Monster)
-        def monsters = us.filter(u => u.uclass.utype == Monster || u.uclass.utype == Terror) // Should fit the intent in most cases.
-        def goos = us.%(_.uclass.utype == GOO)
-        def notGoos = us.exceptGOO
-        def apply(uc : UnitClass) = us.%(_.uclass == uc)
         def has(uc : UnitClass) = us.%(_.uclass == uc).any
     }
 
@@ -163,55 +142,44 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         def is(uc : UnitClass) = u.uclass == uc
         def ally = u.faction == self
         def foe = u.faction != self
-        def cultist = u.uclass.utype == Cultist
-        def actualMonster = u.uclass.utype == Monster
-        def monster = u.uclass.utype == Monster || u.uclass.utype == Terror // Should fit the intent in most cases.
-        def goo = u.uclass.utype == GOO
         def friends = u.faction.at(u.region).%(_ != u)
         def enemies = game.factions.%(_ != u.faction)./~(_.at(u.region))
-        def canControlGate = (cultist || (u.uclass == DarkYoung && u.faction.has(RedSign))) && u.health != Pained
+        def canControlGate = (u.cultist || (u.uclass == DarkYoung && u.faction.has(RedSign))) && u.health != Pained
         def ownGate = u.region.ownGate
         def enemyGate = u.region.enemyGate
         def gateController = u.region.gate && u.region.controllers.contains(u)
         def gateKeeper = gateController && friends.%(_.canControlGate).none
-        def defender = ownGate && (monster || goo) && friends.monsters.none
-        def protector = (monster || goo) && friends.cultists.any && friends.monsters.none
-        def preventsCaptureM = monster && friends.cultists.any && friends.monsters.none && friends.goos.none && enemies.monsters.any
-        def preventsCaptureG = goo && friends.cultists.any && friends.goos.none && enemies.goos.any
+        def defender = ownGate && (u.monster || u.terror || u.goo) && friends.monsterly.none
+        def protector = (u.monster || u.terror || u.goo) && friends.cultists.any && friends.monsterly.none
+        def preventsCaptureM = u.monsterly && friends.cultists.any && friends.monsterly.none && friends.goos.none && enemies.monsterly.any
+        def preventsCaptureG = u.goo && friends.cultists.any && friends.goos.none && enemies.goos.any
         def prevents = preventsCaptureM || preventsCaptureG
-        def preventsActiveCaptureM = monster && friends.cultists.any && friends.monsters.none && friends.goos.none && enemies.monsters.active.any
-        def pretender = cultist && !capturable && enemyGate
+        def preventsActiveCaptureM = u.monsterly && friends.cultists.any && friends.monsterly.none && friends.goos.none && enemies.monsterly.active.any
+        def pretender = u.cultist && !capturable && enemyGate
         def shield = friends.goos.any
-        def capturable = cultist && capturers.active.any
-        def capturers = game.factions.%(_ != u.faction).%(f => friends.goos.none && (f.at(u.region).goos.any || (friends.monsters.none && f.at(u.region).monsters.exceptGug.exceptFilth.exceptIsolatedBrainless(game.of(f), game).any)))
-        def vulnerableM = cultist && friends.goos.none && friends.monsters.none
-        def vulnerableG = cultist && friends.goos.none
+        def capturable = u.cultist && capturers.active.any
+        def capturers = u.region.capturers
+        def vulnerableM = u.cultist && friends.goos.none && friends.monsterly.none
+        def vulnerableG = u.cultist && friends.goos.none
     }
 
-    implicit def unitref2unit(r : UnitRef) : UnitFigure = game.unit(r)
-    implicit def unitref2unitcl(r : UnitRef) : UnitClassify = UnitClassify(game.unit(r))
-
-    implicit class BattleClassify(val b : Battle) {
-        def enemy = b.opponent(self)
-        def allies = b.units(self)
-        def foes = b.units(enemy)
-        def ownStr = b.strength(self)
-        def enemyStr = b.strength(enemy)
-    }
+    implicit def unitRefToUnitFigure(r : UnitRef) : UnitFigure = game.unit(r)
+    implicit def unitRefToUnitClassify(r : UnitRef) : UnitClassify = UnitClassify(game.unit(r))
+    implicit def unitRefToUnitFigureEx(r : UnitRef) : UnitFigureEx = UnitFigureEx(game.unit(r))
 
     def maxEnemyPower = others./(_.power).max
 
-    def adjustedOwnStrengthForCosmicUnity(ownStr : Int, allies : List[UnitFigure], foes : List[UnitFigure], game : Game, opponent : Faction) : Int = {
+    def adjustedOwnStrengthForCosmicUnity(ownStr : Int, allies : List[UnitFigure], foes : List[UnitFigure], opponent : Faction) : Int = {
         val hasDaoloth = foes.exists(_.uclass == Daoloth)
         if (!hasDaoloth) return ownStr
 
         val allyGOOs = allies.filter(_.uclass.utype == GOO)
-        if (allyGOOs.isEmpty) return ownStr
+        if (allyGOOs.none) return ownStr
 
         val nyogthas = allies.filter(_.uclass == Nyogtha)
-        val nyogthaReduction : Int = if (nyogthas.nonEmpty) nyogthas.head.faction.strength(game, nyogthas, opponent) else 0
+        val nyogthaReduction : Int = if (nyogthas.any) nyogthas.head.faction.strength(nyogthas, opponent) else 0
 
-        val perGOOStrengths : List[Int] = allyGOOs.map(u => u.faction.strength(game, List(u), opponent))
+        val perGOOStrengths : List[Int] = allyGOOs.map(u => u.faction.strength($(u), opponent))
         val strongestGOOStr = perGOOStrengths.foldLeft(0)(math.max)
 
         val reduction = math.max(nyogthaReduction, strongestGOOStr)
@@ -220,7 +188,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
 
     def active = others.%(_.active)
 
-    def canSummon(u : UnitClass) = self.gates.%(r => power >= self.summonCost(game, u, r)).any && self.pool(u).any
+    def canSummon(u : UnitClass) = self.gates.%(r => power >= self.summonCost(u, r)).any && self.pool(u).any
     def canRitual = !game.acted && power >= game.ritualCost
 
     def otherOceanGates = others./(_.gates.%(_.glyph == Ocean).any).any
@@ -232,8 +200,8 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
         self.gates.filter { r =>
             val filthHere = game.factions.exists { other =>
                 other != self &&
-                game.of(other).has(TheBrood) &&
-                game.of(other).at(r).exists(_.uclass == Filth)
+                other.has(TheBrood) &&
+                other.at(r).exists(_.uclass == Filth)
             }
             !filthHere
         }
@@ -269,7 +237,7 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
             false
     }
 
-    def ofinale(f : Faction) = (3 * f.doom + 6 * f.gates.num + 5 * (f.es + (f match {
+    def ofinale(f : Faction) = (3 * f.doom + 6 * f.gates.num + 5 * (f.es.num + (f match {
         case GC =>
             var p = f.power
 
@@ -374,5 +342,5 @@ abstract class GameEvaluation[F <: Faction](val game : Game, val self : F) {
 
     }))) >= 30 * 3
 
-    def eval(a : Action) : List[Evaluation]
+    def eval(a : Action) : $[Evaluation]
 }

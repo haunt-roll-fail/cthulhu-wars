@@ -27,17 +27,17 @@ case object OceanGates extends Requirement("Ocean gates")
 case object FiveSpellbooks extends Requirement("Five spellbooks", 1)
 
 
-case object GC extends Faction {
+case object GC extends Faction { f =>
     def name = "Great Cthulhu"
     def short = "GC"
     def style = "gc"
-    val poolR = Region(name + " Pool", Pool)
+    val reserve = Region(name + " Pool", Pool)
     val prison = Region(name + " Prison", Prison)
 
     def deep = Region("Ocean Deep", Deep)
 
     override def abilities : $[Spellbook] = $(Immortal, Devour)
-    override def spellbooks : $[Spellbook] = $(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)
+    override def library : $[Spellbook] = $(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)
     override def requirements(options : $[GameOption]) = $(FirstDoomPhase, KillDevour1, KillDevour2, AwakenCthulhu, OceanGates, FiveSpellbooks)
 
     val allUnits =
@@ -47,18 +47,16 @@ case object GC extends Faction {
         4.times(DeepOne) ++
         6.times(Acolyte)
 
-    override def awakenCost(g : Game, u : UnitClass, r : Region) = u match {
-        case Cthulhu => (r == g.starting(this) && g.gates.contains(r)).?(g.of(this).needs(AwakenCthulhu).?(10).|(4)).|(999)
+    override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u match {
+        case Cthulhu => (r == game.starting(f) && game.gates.has(r)).?(f.needs(AwakenCthulhu).?(10).|(4)).|(999)
     }
 
-    override def awakenDesc(g : Game, u : UnitClass) : Option[String] = None
+    override def awakenDesc(u : UnitClass) : |[String] = None
 
-    def strength(g : Game, units : $[UnitFigure], opponent : Faction) : Int =
-        units.count(_.uclass == DeepOne) * 1 +
-        units.count(_.uclass == Shoggoth) * 2 +
-        units.count(_.uclass == Starspawn) * 3 +
-        units.count(_.uclass == Cthulhu) * 6 +
-        neutralStrength(g, units, opponent)
-
-    var ignoredSacrificeHighPriest : Boolean = false
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
+        units(DeepOne).num * 1 +
+        units(Shoggoth).num * 2 + units./(_.count(Absorbed)).sum * 3 +
+        units(Starspawn).num * 3 +
+        units(Cthulhu).%!(_.has(Zeroed)).num * 6 +
+        neutralStrength(units, opponent)
 }
