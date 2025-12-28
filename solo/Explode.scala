@@ -3,49 +3,26 @@ package cws
 import hrf.colmat._
 
 object Explode {
+    def explode(game : Game, actions : $[Action]) : $[Action] = {
+        var result : $[Action] = $
 
-    def isMore(a : Action) = a match {
-        case a : More => true
-        case _ => false
-    }
+        def process(actions : $[Action]) {
+            val aaa = actions./(_.unwrap)
+            var aa = aaa.%(_.isMore).some.|(aaa)
 
-    def isCancel(a : Action) = a match {
-        case a : Cancel => true
-        case _ => false
-    }
-
-    def isSoft(a : Action) = a match {
-        case a : Soft => true
-        case _ => false
-    }
-
-    def isRecorded(a : Action) = a match {
-        case a : More => false
-        case a : Cancel => false
-        case a : Soft => false
-        case a : Void => false
-        case _ => true
-    }
-
-    def explode(game : Game, actions : List[Action]) : List[Action] = {
-        var result : List[Action] = Nil
-
-        def process(actions : List[Action]) {
-            var aa = actions.%(isMore).some.|(actions)
-
-            aa = aa.%!(isCancel)
+            aa = aa.%!(_.isCancel).%!(_.isInfo)
 
             aa = aa.distinct
 
-            aa.%(isSoft).foreach { a =>
+            aa.%(_.isSoft).foreach { a =>
                 val (_, c) = game.perform(a)
                 c match {
                     case Ask(_, actions) => process(actions)
-                    case Force(a) => process(List(a))
+                    case Force(a) => process($(a))
                 }
             }
 
-            aa.%!(isSoft).foreach { a =>
+            aa.%!(_.isSoft).foreach { a =>
                 result :+= a
             }
         }
@@ -57,8 +34,8 @@ object Explode {
 
     def isOffense(friend : Faction)(a : Action)(implicit game : Game) = a match {
         case MoveAction(self : Faction, _, _, dest) if self != friend && friend.gates.contains(dest) => true
-        case AttackAction(_, _, f) if f == friend => true
-        case CaptureAction(_, _, f, _) if f == friend => true
+        case AttackAction(_, _, f, _) if f == friend => true
+        case CaptureAction(_, _, f, _, _) if f == friend => true
         case AvatarAction(self, _, _, f) if self != friend && f == friend => true
         case ThousandFormsAskAction(f, _, _, _, _, _, power) if f == friend && power > 0 => true
         case DreamsAction(_, _, f) if f == friend => true

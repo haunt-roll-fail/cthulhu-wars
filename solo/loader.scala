@@ -103,7 +103,7 @@ abstract class Loader[T] {
         }
     }
 
-    def queue(urls : List[String]) {
+    def queue(urls : $[String]) {
         urls.foreach(queue)
     }
 

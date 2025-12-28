@@ -35,7 +35,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             !have(KingInYellow) && r.noGate |=> 30 -> "need kiy no gate"
         }
 
-        def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
+        def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val enemyStr = f.strength(foes, self)
             val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(allies, f), allies, foes, opponent = f)
 
@@ -50,11 +50,10 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             var eby = foes.has(Byatis)
             var eab = foes.has(Abhoth)
             var eny = foes(Nyogtha).num
-            //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
-            var efi = if (eab) foes(Filth).num else 0
+            var efi = eab.??(foes(Filth).num)
 
             f match {
                 case GC =>
@@ -232,8 +231,13 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 !self.allSB |=> -1000 -> "spellbooks first"
 
-            case NeutralMonstersAction(_, _, _) =>
-                true |=> -100000 -> "don't obtain loyalty cards (for now)"
+            // // GHAST TEST
+            // case SummonAction(_, Ghast, _) =>
+            //     self.inPool(Ghast).num == 1 |=> -100000 -> "don't obtain loyalty cards (for now)"
+            //     self.inPool(Ghast).num >= 2 |=> +100000 -> "don't obtain loyalty cards (for now)"
+            //
+            // case NeutralMonstersAction(_, _) =>
+            //     true |=> +100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"
@@ -425,19 +429,19 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 o.ownGate && o.foes.any && o.allies.monsterly.none |=> -2100 -> "protect gate"
 
-                o.allies(Hastur).none && o.allies.notGoos.num < 5 && canStrikeCC(o) |=> 400 -> "nya can crush"
-                o.allies(Hastur).none && o.allies.notGoos.num < 5 && canStrikeGC(o) |=> 400 -> "cth can crush"
+                o.allies(Hastur).none && o.allies.notGOOs.num < 5 && canStrikeCC(o) |=> 400 -> "nya can crush"
+                o.allies(Hastur).none && o.allies.notGOOs.num < 5 && canStrikeGC(o) |=> 400 -> "cth can crush"
 
-                o.allies(Hastur).none && o.allies.notGoos.num < 6 && canStrikeCC(o) |=> 200 -> "nya can crush"
-                o.allies(Hastur).none && o.allies.notGoos.num < 6 && canStrikeGC(o) |=> 200 -> "cth can crush"
+                o.allies(Hastur).none && o.allies.notGOOs.num < 6 && canStrikeCC(o) |=> 200 -> "nya can crush"
+                o.allies(Hastur).none && o.allies.notGOOs.num < 6 && canStrikeGC(o) |=> 200 -> "cth can crush"
 
                 val iby = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d).num)
 
-                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGoos.num + o.allies(Undead).num + iby < 5 && canStrikeCC(d) |=> -400 -> "nya can crush"
-                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGoos.num + o.allies(Undead).num + iby < 5 && canStrikeGC(d) |=> -400 -> "cth can crush"
+                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGOOs.num + o.allies(Undead).num + iby < 5 && canStrikeCC(d) |=> -400 -> "nya can crush"
+                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGOOs.num + o.allies(Undead).num + iby < 5 && canStrikeGC(d) |=> -400 -> "cth can crush"
 
-                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGoos.num + o.allies(Undead).num + iby < 6 && canStrikeCC(d) |=> -200 -> "nya can crush"
-                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGoos.num + o.allies(Undead).num + iby < 6 && canStrikeGC(d) |=> -200 -> "cth can crush"
+                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGOOs.num + o.allies(Undead).num + iby < 6 && canStrikeCC(d) |=> -200 -> "nya can crush"
+                d.near.%(_.allies(Hastur).any).none && d.allies(Hastur).none && d.allies.notGOOs.num + o.allies(Undead).num + iby < 6 && canStrikeGC(d) |=> -200 -> "cth can crush"
 
                 !forgetGates && !have(Hastur) && d.foes.%(_.vulnerableG).%(u => !u.faction.has(Devolve) || u.faction.pool(DeepOne).none).any && active.%(f => f.strength(f.at(d).diff(f.at(d).cultists.take(1)), self) > d.allies.num + o.allies(Undead).num).none && power > 2 |=> 450 -> "maybe capture"
                 !forgetGates && d.foes.%(_.vulnerableG).%(u => !u.faction.has(Devolve) || u.faction.pool(DeepOne).none).any && active.%(f => f.strength(f.at(d).diff(f.at(d).cultists.take(1)), self) > d.allies.num + o.allies(Undead).num).none && power > 1 |=> 150 -> "maybe capture"
@@ -484,13 +488,10 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
                 game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -502,10 +503,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 val safe = active.%(f => f.strength(f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none
 
                 safe && impunity && !r.enemyGate |=> 105000 -> "impunity capture"
@@ -625,11 +623,11 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 power > 4 && r.glyph == GlyphAA && need(DesecrateAA) && self.numSB >= 5 && (r.allies(Hastur).any || r.allies.num > 3) |=> 100000 -> "need kiy desecrate aa"
                 power > 4 && r.glyph == GlyphOO && need(DesecrateOO) && self.numSB >= 5 && (r.allies(Hastur).any || r.allies.num > 3) |=> 100800 -> "need kiy desecrate oo"
 
-                r.allies(Hastur).any && r.allies.notGoos.num < 2 && canStrikeCC(r) |=> -6000 -> "nya can crush"
-                r.allies(Hastur).none && r.allies.notGoos.num < 4 && canStrikeCC(r) |=> -6000 -> "nya can crush"
+                r.allies(Hastur).any && r.allies.notGOOs.num < 2 && canStrikeCC(r) |=> -6000 -> "nya can crush"
+                r.allies(Hastur).none && r.allies.notGOOs.num < 4 && canStrikeCC(r) |=> -6000 -> "nya can crush"
 
-                r.allies(Hastur).any && r.allies.notGoos.num < 2 && canStrikeGC(r) |=> -6000 -> "cth can crush"
-                r.allies(Hastur).none && r.allies.notGoos.num < 4 && canStrikeGC(r) |=> -6000 -> "cth can crush"
+                r.allies(Hastur).any && r.allies.notGOOs.num < 2 && canStrikeGC(r) |=> -6000 -> "cth can crush"
+                r.allies(Hastur).none && r.allies.notGOOs.num < 4 && canStrikeGC(r) |=> -6000 -> "cth can crush"
 
                 power > 4 |=> 2000 -> "yes awaken"
                 power == 4 |=> 1400 -> "maybe awaken"
@@ -725,7 +723,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 h && self.realDoom >= 28 && allSB |=> 1000000 -> "go go go"
 
-                r.allies.notGoos.none && r.foes.monsterly.active.any |=> 100 -> "desecrate for protection"
+                r.allies.notGOOs.none && r.foes.monsterly.active.any |=> 100 -> "desecrate for protection"
 
                 r.allies.goos.num == 2 && r.foes.goos.any |=> 10000 -> "desecrate for defense"
 
@@ -767,13 +765,13 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 needRegion(d)
 
-                if (power > 1 && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && !game.battled.contains(d))) && CC.aprxDoom > others./(_.aprxDoom).min + 3 && GC.power == 0) {
+                if (power > 1 && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && self.battled.has(d).not)) && CC.aprxDoom > others./(_.aprxDoom).min + 3 && GC.power == 0) {
                     val bbbb = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d))
 
                     checkAttack(d, CC, d.of(self) ++ o.of(self)(Hastur) ++ bbbb, d.of(CC), bbbb.any.?(3).|(2))
                 }
 
-                if (power > 1 && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && !game.battled.contains(d))) && GC.power < 4 && GC.aprxDoom > others./(_.aprxDoom).max - 3 && CC.power == 0) {
+                if (power > 1 && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && self.battled.has(d).not)) && GC.power < 4 && GC.aprxDoom > others./(_.aprxDoom).max - 3 && CC.power == 0) {
                     val bbbb = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d))
 
                     checkAttack(d, GC, d.of(self) ++ o.of(self)(Hastur) ++ bbbb, d.of(GC), bbbb.any.?(3).|(2))
@@ -808,13 +806,13 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 d.allies(KingInYellow).any && ((!d.desecrated && have(Hastur)) || oncePerRound.contains(ScreamingDead)) && d.allies.num < 4 |=> 4500 -> "shield kiy"
 
-                if (power > 1 && d.allies(Hastur).any && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && !game.battled.contains(d))) && CC.aprxDoom > others./(_.aprxDoom).min + 3) {
+                if (power > 1 && d.allies(Hastur).any && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && self.battled.has(d).not)) && CC.aprxDoom > others./(_.aprxDoom).min + 3) {
                     val bbbb = self.all(Byakhee).%(_.region != d)
 
                     checkAttack(d, CC, d.of(self) ++ bbbb, d.of(CC), 2)
                 }
 
-                if (power > 1 && d.allies(Hastur).any && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && !game.battled.contains(d))) && GC.power < 4 && GC.aprxDoom > others./(_.aprxDoom).max - 3) {
+                if (power > 1 && d.allies(Hastur).any && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && self.battled.has(d).not)) && GC.power < 4 && GC.aprxDoom > others./(_.aprxDoom).max - 3) {
                     val bbbb = self.all(Byakhee).%(_.region != d)
 
                     checkAttack(d, GC, d.of(self) ++ bbbb, d.of(GC), 2)
@@ -841,7 +839,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             case RevealESAction(_, es, false, _) if self.es != es =>
                 true |=> -10000 -> "better reveal all"
 
-            case RevealESAction(_, _, _, next) if next == DoomCancelAction(self) =>
+            case RevealESAction(_, _, _, next) if next == DoomAction(self) =>
                 self.allSB && self.realDoom >= 30 |=> 1000 -> "reveal and try to win"
                 true |=> -100 -> "don't reveal"
                 canRitual |=> -2000 -> "ritual first"
@@ -944,8 +942,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                         self.str < opponent.str |=> 1000 -> "less str"
                         self.str > opponent.str |=> -1000 -> "more str"
 
-                    case UnholyGroundEliminateAction(_, _, r, ur) =>
-                        val u = game.unit(ur)
+                    case UnholyGroundEliminateAction(_, _, u) =>
                         u.uclass == KingInYellow |=> 1000 -> "kiy yes"
                         u.uclass == Hastur |=> -1000 -> "hastur no"
 

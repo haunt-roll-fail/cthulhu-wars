@@ -1,2 +1,2 @@
-package object cws extends cws.GameImplicits with cws.BattleImplicits with cws.UnitUtils {
+package object cws extends cws.GameImplicits with cws.BattleImplicits {
 }

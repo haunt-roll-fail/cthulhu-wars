@@ -1,0 +1,187 @@
+package cws
+
+import hrf.colmat._
+
+import Html._
+
+// IGOOs
+
+// name, doomCost (to obtain), powerCost (to obtain), quantity, cost (to summon), combat
+case object ByatisCard extends LoyaltyCard(Byatis.name, 0, 4, 1, 4, 4, Byatis, ByatisIcon)
+case object AbhothCard extends LoyaltyCard(Abhoth.name, 0, 4, 1, 4, 0, Abhoth, AbhothIcon)
+case object DaolothCard extends LoyaltyCard(Daoloth.name, 0, 6, 1, 6, 0, Daoloth, DaolothIcon)
+case object NyogthaCard extends LoyaltyCard(Nyogtha.name, 0, 6, 2, 6, 0, Nyogtha, NyogthaIcon)
+
+case object ByatisIcon extends UnitClass(Byatis.name + " Icon", Token, 0)
+case object AbhothIcon extends UnitClass(Abhoth.name + " Icon", Token, 0)
+case object DaolothIcon extends UnitClass(Daoloth.name + " Icon", Token, 0)
+case object NyogthaIcon extends UnitClass(Nyogtha.name + " Icon", Token, 0)
+
+case object Byatis extends UnitClass("Byatis", GOO, 4) with IGOO {
+    override def canMove(u : UnitFigure)(implicit game : Game) = false
+    override def canBeMoved(u : UnitFigure)(implicit game : Game) = false
+}
+
+case object Abhoth extends UnitClass("Abhoth", GOO, 4) with IGOO
+case object Daoloth extends UnitClass("Daoloth", GOO, 6) with IGOO
+case object Nyogtha extends UnitClass("Nyogtha", GOO, 6) with IGOO
+
+case object Filth extends UnitClass("Filth", Monster, 1) {
+    override def canBeSummoned(f : Faction)(implicit game : Game) = f.has(Fertility)
+}
+
+// Byatis
+case object GodOfForgetfulness extends NeutralSpellbook("God of Forgetfulness")
+
+// Abhoth
+case object LostAbhoth extends NeutralSpellbook("Lost Abhoth")
+case object TheBrood extends NeutralSpellbook("The Brood")
+
+// Daoloth
+case object CosmicUnity extends NeutralSpellbook("Cosmic Unity")
+case object Interdimensional extends NeutralSpellbook("Interdimensional")
+
+// Nyogtha
+case object FromBelow extends NeutralSpellbook("From Below")
+case object NyogthaPrimed extends NeutralSpellbook("Nyogtha Primed")
+case object NyogthaMourning extends NeutralSpellbook("Nyogtha Mourning")
+case object NightmareWeb extends NeutralSpellbook("Nightmare Web")
+
+
+trait NeutralFaction extends Faction
+
+case object NeutralAbhoth extends NeutralFaction {
+    def name = "Neutral Abhoth"
+    def short = "NA"
+    def style = "nt"
+    val reserve = Region(name + " Pool", Pool)
+    val prison = Region(name + " Prison", Prison)
+
+    override def abilities = $
+    override def library = $
+    override def requirements(options : $[GameOption]) = $
+
+    val allUnits = 12.times(Filth)
+
+    def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int = 0
+}
+
+
+case class IndependentGOOMainAction(self : Faction, lc : LoyaltyCard, l : $[Region]) extends OptionFactionAction(g => {
+    val qm = Overlays.imageSource("question-mark")
+    val p = s""""${lc.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}", false""".replace('"'.toString, "&quot;")
+    "<div class=sbdiv>" +
+        "Awaken " + lc.name.styled("nt") +
+    s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
+    "</div>"
+}) with MainQuestion with Soft
+case class IndependentGOOAction(self : Faction, lc : LoyaltyCard, r : Region, cost : Int) extends BaseFactionAction(g => "Awaken " + self.styled(lc.unit) + g.forNPowerWithTax(r, self, cost) + " in", implicit g => r + self.iced(r))
+
+case class GodOfForgetfulnessMainAction(self : Faction, d : Region, l : $[Region]) extends OptionFactionAction(self.styled("God of Forgetfulness")) with MainQuestion with Soft
+case class GodOfForgetfulnessAction(self : Faction, d : Region, r : Region) extends BaseFactionAction(g => "Move all enemy Cultists to " + self.styled(Byatis) + " " + g.forNPowerWithTax(d, self, 1) + " from", r)
+
+case class FilthMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Place " + self.styled(Filth)) with MainQuestion with Soft
+case class FilthAction(self : Faction, r : Region) extends BaseFactionAction(g => "Place " + self.styled(Filth) + " " + g.forNPowerWithTax(r, self, 1) + " in", r)
+
+case class NightmareWebMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Awaken " + self.styled(Nyogtha) + " with " + self.styled(NightmareWeb)) with MainQuestion with Soft
+case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAction(g => "Awaken " + self.styled(Nyogtha) + g.forNPowerWithTax(r, self, 2) + " in", implicit g => r + self.iced(r))
+
+
+object IGOOsExpansion extends Expansion {
+    def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        case IndependentGOOMainAction(self, lc, l) =>
+            Ask(self).each(l)(r => IndependentGOOAction(self, lc, r, lc.power)).cancel
+
+        case IndependentGOOAction(self, lc, r, _) =>
+            self.loyaltyCards :+= lc
+            game.loyaltyCards :-= lc
+
+            self.power -= lc.power
+
+            self.log("awakened", lc.unit.name.styled("nt"), "in", r, "for", lc.power.power)
+
+            self.units :+= new UnitFigure(self, lc.unit, 1, r)
+
+            lc.unit match {
+                case Abhoth =>
+                    if (game.neutrals.contains(NeutralAbhoth).not)
+                        game.neutrals += NeutralAbhoth -> new Player(NeutralAbhoth)
+
+                    self.units ++= NeutralAbhoth.units./(u => new UnitFigure(self, u.uclass, u.index, (u.region == NeutralAbhoth.reserve).?(self.reserve).|(u.region), u.state, u.health))
+
+                    NeutralAbhoth.units = $
+
+                case Daoloth =>
+                    self.upgrades :+= CosmicUnity
+
+                case Nyogtha =>
+                    self.units :+= new UnitFigure(self, lc.unit, 2, r)
+
+                    self.upgrades :+= FromBelow
+
+                case _ =>
+            }
+
+            if (self.has(Immortal)) {
+                self.log("gained", 1.es, "as", Immortal.full)
+
+                self.takeES(1)
+            }
+
+            EndAction(self)
+
+        // BYATIS
+        case GodOfForgetfulnessMainAction(self, d, l) =>
+            Ask(self).each(l)(r => GodOfForgetfulnessAction(self, d, r)).cancel
+
+        case GodOfForgetfulnessAction(self, d, r) =>
+            self.power -= 1
+            self.payTax(r)
+
+            self.enemies.foreach { f =>
+                f.at(r).cultists.foreach { u =>
+                    u.region = d
+                }
+            }
+            log(self.styled(Byatis), "used", GodOfForgetfulness.name.styled("nt"), "to move all enemy cultist from", r, "to", d)
+            EndAction(self)
+
+        // ABHOTH
+        case FilthMainAction(self, l) =>
+            Ask(self).each(l)(r => FilthAction(self, r)).cancel
+
+        case FilthAction(self, r) =>
+            self.power -= 1
+            self.payTax(r)
+
+            self.place(Filth, r)
+            log(self.styled(Abhoth), "placed", self.styled(Filth), "in", r)
+
+            if (self.has(Fertility) && !self.ignored(Fertility)) {
+                self.oncePerRound :+= Fertility
+                game.checkGatesOwnership(self)
+                CheckSpellbooksAction(MainAction(self))
+            }
+            else
+                EndAction(self)
+
+        // NYOGTHA
+        case NightmareWebMainAction(self, regions) =>
+            Ask(self).each(regions)(r => NightmareWebAction(self, r)).cancel
+
+        case NightmareWebAction(self, r) =>
+            self.power -= 2
+            self.payTax(r)
+
+            val ny = self.pool.one(Nyogtha)
+
+            ny.region = r
+
+            self.log("awakened", self.styled(Nyogtha), "in", r, "with", self.styled(NightmareWeb))
+
+            EndAction(self)
+
+
+        case _ => UnknownContinue
+    }
+}

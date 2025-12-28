@@ -78,6 +78,7 @@ object colmat {
         def useIf(cond : Boolean)(f : T => T) = if (cond) f(o) else o
         def useIf(cond : T => Boolean)(f : T => T) = if (cond(o)) f(o) else o
         def mut[U, R <: T](u : Option[U])(f : (T, U) => R) = u.map(u => f(o, u)).getOrElse(o)
+        def ===[U <: T : MatchesGood](x : U) = x == o
     }
 
     implicit class ListElemUtils[T](val v : T) extends AnyVal {
@@ -351,7 +352,7 @@ object colmat {
     implicit class StringUtils[T](val str : String) extends AnyVal {
         def some = if (str == null || str == "") None else Some(str)
         def any = some.any
-        def splt(d : String) = str.split(java.util.regex.Pattern.quote(d)).toList
+        def splt(d : String) = str.split(java.util.regex.Pattern.quote(d), -1).toList
         def s(n : Int) = if (n != 1) str + "s" else str
         def repeat(n : Int) = List.fill(n)(str).join("")
     }

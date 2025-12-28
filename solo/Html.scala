@@ -25,7 +25,7 @@ object Html {
         def power = range.power
     }
 
-    implicit class ListUnitFigure(val list : List[UnitFigure]) extends AnyVal {
+    implicit class ListUnitFigure(val list : $[UnitFigure]) extends AnyVal {
         def unique = {
             val distinct = list./(u => (u.uclass, u.state, u.health) -> u).toMap.values.toList
             list.%(distinct.contains)

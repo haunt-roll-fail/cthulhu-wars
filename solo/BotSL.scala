@@ -74,7 +74,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 self.pool.goos.any |=> -200 -> "not all goos in play"
                 true |=> -250 -> "dont ritual unless have reasons"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -225,7 +225,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => !f.active && (f != YS || canCaptureYS) && (f != WW || canCaptureWW)).any |=> 250 -> "go for capture"
 
-                d.ownGate && canSummon(uc) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
+                d.ownGate && canSummon(uc) && self.units.onMap.%(_.has(Moved)).none |=> -1200 -> "why move if can summon"
 
                 o.allies.cultists.none && d.ownGate && d.allies.monsterly.none |=> 50 -> "move"
 
@@ -236,13 +236,10 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 u.is(SerpentMan) |=> -1 -> "sm stay"
                 u.is(FormlessSpawn) |=> 1 -> "fs move"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -272,7 +269,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 var egug = foes(Gug).num
                 var esht = foes(Shantak).num
                 var esv = foes(StarVampire).num
-                var efi = if (eab) foes(Filth).num else 0
+                var efi = eab.??(foes(Filth).num)
 
                 f match {
                     case GC =>
@@ -323,21 +320,18 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-                game.acted || game.battled.any |=> -1000 -> "unlimited battle drains power"
+                self.acted || self.battled.any |=> -1000 -> "unlimited battle drains power"
 
-                (game.acted || game.battled.any) && r.enemyGate && foes.goos.none |=> -10000 -> "unlimited battle drains power"
+                (self.acted || self.battled.any) && r.enemyGate && foes.goos.none |=> -10000 -> "unlimited battle drains power"
 
                 enemyStr == 0 && r.gateOf(f) && ownStr >= 2 |=> (300 + ownStr) -> "enemy rolls none at gate"
                 enemyStr == 0 && f.power > 0 && r.freeGate && others.%(_ != f).%(_.at(r).any).none |=> (300 + ownStr) -> "enemy rolls none at free gate"
 
-                active.none && (game.acted || game.battled.any) |=> -1000000 -> "unlimited battle drains power"
+                active.none && (self.acted || self.battled.any) |=> -1000000 -> "unlimited battle drains power"
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -623,9 +617,6 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
             case CursedSlumberLoadAction(_, r) =>
                 r.allies.goos.any && others.%(_.power > 1).any |=> 1200 -> "load gate to goo"
 
-
-
-
             case AvatarReplacementAction(_, _, r, o, uc) =>
                 val u = self.at(r, uc).head
                 u.cultist && o.capturers.%(_.power > 0).none && o.freeGate |=> 300 -> "free gate"
@@ -669,7 +660,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 result = eval(SummonAction(self, uc, r))
 
             case MainDoneAction(_) =>
-                game.battled.any |=> -1000 -> "unlimited battle drains power"
+                self.battled.any |=> -1000 -> "unlimited battle drains power"
                 true |=> 500 -> "main done"
 
             case _ =>
@@ -701,7 +692,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                 def retreat(u : UnitFigure) {
                     u.uclass == Acolyte |=> 600 -> "retr acolyte"
-                    u.gateKeeper && battle.region.allies.num - opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
+                    u.gateKeeper && battle.arena.allies.num - opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
 
                     u.uclass == Wizard |=> 100 -> "retr wz"
                     u.uclass == SerpentMan |=> 200 -> "retr sm"

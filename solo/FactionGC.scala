@@ -2,6 +2,9 @@ package cws
 
 import hrf.colmat._
 
+import Html._
+
+
 case object DeepOne extends FactionUnitClass(GC, "Deep One", Monster, 1)
 case object Shoggoth extends FactionUnitClass(GC, "Shoggoth", Monster, 2)
 case object Starspawn extends FactionUnitClass(GC, "Starspawn", Monster, 3)
@@ -48,7 +51,7 @@ case object GC extends Faction { f =>
         6.times(Acolyte)
 
     override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u match {
-        case Cthulhu => (r == game.starting(f) && game.gates.has(r)).?(f.needs(AwakenCthulhu).?(10).|(4)).|(999)
+        case Cthulhu => (r == game.starting(f) && game.gates.has(r)).?(f.needs(AwakenCthulhu).?(10).|(4))
     }
 
     override def awakenDesc(u : UnitClass) : |[String] = None
@@ -59,4 +62,98 @@ case object GC extends Faction { f =>
         units(Starspawn).num * 3 +
         units(Cthulhu).%!(_.has(Zeroed)).num * 6 +
         neutralStrength(units, opponent)
+}
+
+
+case class DevolveMainAction(self : Faction, then : Action) extends OptionFactionAction(self.styled(Devolve)) with MainQuestion with Soft
+case class DevolveAction(self : Faction, r : Region, then : Action) extends BaseFactionAction(self.styled(Devolve), self.styled(Acolyte) + " in " + r)
+case class DevolveDoneAction(self : Faction, then : Action) extends BaseFactionAction(None, "Done".styled("power"))
+
+case class DreamsMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(self.styled(Dreams)) with MainQuestion with Soft
+case class DreamsAction(self : Faction, r : Region, f : Faction) extends BaseFactionAction(self.styled(Dreams), implicit g => f.styled(Acolyte) + " in " + r + self.iced(r))
+
+case class SubmergeMainAction(self : Faction, r : Region) extends OptionFactionAction(self.styled(Submerge)) with MainQuestion
+case class SubmergeAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(Submerge.full + " with " + self.styled(Cthulhu) + " from " + r, self.styled(uc))
+case class SubmergeDoneAction(self : Faction, r : Region) extends BaseFactionAction(None, "Done".styled("power"))
+
+case class UnsubmergeMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(self.styled("Unsubmerge")) with MainQuestion with Soft
+case class UnsubmergeAction(self : Faction, r : Region) extends BaseFactionAction(self.styled("Unsubmerge"), implicit g => r + self.iced(r))
+
+
+object GCExpansion extends Expansion {
+    def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // DEVOLVE
+        case DevolveMainAction(f, then) =>
+            if (f.pool(DeepOne).any)
+                Ask(f, board.regions./~(r => f.at(r, Acolyte))./(c => DevolveAction(f, c.region, then)) :+ then)
+            else
+                Force(then)
+
+        case DevolveAction(f, r, then) =>
+            if (f.at(r, Monster, GOO).none)
+                f.enemies.%(_.at(r, Monster, GOO).none).%(_.at(r, Cultist).any).foreach(_.oncePerAction :-= Devolve)
+
+            val c = f.at(r).one(Acolyte)
+            game.eliminate(c)
+            f.place(DeepOne, r)
+
+            log(c, "in", r, "devolved into", DeepOne)
+
+            game.checkGatesLost()
+
+            if (then.isCancel)
+                Force(then)
+            else
+                Force(DevolveMainAction(f, then))
+
+        case DevolveDoneAction(f, then) =>
+            f.oncePerAction :+= Devolve
+            Force(then)
+
+        // DREAMS
+        case DreamsMainAction(f, l) =>
+            Ask(f)
+                .some(l)(r => f.enemies./~(_.at(r, Acolyte).take(1))./(c => DreamsAction(f, c.region, c.faction)))
+                .cancel
+
+        case DreamsAction(f, r, e) =>
+            val c = e.at(r).one(Acolyte)
+            f.power -= 2
+            f.payTax(r)
+            f.log("sent dreams to", c, "in", c.region, "and replaced it with", f.styled(Acolyte))
+
+            game.eliminate(c)
+            f.place(Acolyte, c.region)
+
+            EndAction(f)
+
+        // SUBMERGE
+        case SubmergeMainAction(f, r) =>
+            f.power -= 1
+            Force(SubmergeAction(f, r, Cthulhu))
+
+        case SubmergeAction(f, r, uc) =>
+            f.at(r).one(uc).region = GC.deep
+            Ask(f).each(f.at(r).%(_.canMove))(u => SubmergeAction(f, r, u.uclass)).add(SubmergeDoneAction(f, r))
+
+        case SubmergeDoneAction(f, r) =>
+            val cthulu = f.at(GC.deep).one(Cthulhu)
+            val court = f.at(GC.deep).but(cthulu)
+            log(cthulu, "submerged in", r, court.any.??("with " + court.mkString(", ")))
+            EndAction(f)
+
+        case UnsubmergeMainAction(f, l) =>
+            Ask(f).each(l)(r => UnsubmergeAction(f, r)).cancel
+
+        case UnsubmergeAction(f, r) =>
+            f.payTax(r)
+            val cthulu = f.at(GC.deep).one(Cthulhu)
+            val court = f.at(GC.deep).but(cthulu)
+            f.at(GC.deep).foreach(_.region = r)
+            log(cthulu, "unsubmerged in", r, court.any.??("with " + court.mkString(", ")))
+            EndAction(f)
+
+
+        case _ => UnknownContinue
+    }
 }
