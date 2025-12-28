@@ -18,12 +18,11 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
         def canStrikeCC(r : Region) = (r.foes.has(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
         def canStrikeGC(r : Region) = (r.foes.has(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
 
-        def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
+        def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val enemyStr = f.strength(foes, self)
             val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(allies, f), allies, foes, opponent = f)
 
             val igh = others.%(_.has(Necrophagy))./(_.all(Ghoul).diff(foes).num).sum
-            val ep = f.player
 
             var ac = allies(Acolyte).num
             var we = allies(Wendigo).num
@@ -37,11 +36,10 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             var eby = foes.has(Byatis)
             var eab = foes.has(Abhoth)
             var eny = foes(Nyogtha).num
-            //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
-            var efi = if (eab) foes(Filth).num else 0
+            var efi = eab.??(foes(Filth).num)
 
             f match {
                 case GC =>
@@ -85,7 +83,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                     val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, opponent = f)
 
-                    var enemyStr = ec * ep.has(Frenzy).??(1) + fu + dy * 2 + shu.??(ep.gates.num + ep.all(Acolyte).num + ep.all(DarkYoung).num * ep.has(RedSign).??(1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
+                    var enemyStr = ec * f.has(Frenzy).??(1) + fu + dy * 2 + shu.??(f.gates.num + f.all(Acolyte).num + f.all(DarkYoung).num * f.has(RedSign).??(1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -183,7 +181,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                     val ownStr = adjustedOwnStrengthForCosmicUnity(we + gk * 3 + rhas + iths, allies, foes, opponent = f)
 
-                    val enemyStr = wz + sm + fs * (ep.all(FormlessSpawn).num + ep.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
+                    val enemyStr = wz + sm + fs * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) + tsa.??(max(2, power - 1)) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
 
                     val enough1 = shield * 5 > enemyStr * 4 && ownStr >= foes.num * 3
                     val enough2 = shield * 5 > enemyStr * 3 && ownStr >= 12
@@ -256,7 +254,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 power - cost > 10 && maxDoomGain > 4 |=> 1200 -> "much"
                 power - cost > 8 && maxDoomGain > 5 |=> 1100 -> "minimuch"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -268,7 +266,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             case MoveDoneAction(_) =>
                 true |=> 1000 -> "move done"
 
-            case MainDoneCancelAction(_) =>
+            case MainNextPlayerAction(_) =>
                 true |=> 0 -> "cancel"
 
             case MoveAction(_, GnophKeh, o, d) =>
@@ -315,8 +313,8 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 d.enemyGate |=> 50 -> "enemy gate"
                 d.allies.cultists.any |=> 25 -> "hug cultist"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MoveAction(_, Ithaqua, o, d) =>
                 true |=> 100 -> "walk"
@@ -334,8 +332,8 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                 o.ownGate && o.foes.active.goos.none && d.ownGate && d.allies.goos.none && d.foes.active.goos.any |=> 1300 -> "protect gate"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case ArcticWindAction(_, o, Acolyte, r) =>
                 true |=> 100 -> "move a"
@@ -351,9 +349,6 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 o.ownGate |=> -2000 -> "stay on gate"
                 o.noGate |=> 1000 -> "move no gate"
 
-            case ArcticWindDoneAction(_) =>
-                true |=> 0 -> "none"
-
             case MoveAction(_, Acolyte, o, d) =>
                 // Adjusted to stop moving cultist if they will be captured at opposite pole
                 need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 0 |=> 900 -> "go build opposite gate"
@@ -364,15 +359,12 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 val u = self.at(o, Acolyte).%!(_.has(Moved)).head
                 !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
                 !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && self.player.iceAge.has(d) && d.capturers.%(_.power > 1).none |=> 1400 -> "ic free ice gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && self.iceAge.has(d) && d.capturers.%(_.power > 1).none |=> 1400 -> "ic free ice gate"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -384,14 +376,11 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 3000 -> "capture and open gate"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && f.power > 0 |=> 4000 -> "capture and open gate"
-                r.enemyGate && f == r.owner && r.controllers.num == 1 && f.has(CursedSlumber) && f.power > 0 && f.player.gates.%(_.glyph == Slumber).none |=> 7000 -> "capture and prevent slumber"
+                r.enemyGate && f == r.owner && r.controllers.num == 1 && f.has(CursedSlumber) && f.power > 0 && f.gates.%(_.glyph == Slumber).none |=> 7000 -> "capture and prevent slumber"
                 r.enemyGate && f == r.owner && r.controllers.num == 2 |=> 3000 -> "capture and nearly open gate"
                 true |=> 2000 -> "capture"
                 r.enemyGate |=> 100 -> "enemy gate"
@@ -476,11 +465,11 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                 r.allies.monsterly.none && self.pool(Wendigo).any |=> -5000 -> "no monsters"
 
-                r.allies(RhanTegoth).any && r.allies.notGoos.num < 2 && canStrikeCC(r) |=> -6000 -> "nya can crush"
-                r.allies(RhanTegoth).none && r.allies.notGoos.num < 4 && canStrikeCC(r) |=> -6000 -> "nya can crush"
+                r.allies(RhanTegoth).any && r.allies.notGOOs.num < 2 && canStrikeCC(r) |=> -6000 -> "nya can crush"
+                r.allies(RhanTegoth).none && r.allies.notGOOs.num < 4 && canStrikeCC(r) |=> -6000 -> "nya can crush"
 
-                r.allies(RhanTegoth).any && r.allies.notGoos.num < 2 && canStrikeGC(r) |=> -6000 -> "cth can crush"
-                r.allies(RhanTegoth).none && r.allies.notGoos.num < 4 && canStrikeGC(r) |=> -6000 -> "cth can crush"
+                r.allies(RhanTegoth).any && r.allies.notGOOs.num < 2 && canStrikeGC(r) |=> -6000 -> "cth can crush"
+                r.allies(RhanTegoth).none && r.allies.notGOOs.num < 4 && canStrikeGC(r) |=> -6000 -> "cth can crush"
 
             case HibernateMainAction(_, n) =>
                 power == n |=> 1000 -> "optimal power"
@@ -529,7 +518,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                 active.none |=> -5000 -> "active none"
 
-                self.player.iceAge match {
+                self.iceAge match {
                     case None =>
                         checkPos(r, x => x)
                     case Some(o) =>
@@ -542,7 +531,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 have(Ithaqua) && r.foes.goos.active.none |=> 800 -> "no active enemy goos"
                 r.freeGate && r.foes.active.none |=> 1200 -> "free gate"
                 r.freeGate && r.foes.goos.active.none && have(Ithaqua) |=> 1100 -> "free gate"
-                r.freeGate && r.allies.cultists.none && self.player.iceAge.has(r) && r.capturers.%(_.power > 1).none |=> 1400 -> "free ice gate"
+                r.freeGate && r.allies.cultists.none && self.iceAge.has(r) && r.capturers.%(_.power > 1).none |=> 1400 -> "free ice gate"
 
             case CannibalismAction(_, r, Wendigo) =>
                 true |=> 500 -> "ok"
@@ -563,7 +552,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             case RevealESAction(_, es, false, _) if self.es != es =>
                 true |=> -10000 -> "better reveal all"
 
-            case RevealESAction(_, _, _, next) if next == DoomCancelAction(self) =>
+            case RevealESAction(_, _, _, next) if next == DoomAction(self) =>
                 self.allSB && self.realDoom >= 30 |=> 1000 -> "reveal and try to win"
                 true |=> -100 -> "don't reveal"
                 canRitual |=> -2000 -> "ritual first"
@@ -665,8 +654,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     case DemandSacrificeProvideESAction(_) =>
                         true |=> 0 -> "whatever"
 
-                    case UnholyGroundEliminateAction(_, _, r, ur) =>
-                        val u = game.unit(ur)
+                    case UnholyGroundEliminateAction(_, _, u) =>
                         u.uclass == RhanTegoth |=> 1000 -> "rha yes"
                         u.uclass == Ithaqua |=> -1000 -> "ith no"
 

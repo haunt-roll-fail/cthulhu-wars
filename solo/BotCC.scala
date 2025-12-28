@@ -6,14 +6,13 @@ object BotCC extends BotX(implicit g => new GameEvaluationCC)
 
 class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
     def costA(a : Action) : Int = a match {
-        case MoveAction(self, _, _, r) => 1 + game.tax(r, self)
-        case AttackAction(self, r, _) => 1 + game.tax(r, self)
-        case FromBelowAttackAction(self, r, f) => game.tax(r, self)
-        case CaptureAction(self, r, _, _) => 1 + game.tax(r, self)
-        case BuildGateAction(self, r) => 3 + game.tax(r, self)
-        case RecruitAction(self, uc, r) => self.recruitCost(uc, r) + game.tax(r, self)
-        case SummonAction(self, uc, r) => self.summonCost(uc, r) + game.tax(r, self)
-        case AwakenAction(self, uc, r, cost) => cost + game.tax(r, self)
+        case MoveAction(self, _, _, r) => 1 + self.taxIn(r)
+        case AttackAction(self, r, _, _) => 1 + self.taxIn(r)
+        case CaptureAction(self, r, _, _, _) => 1 + self.taxIn(r)
+        case BuildGateAction(self, r) => 3 + self.taxIn(r)
+        case RecruitAction(self, uc, r) => self.recruitCost(uc, r) + self.taxIn(r)
+        case SummonAction(self, uc, r) => self.summonCost(uc, r) + self.taxIn(r)
+        case AwakenAction(self, uc, r, cost) => cost + self.taxIn(r)
         case Pay4PowerMainAction(_) => 4
         case Pay6PowerMainAction(_) => 6
         case Pay10PowerMainAction(_) => 10
@@ -94,7 +93,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 self.pool.goos.any |=> -200 -> "not all goos in play"
                 true |=> -250 -> "dont ritual unless have reasons"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -108,8 +107,8 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 active.none |=> 500000 -> "move done"
 
             case MoveAction(_, Nyarlathotep, o, d) =>
-                val hasturThreat = YS.has(Hastur) && YS.player.goo(Hastur).region.ownGate && YS.power == 0
-                val kiyThreat = YS.has(KingInYellow) && YS.player.goo(KingInYellow).region.ownGate && YS.power == 0
+                val hasturThreat = YS.has(Hastur) && YS.goo(Hastur).region.ownGate && YS.power == 0
+                val kiyThreat = YS.has(KingInYellow) && YS.goo(KingInYellow).region.ownGate && YS.power == 0
                 val ihh = have(SeekAndDestroy).?(self.all(HuntingHorror).%(_.region != d).num).|(0)
 
                 d.enemyGate && others./(_.aprxDoom).max > 15 && (d.owner.aprxDoom + 5 < others./(_.aprxDoom).max) && d.foes.goos.none |=> -1500 -> "bash leader instead"
@@ -118,7 +117,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 val kiyScreamCapture = YS.power > 1 && YS.has(KingInYellow) && YS.has(ScreamingDead)
 
                 if (kiyScreamCapture && !self.allSB) {
-                    val r = YS.player.goo(KingInYellow).region
+                    val r = YS.goo(KingInYellow).region
                     o.allies.cultists.any && o.allies.cultists.num < 4 && r.near.%(_ == o).any && self.strength(o.allies.monsterly, YS) <= r.foes(Undead).num + 1 |=> -1000 -> "kiy scream capture"
                     d.allies.cultists.any && o.allies.cultists.num < 4 && r.near.%(_ == d).any && d.ownStr <= r.foes(Undead).num + 1 && d.ownGate |=> 900 -> "kiy scream capture"
                 }
@@ -175,12 +174,12 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 active.any && d.ownGate |=> 50 -> "own gate"
                 active.any && d.allies.cultists.any |=> 25 -> "hug cultist"
 
-                game.tax(d, self) > 0 |=> -100 -> "iceaged"
+                self.taxIn(d) > 0 |=> -100 -> "iceaged"
 
                 d.enemyGate && d.owner.gates.num >= others./(_.gates.num).max |=> 100 -> "maxgater"
 
-                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.player.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
-                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.player.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
+                game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
+                game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
             case MoveAction(_, Acolyte, o, d) =>
                 WW.exists && game.board.starting(WW).contains(d) && d.noGate |=> -10000000 -> "starting ww"
@@ -241,7 +240,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => f.blind(self) && (f != YS || canCaptureYS)).any && (need(CaptureCultist) || !have(Nyarlathotep)) |=> 250 -> "go for capture"
 
-                d.ownGate && canSummon(uc) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
+                d.ownGate && canSummon(uc) && self.units.onMap.%(_.has(Moved)).none |=> -1200 -> "why move if can summon"
 
                 o.allies.cultists.none && d.ownGate && d.allies.monsterly.none |=> 50 -> "move"
 
@@ -255,13 +254,10 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 u.is(FlyingPolyp) |=> -1 -> "fp stay"
                 u.is(HuntingHorror) |=> 1 -> "hh move"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -290,7 +286,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 var egug = foes(Gug).num
                 var esht = foes(Shantak).num
                 var esv = foes(StarVampire).num
-                var efi = if (eab) foes(Filth).num else 0
+                var efi = eab.??(foes(Filth).num)
 
                 f match {
                     case GC =>
@@ -481,9 +477,9 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-                game.acted || game.battled.any |=> -1000 -> "unlimited battle drains power"
+                self.acted || self.battled.any |=> -1000 -> "unlimited battle drains power"
 
-                (game.acted || game.battled.any) && r.enemyGate && foes.goos.none |=> -10000 -> "unlimited battle drains power"
+                (self.acted || self.battled.any) && r.enemyGate && foes.goos.none |=> -10000 -> "unlimited battle drains power"
 
                 emissary && hh == 0 && (fp == 0 || have(Invisibility)) && r.enemyGate && r.owner == f |=> 610 -> "ok emissary skirmish at gate"
 
@@ -491,19 +487,16 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 enemyStr == 0 && f.power > 0 && r.freeGate && others.%(_ != f).%(_.at(r).any).none |=> (300 + ownStr) -> "enemy rolls none at free gate"
 
                 val ysThreat = if (f == YS) (
-                    (YS.has(Hastur) && YS.player.goo(Hastur).region.allies.cultists.any) ||
-                    (YS.has(KingInYellow) && YS.player.goo(KingInYellow).region.allies.cultists.any)
+                    (YS.has(Hastur) && YS.goo(Hastur).region.allies.cultists.any) ||
+                    (YS.has(KingInYellow) && YS.goo(KingInYellow).region.allies.cultists.any)
                 ) else false
 
-                active.none && (game.acted || game.battled.any) |=> -1000000 -> "unlimited battle drains power"
+                active.none && (self.acted || self.battled.any) |=> -1000000 -> "unlimited battle drains power"
                 active.none && r.gateOf(f) && emissary && !ysThreat |=> (7 * 100000 / 4) -> "drive from gate"
 
                 r.enemyGate && r.gateOf(f) && enemyStr <= ownStr |=> (5 + (ownStr - enemyStr)) -> "attack at gate"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -530,7 +523,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 active.none && self.gates.num < 4 |=> (10 * 100000 / 9) -> "safe build gate"
 
                 YS.has(Hastur) && YS.power > 1 |=> -1000 -> "hastur in play"
-                YS.has(KingInYellow) && YS.power > 1 && game.board.connected(YS.player.goo(KingInYellow).region).contains(r) |=> -1000 -> "kiy is near"
+                YS.has(KingInYellow) && YS.power > 1 && game.board.connected(YS.goo(KingInYellow).region).contains(r) |=> -1000 -> "kiy is near"
                 BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -800 -> "shub in play and lone cultist"
                 GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && r.allies.goos.none |=> -700 -> "cthulhu has dreams"
 
@@ -721,7 +714,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
 
             case MainDoneAction(_) =>
-                game.battled.any |=> -1000 -> "unlimited battle drains power"
+                self.battled.any |=> -1000 -> "unlimited battle drains power"
                 true |=> 500 -> "main done"
 
             case _ =>
@@ -742,7 +735,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
             def retreat(u : UnitFigure) {
                 u.uclass == Acolyte |=> 600 -> "retr acolyte"
-                u.gateKeeper && battle.region.allies.num - self.opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
+                u.gateKeeper && battle.arena.allies.num - self.opponent.rolls.%(_ == Pain).num >= 2 |=> -1000 -> "retr gate keeper"
 
                 u.uclass == Nightgaunt |=> 100 -> "retr ng"
                 u.uclass == FlyingPolyp |=> 200 -> "retr fp"

@@ -61,7 +61,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
 
                 !self.allSB |=> -1000 -> "spellbooks first"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -153,13 +153,10 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 power > 1 && !u.gateKeeper && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.none && d.capturers.none && active.none |=> 450 -> "ic free gate 2 steps"
                 power > 1 && !u.gateKeeper && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.none && d.capturers.none && self.all.%(_.has(Moved)).none |=> 1100 -> "ic free gate and goo 2 steps"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -227,10 +224,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                         0 -> "todo"
                 }
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 6000 -> "capture and open gate"
                 r.enemyGate && f == r.owner && r.controllers.num == 2 |=> 3000 -> "capture and nearly open gate"
@@ -359,7 +353,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
 
                 d.enemyGate |=> 10 -> "if nothing else"
 
-                if (power > 1 && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && !game.battled.contains(d))) && CC.aprxDoom >= self.realDoom) {
+                if (power > 1 && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && self.battled.has(d).not)) && CC.aprxDoom >= self.realDoom) {
                     val f = CC
                     val allies = self.at(d)
                     val foes = f.at(d)
@@ -388,7 +382,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
 
                 }
 
-                if (power > 1 && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && !game.battled.contains(d))) && GC.power < 4 && GC.aprxDoom >= self.realDoom) {
+                if (power > 1 && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && self.battled.has(d).not)) && GC.power < 4 && GC.aprxDoom >= self.realDoom) {
                     val f = GC
                     val allies = self.at(d)
                     val foes = f.at(d)
@@ -485,7 +479,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
 
                 d.allies(KingInYellow).any && (!d.desecrated || oncePerRound.contains(ScreamingDead)) && d.allies.num < 3 |=> 4000 -> "shield kiy"
 
-                if (power > 1 && d.allies(Hastur).any && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && !game.battled.contains(d))) && CC.aprxDoom >= self.realDoom) {
+                if (power > 1 && d.allies(Hastur).any && d.foes(Nyarlathotep).any && (CC.power == 0 || (allSB && self.battled.has(d).not)) && CC.aprxDoom >= self.realDoom) {
                     val f = CC
                     val allies = self.at(d)
                     val foes = f.at(d)
@@ -512,7 +506,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     enemyStr <= shield * 4 |=> 20000 -> "kill nya"
                 }
 
-                if (power > 1 && d.allies(Hastur).any && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && !game.battled.contains(d))) && GC.power < 4 && GC.aprxDoom >= self.realDoom) {
+                if (power > 1 && d.allies(Hastur).any && d.foes(Cthulhu).any && (GC.power == 0 || (allSB && self.battled.has(d).not)) && GC.power < 4 && GC.aprxDoom >= self.realDoom) {
                     val f = GC
                     val allies = self.at(d)
                     val foes = f.at(d)
@@ -551,7 +545,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 u.monsterly && o.foes.%(_.capturable).any && power > 0 |=> 200 -> "send to capture"
                 u.monsterly && u.friends.cultists.num > 1 && u.friends.monsterly.none && r.foes.monsterly./(_.faction).%(_ != BG).%(_.power > 0).any |=> -200 -> "dont sent temp defender"
 
-            case RevealESAction(_, _, _, next) if next == DoomCancelAction(self) =>
+            case RevealESAction(_, _, _, next) if next == DoomAction(self) =>
                 self.allSB && self.realDoom >= 30 |=> 1000 -> "reveal and try to win"
                 true |=> -100 -> "don't reveal"
                 canRitual |=> -2000 -> "ritual first"

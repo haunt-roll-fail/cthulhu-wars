@@ -264,7 +264,7 @@ package object web {
         p
     }
 
-    def newDiv(cl : List[String], content : String, click : () => Unit) = {
+    def newDiv(cl : $[String], content : String, click : () => Unit) = {
         val p = dom.document.createElement("div").asInstanceOf[html.Div]
         p.className = cl.mkString(" ")
         p.innerHTML = content
@@ -273,7 +273,7 @@ package object web {
         p
     }
 
-    def newInput(cl : List[String], content : String, click : () => Unit = null) = {
+    def newInput(cl : $[String], content : String, click : () => Unit = null) = {
         val p = dom.document.createElement("input").asInstanceOf[html.Input]
         p.`type` = "text"
         p.className = cl.mkString(" ")

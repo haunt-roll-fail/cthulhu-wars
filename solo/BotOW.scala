@@ -17,7 +17,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
         def canStrikeCC(r : Region) = (r.foes.has(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
         def canStrikeGC(r : Region) = (r.foes.has(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
 
-        def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
+        def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val enemyStr = f.strength(foes, self)
             val ownStr = adjustedOwnStrengthForCosmicUnity(self.strength(allies, f), allies, foes, opponent = f)
 
@@ -32,11 +32,10 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
             var eby = foes.has(Byatis)
             var eab = foes.has(Abhoth)
             var eny = foes(Nyogtha).num
-            //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
-            var efi = if (eab) foes(Filth).num else 0
+            var efi = eab.??(foes(Filth).num)
 
             f match {
                 case GC =>
@@ -192,7 +191,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
 
                 !self.allSB |=> -1000 -> "spellbooks first"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -280,13 +279,10 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
                 power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && active.none |=> 450 -> "ic free gate 2 steps"
                 power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && self.all.%(_.has(Moved)).none |=> 1100 -> "ic free gate and goo 2 steps"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -309,10 +305,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
 
                 allies.cultists.any && foes.goos.any |=> 1200 -> "battle to prevent capture"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 val safe = active.%(f => f.strength(f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none
 
                 safe && impunity && !r.enemyGate |=> 105000 -> "impunity capture"
@@ -497,7 +490,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
                 u.monsterly && o.foes.%(_.capturable).any && power > 0 |=> 200 -> "send to capture"
                 u.monsterly && u.friends.cultists.num > 1 && u.friends.monsterly.none && r.foes.monsterly./(_.faction).%(_ != BG).%(_.power > 0).any |=> -200 -> "dont sent temp defender"
 
-            case RevealESAction(_, _, _, next) if next == DoomCancelAction(self) =>
+            case RevealESAction(_, _, _, next) if next == DoomAction(self) =>
                 self.allSB && self.realDoom >= 30 |=> 1000 -> "reveal and try to win"
                 true |=> -100 -> "don't reveal"
                 canRitual |=> -2000 -> "ritual first"

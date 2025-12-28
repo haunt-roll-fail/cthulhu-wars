@@ -1,3 +1,5 @@
-unmanagedSources / excludeFilter := "CthulhuWarsSolo.scala" || "utils.canvas.scala" || "Stats.scala" || "Serialize.scala" || "overlay.scala" || "reflect-js.scala" || "log-js.scala" || "base.scala" || "elem.scala" || "styles.scala"
+unmanagedSources / excludeFilter := "CthulhuWarsSolo.scala" || "utils.canvas.scala" || "Stats.scala" || "ReflectJS.scala" || "overlay.scala" || "reflect-js.scala" || "log-js.scala" || "base.scala" || "elem.scala" || "styles.scala" || "hrf.scala" || "loader.scala" || "quine.scala" || "resources.scala" || "web.scala"
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"
+
+target := baseDirectory.value / "target" / "host"

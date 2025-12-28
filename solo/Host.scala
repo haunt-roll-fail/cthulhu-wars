@@ -4,6 +4,14 @@ import hrf.colmat._
 
 import scala.collection.parallel.CollectionConverters._
 
+object Overlays {
+    def imageSource(s : String) = s
+}
+
+object CthulhuWarsSolo {
+    val DottedLine = "............................................................................................................................................................................................................................................"
+}
+
 object Host {
     def writeLog(s : String) {
     }
@@ -33,26 +41,26 @@ object Host {
 
             case Ask(faction, actions) =>
                 faction match {
-                    case GC => BotGC.ask(g, actions, 0.03)
-                    case CC => BotCC.ask(g, actions, 0.03)
-                    case BG => Bot3(BG).ask(g, actions, 0.03)
-                    case YS => BotYS.ask(g, actions, 0.03)
-                    case SL => BotSL.ask(g, actions, 0.03)
-                    case WW => BotWW.ask(g, actions, 0.03)
-                    case OW => BotOW.ask(g, actions, 0.03)
-                    case AN => BotAN.ask(g, actions, 0.03)
+                    case GC => BotGC.ask(actions, 0.03)(g)
+                    case CC => BotCC.ask(actions, 0.03)(g)
+                    case BG => Bot3(BG).ask(actions, 0.03)(g)
+                    case YS => BotYS.ask(actions, 0.03)(g)
+                    case SL => BotSL.ask(actions, 0.03)(g)
+                    case WW => BotWW.ask(actions, 0.03)(g)
+                    case OW => BotOW.ask(actions, 0.03)(g)
+                    case AN => BotAN.ask(actions, 0.03)(g)
                 }
         }
     }
 
-    def main(args:Array[String]) {
+    def main(args : Array[String]) {
         val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN)
 
         val numberOfPlayers = 4
 
-        var allComb : List[List[Faction]] = null
-        var customComb : List[List[Faction]] = null
-        var factions : List[Faction] = null
+        var allComb : $[$[Faction]] = null
+        var customComb : $[$[Faction]] = null
+        var factions : $[Faction] = null
 
         if (numberOfPlayers == 3) {
             allComb = allFactions.combinations(3).$
@@ -76,31 +84,33 @@ object Host {
         var results : $[$[Faction]] = $
 
         //val base = repeat
-        val base = allComb
+        val base = allComb.shuffle
         //val base = customComb
 
-        //1.to(2).foreach { i =>
         1.to(100).foreach { i =>
             results ++= base.par.map { ff =>
-                var log : $[String] = Nil
+                var log : $[String] = $
                 def writeLog(s : String) {
                     log = s :: log
                 }
 
-                try {
-                    var game : Game = null
+                val game : Game =
                     if (numberOfPlayers == 3) {
-                        game = new Game(EarthMap3, RitualTrack.for3, randomSeating(ff), true, Nil)
+                        new Game(EarthMap3, RitualTrack.for3, randomSeating(ff), true, Nil)
                     }
-                    else if (numberOfPlayers == 4) {
+                    else
+                    if (numberOfPlayers == 4) {
                         //game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, $(Opener4P10Gates))
-                        game = new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, Nil)
+                        new Game(EarthMap4v35, RitualTrack.for4, randomSeating(ff), true, $(UseGhast))
                         //game = new Game(EarthMap4v53, RitualTrack.for4, randomSeating(ff), true, $(AltMap))
                     }
                     else {
-                        game = new Game(EarthMap5, RitualTrack.for5, randomSeating(ff), true, Nil)
+                        new Game(EarthMap5, RitualTrack.for5, randomSeating(ff), true, $)
                     }
 
+                var aa : $[Action] = $
+
+                try {
                     val (l, cc) = game.perform(StartAction)
                     var c = cc
                     l.foreach(writeLog)
@@ -111,7 +121,9 @@ object Host {
                         n += 1
                         val a = askFaction(game, c)
 
-                        val (l, cc) = game.perform(a)
+                        aa +:= a
+
+                        val (l, cc) = game.perform(a.unwrap)
                         c = cc
                         l.foreach(writeLog)
 
@@ -124,7 +136,7 @@ object Host {
                             f = true
                         }
 
-                        if (n > 6000)
+                        if (n > 7000)
                             throw null
                     }
                     val w = c.asInstanceOf[GameOver].winners
@@ -138,7 +150,15 @@ object Host {
                         import java.nio.file.{Paths, Files}
                         import java.nio.charset.StandardCharsets
 
-                        Files.write(Paths.get("game-error-" + System.currentTimeMillis + ".txt"), (e.getMessage + "\n" + e.getStackTrace.mkString("\n") + log.reverse.map("<div class='p'>" + _ + "</div>").mkString("\n")).getBytes(StandardCharsets.UTF_8))
+                        val path = "."
+                        val serializer = new Serialize(game)
+
+                        Files.write(Paths.get(path + "/game-error-" + java.lang.System.currentTimeMillis + ".txt"), (
+                            aa.reverse./(_.unwrap)./(serializer.write).mkString("\n") + "\n\n" +
+                            (e.getMessage + "\n" + e.getStackTrace.mkString("\n")) + "\n\n" +
+                            log.reverse.map("<div class='p'>" + _ + "</div>").mkString("\n")
+                        ).getBytes(StandardCharsets.UTF_8))
+
                     Nil
                 }
             }

@@ -13,7 +13,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
             def |=> (e : (Int, String)) { if (bool) result +:= Evaluation(e._1, e._2) }
         }
 
-        def checkAttack(r : Region, f : Faction, allies : List[UnitFigure], foes : List[UnitFigure], d : Int) {
+        def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val igh = others.%(_.has(Necrophagy))./(_.all(Ghoul).diff(foes).num).sum
             r.ownGate && allies.num < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
@@ -25,11 +25,10 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
             var eby = foes.has(Byatis)
             var eab = foes.has(Abhoth)
             var eny = foes(Nyogtha).num
-            //var eght = foes(Ghast).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
             var esv = foes(StarVampire).num
-            var efi = if (eab) foes(Filth).num else 0
+            var efi = eab.??(foes(Filth).num)
 
             f match {
                 case GC =>
@@ -250,7 +249,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 true |=> -250 -> "don't ritual unless have reasons"
 
-            case NeutralMonstersAction(_, _, _) =>
+            case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
 
             case DoomDoneAction(_) =>
@@ -276,7 +275,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 // Don't go for capture with reanimated.
 
-                d.ownGate && canSummon(Reanimated) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
+                d.ownGate && canSummon(Reanimated) && self.units.onMap.%(_.has(Moved)).none |=> -1200 -> "why move if can summon"
 
                 d.ownGate && d.allies.monsterly.none |=> 50 -> "move to undefended own gate"
                 d.enemyGate && d.allies.any |=> 14 -> "join allies at enemy gate"
@@ -305,7 +304,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val canCaptureWW = !WW.has(Ithaqua)
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => !f.active && (f != YS || canCaptureYS) && (f != WW || canCaptureWW)).any |=> 250 -> "go for capture"
 
-                d.ownGate && canSummon(UnMan) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
+                d.ownGate && canSummon(UnMan) && self.units.onMap.%(_.has(Moved)).none |=> -1200 -> "why move if can summon"
 
                 d.ownGate && d.allies.monsterly.none |=> 50 -> "move to undefended own gate"
                 d.enemyGate && d.allies.any |=> 13 -> "join allies at enemy gate"
@@ -341,7 +340,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 // Don't go for capture with yothans (which would leave them exposed).
 
-                d.ownGate && canSummon(Yothan) && !game.hasMoved(self) |=> -1200 -> "why move if can summon"
+                d.ownGate && canSummon(Yothan) && self.units.onMap.%(_.has(Moved)).none |=> -1200 -> "why move if can summon"
 
                 d.ownGate && d.allies.monsterly.none |=> 50 -> "move to undefended own gate"
                 d.enemyGate && d.allies.any |=> 15 -> "join allies at enemy gate"
@@ -444,13 +443,10 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 destHasNeededGlyph && !wouldLeaveNeededGlyph && d.enemyGate && !d.foes.goos.any && d.allies.monsterly.any |=> 200 -> "needed glyph at enemy gate"
 
-            case AttackAction(_, r, f) if f.neutral =>
+            case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
 
-            case FromBelowAttackAction(_, r, f) if f.neutral =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case AttackAction(_, r, f) =>
+            case AttackAction(_, r, f, _) =>
                 val allies = self.at(r)
                 val foes = f.at(r)
 
@@ -471,10 +467,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 f.gates.contains(r) && (foes.monsterly.any || foes.goos.any) && r.allies(Yothan).any && (r.allies.%(_.uclass.utype == Monster).any || r.allies.cultists.any) && ownStr >= enemyStr |=> 14000 -> "yothan w shield vs protected gate"
 
-            case FromBelowAttackAction(_, r, f) =>
-                true |=> -100000 -> "don't use from below (for now)"
-
-            case CaptureAction(_, r, f, _) =>
+            case CaptureAction(_, r, f, _, _) =>
                 val safe = active.none
                 safe && !r.gateOf(f) |=> (1 * 100000 / 1) -> "safe capture"
                 safe && r.gateOf(f) && r.of(f).%(_.canControlGate).num == 1 && power > 0                    |=> (2 * 100000 / 1) -> "safe capture and open gate"
@@ -655,7 +648,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.exceptIsolatedBrainless(self, game).none.not
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.%(_.canMove).any
 
                 // Flags for potential destination regions.
                 var needCultistOnlyForGlyph = false
@@ -823,7 +816,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.exceptIsolatedBrainless(self, game).none.not
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.%(_.canMove).any
 
                 // Flags for destination region (d).
                 val destIsWW = d.glyph == GlyphWW
@@ -946,7 +939,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val availableYothanInOrig =  (o.allies.cultists.num == 0 && noOwnGateInOrig && yothansInOrig) ||
                                              (o.allies.cultists.num > 0 && noOwnGateInOrig && excessYothansInOrig) ||
                                              (ownGateInOrig && excessYothansInOrig)
-                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.exceptIsolatedBrainless(self, game).none.not
+                val brainlessIsolatedReanimatedInOrig = o.allies.monsterly.%(_.canMove).any
 
                 // Flags for destination region (d).
                 val destHasOwnCultist = d.allies.cultists.any
@@ -1031,7 +1024,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 u.monsterly && u.friends.cultists.num > 1 && u.friends.monsterly.none && r.foes.monsterly./(_.faction).%(_ != BG).%(_.power > 0).any |=> -200 -> "dont sent temp defender"
                 u.monsterly && o.allies.cultists.any && o.allies.monsterly.none |=> 50 -> "protect cultist"
 
-            case RevealESAction(_, _, _, next) if next == DoomCancelAction(self) =>
+            case RevealESAction(_, _, _, next) if next == DoomAction(self) =>
                 self.allSB && self.realDoom >= 30 |=> 1000 -> "reveal and try to win"
                 true |=> -100 -> "don't reveal"
                 canRitual |=> -2000 -> "ritual first"
@@ -1175,9 +1168,9 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                         true |=> (game.board.connected(r) ++ game.board.connected(r).flatMap(game.board.connected)).distinct.num -> "reachable regions"
 
-                    case UnholyGroundAction(_, f, cr, br) =>
+                    case UnholyGroundAction(_, f, cr) =>
                         val enemyGOOsHere = cr.foes.goos
-                        val isBattleRegion = cr == br
+                        val isBattleRegion = cr == battle.arena
                         val shouldPenalizeForGOO =
                             enemyGOOsHere.any && !isBattleRegion &&
                             !(enemyGOOsHere.size == 1 && enemyGOOsHere.head.health == Killed)

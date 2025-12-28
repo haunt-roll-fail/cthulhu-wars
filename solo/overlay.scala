@@ -3,8 +3,6 @@ package cws
 import scala.scalajs._
 import scala.scalajs.js.annotation._
 
-import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
-
 import org.scalajs.dom
 import org.scalajs.dom.html
 

@@ -2,6 +2,9 @@ package cws
 
 import hrf.colmat._
 
+import Html._
+
+
 case object Wendigo extends FactionUnitClass(WW, "Wendigo", Monster, 1)
 case object GnophKeh extends FactionUnitClass(WW, "Gnoph-Keh", Monster, 4)
 case object RhanTegoth extends FactionUnitClass(WW, "Rhan Tegoth", GOO, 6)
@@ -45,12 +48,12 @@ case object WW extends Faction { f =>
         6.times(Acolyte)
 
     override def awakenCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
-        case RhanTegoth => game.board.starting(f).has(r).?(6).|(999)
-        case Ithaqua => (game.board.starting(f).has(r) && (game.gates.has(r) || game.unitGates.has(r)) && f.needs(AwakenRhanTegoth).not).?(6).|(999)
+        case RhanTegoth => game.board.starting(f).has(r).?(6)
+        case Ithaqua => (game.board.starting(f).has(r) && (game.gates.has(r) || game.unitGates.has(r)) && f.needs(AwakenRhanTegoth).not).?(6)
     }
 
     override def summonCost(u : UnitClass, r : Region)(implicit game : Game) = u @@ {
-        case GnophKeh => f.inPool(GnophKeh).num
+        case GnophKeh => f.pool(GnophKeh).num
         case _ => u.cost
     }
 
@@ -60,4 +63,64 @@ case object WW extends Faction { f =>
         units(RhanTegoth).%!(_.has(Zeroed)).num * 3 +
         units(Ithaqua).%!(_.has(Zeroed)).num * ((opponent.doom + 1) / 2) +
         neutralStrength(units, opponent)
+}
+
+
+case class HibernateMainAction(self : Faction, n : Int) extends OptionFactionAction(Hibernate.full + " for extra " + n.power) with MainQuestion
+
+case class IceAgeMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(IceAge) with MainQuestion with Soft
+case class IceAgeAction(self : Faction, r : Region) extends BaseFactionAction(self.styled(IceAge) + " region", r)
+
+case class ArcticWindAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(ArcticWind.full + " to " + r, self.styled(uc) + " from " + o)
+
+case class AnytimeGainElderSignsMainAction(self : Faction) extends OptionFactionAction(self.styled("Anytime Spellbook")) with MainQuestion with Soft with PowerNeutral
+case class AnytimeGainElderSignsDoomAction(self : Faction) extends OptionFactionAction(self.styled("Anytime Spellbook")) with DoomQuestion with Soft with PowerNeutral
+case class AnytimeGainElderSignsAction(self : Faction, n : Int, next : Action) extends BaseFactionAction(self.styled("Anytime Spellbook"), "Get spellbook and " + n.es)
+
+
+object WWExpansion extends Expansion {
+    def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // HIBERNATE
+        case HibernateMainAction(self, n) =>
+            self.power += n
+            self.hibernating = true
+            self.log("hibernated", (n != 0).??("for extra " + n.power))
+            self.battled = board.regions
+            EndAction(self)
+
+        // ICE AGE
+        case IceAgeMainAction(self, l) =>
+            Ask(self).each(l)(r => IceAgeAction(self, r)).cancel
+
+        case IceAgeAction(self, r) =>
+            self.power -= 1
+            self.iceAge = |(r)
+            game.anyIceAge = true
+            self.log("started", self.styled(IceAge), "in", r)
+            EndAction(self)
+
+        // ARCTIC WIND
+        case ArcticWindAction(self, o, uc, r) =>
+            val u = self.at(o, uc).%!(_.has(Moved)).first
+            u.region = r
+            u.add(Moved)
+            log(u, "followed with", ArcticWind.full)
+            Ask(self)
+                .each(self.at(o).%(!_.has(Moved)).%(_.canMove))(u => ArcticWindAction(self, o, u.uclass, r))
+                .done(MoveContinueAction(self, true))
+
+        // ANYTIME
+        case AnytimeGainElderSignsMainAction(self) =>
+            Ask(self).add(AnytimeGainElderSignsAction(self, min(3, self.enemies.%(_.hasAllSB).num), MainAction(self))).cancel
+
+        case AnytimeGainElderSignsDoomAction(self) =>
+            Ask(self).add(AnytimeGainElderSignsAction(self, min(3, self.enemies.%(_.hasAllSB).num), DoomAction(self))).cancel
+
+        case AnytimeGainElderSignsAction(self, n, next) =>
+            self.satisfy(AnytimeGainElderSigns, "Anytime Spellbook", n)
+            CheckSpellbooksAction(next)
+
+
+        case _ => UnknownContinue
+    }
 }

@@ -4,7 +4,7 @@ import hrf.colmat._
 
 
 case class Evaluation(weight : Int, desc : String)
-case class ActionEval(action : Action, evaluations : List[Evaluation])
+case class ActionEval(action : Action, evaluations : $[Evaluation])
 
 class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
     def sortByAbs(a : $[Int]) : $[Int] =
@@ -68,32 +68,27 @@ class BotX[F <: Faction](ge : Game => GameEvaluation[F]) {
 abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) {
     val others = game.factions.%(_ != self)
 
-    object NoPlayer extends Player(SL)(game)
-
     implicit class SelfFactionClassify(val f : F) {
-        def realDoom = self.doom + self.player.es./(_.value).sum
+        def realDoom = self.doom + self.es./(_.value).sum
     }
 
     implicit class FactionClassify(val f : Faction) {
-        def player = game.players.get(f).getOrElse(NoPlayer)
         def exists = game.players.contains(f)
         def aprxDoom = f.doom + (f.es.num * 1.67).round.toInt
         def maxDoom = f.doom + min(6, f.es.num) * 3 + max(0, f.es.num - 6) * 2
-        def pool = player.inPool()
         def cultists = f.all.cultists.num
-        def units(uc : UnitClass) = f.all(uc)
         def count(uc : UnitClass) = f.all(uc).num
-        def allSB = player.hasAllSB
-        def numSB = player.spellbooks.num
+        def allSB = f.hasAllSB
+        def numSB = f.spellbooks.num
         def blind(current : Faction) = willActBeforeFaction(current, f)
     }
 
-    implicit class FactionListClassify(val l : List[Faction]) {
+    implicit class FactionListClassify(val l : $[Faction]) {
         def active = l.%(_.active)
     }
 
     val power = self.power
-    def realDoom = self.doom + self.player.es./(_.value).sum
+    def realDoom = self.doom + self.es./(_.value).sum
     def need(rq : Requirement) = self.needs(rq)
     def have(sb : Spellbook) = self.has(sb)
     def can(sb : Spellbook) = self.can(sb)
@@ -101,7 +96,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
     def units(uc : UnitClass) = self.units(uc)
     def allSB = self.allSB
     def numSB = self.numSB
-    def oncePerRound = self.player.oncePerRound
+    def oncePerRound = self.oncePerRound
 
     implicit class RegionClassify(val r : Region) {
         def empty = allies.none && foes.none
@@ -124,9 +119,9 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def near2 = game.board.connected(r).flatMap(n => game.board.connected(n)).%(_ != r).%(!near.contains(_))
         def near012 = game.board.connected(r).flatMap(n => game.board.connected(n)).distinct
         def ocean = r.glyph == Ocean
-        /** Check if unaccompanied cultist for given faction at risk of capture in this region */
+        /* Check if unaccompanied cultist for given faction at risk of capture in this region */
         def riskyForCultists(f : Faction) = (allies ++ foes).%!(_.cultist).%!(_.faction == f).any
-        /** Distance to specified faction unit type */
+        /* Distance to specified faction unit type */
         def distanceTo(f : Faction, u : UnitType) = f.all.%(_.uclass.utype == u)./(uf => game.board.distance(r, uf.region)).minOr(Int.MaxValue)
         /* Distance from this region to Pole region opposite WW start location */
         def distanceToWWOppPole : Int = (WW.exists).?(game.board.distance(r, game.board.starting(WW).but(game.starting(WW)).head))|Int.MaxValue
@@ -144,7 +139,6 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def foe = u.faction != self
         def friends = u.faction.at(u.region).%(_ != u)
         def enemies = game.factions.%(_ != u.faction)./~(_.at(u.region))
-        def canControlGate = (u.cultist || (u.uclass == DarkYoung && u.faction.has(RedSign))) && u.health != Pained
         def ownGate = u.region.ownGate
         def enemyGate = u.region.enemyGate
         def gateController = u.region.gate && u.region.controllers.contains(u)
@@ -163,13 +157,11 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def vulnerableG = u.cultist && friends.goos.none
     }
 
-    implicit def unitRefToUnitFigure(r : UnitRef) : UnitFigure = game.unit(r)
-    implicit def unitRefToUnitClassify(r : UnitRef) : UnitClassify = UnitClassify(game.unit(r))
-    implicit def unitRefToUnitFigureEx(r : UnitRef) : UnitFigureEx = UnitFigureEx(game.unit(r))
+    implicit def unitRefToUnitClassify(r : UnitRef) : UnitClassify = UnitClassify(r)
 
     def maxEnemyPower = others./(_.power).max
 
-    def adjustedOwnStrengthForCosmicUnity(ownStr : Int, allies : List[UnitFigure], foes : List[UnitFigure], opponent : Faction) : Int = {
+    def adjustedOwnStrengthForCosmicUnity(ownStr : Int, allies : $[UnitFigure], foes : $[UnitFigure], opponent : Faction) : Int = {
         val hasDaoloth = foes.exists(_.uclass == Daoloth)
         if (!hasDaoloth) return ownStr
 
@@ -179,7 +171,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         val nyogthas = allies.filter(_.uclass == Nyogtha)
         val nyogthaReduction : Int = if (nyogthas.any) nyogthas.head.faction.strength(nyogthas, opponent) else 0
 
-        val perGOOStrengths : List[Int] = allyGOOs.map(u => u.faction.strength($(u), opponent))
+        val perGOOStrengths : $[Int] = allyGOOs.map(u => u.faction.strength($(u), opponent))
         val strongestGOOStr = perGOOStrengths.foldLeft(0)(math.max)
 
         val reduction = math.max(nyogthaReduction, strongestGOOStr)
@@ -189,14 +181,14 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
     def active = others.%(_.active)
 
     def canSummon(u : UnitClass) = self.gates.%(r => power >= self.summonCost(u, r)).any && self.pool(u).any
-    def canRitual = !game.acted && power >= game.ritualCost
+    def canRitual = self.acted.not && power >= game.ritualCost
 
     def otherOceanGates = others./(_.gates.%(_.glyph == Ocean).any).any
 
     def instantDeathNow = game.ritualTrack(game.ritualMarker) == 999 || game.factions.%(_.doom >= 30).any
     def instantDeathNext = game.ritualTrack(game.ritualMarker) != 999 && game.ritualTrack(game.ritualMarker + 1) == 999
 
-    def validGatesForRitual : List[Region] = {
+    def validGatesForRitual : $[Region] = {
         self.gates.filter { r =>
             val filthHere = game.factions.exists { other =>
                 other != self &&
@@ -225,7 +217,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         return factions.indexOf(f) > factions.indexOf(self)
     }
 
-    /** Check if  WW could position lone cultist with no protector at opposite pole within specified turns */
+    /* Check if  WW could position lone cultist with no protector at opposite pole within specified turns */
     def wwLoneCultistPolarGate(turns : Int) : Boolean = {
         if (WW.exists && WW.needs(OppositeGate) && WW.active) {
             val oppPole = game.board.starting(WW).but(game.starting(WW)).head

@@ -3,8 +3,6 @@ package cws
 import scala.scalajs._
 import scala.scalajs.js.timers._
 
-import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
-
 import org.scalajs.dom
 import org.scalajs.dom.html
 
@@ -13,6 +11,8 @@ import hrf.colmat._
 import Html._
 
 import util.canvas._
+
+import hrf.{BuildInfo => Info}
 
 
 sealed trait UIAction
@@ -26,11 +26,10 @@ case class UIRead(game : Game) extends UIAction
 case class UIProcess(game : Game, recorded : $[Action]) extends UIAction
 
 case class UIRollD6(game : Game, question : Game => String, roll : Int => Action) extends UIAction
-case class UIRollBattle(game : Game, question : Game => String, n : Int, o : List[BattleRoll] => Action) extends UIAction
+case class UIRollBattle(game : Game, question : Game => String, n : Int, o : $[BattleRoll] => Action) extends UIAction
 case class UIDrawES(game : Game, question : Game => String, es1 : Int, es2 : Int, es3 : Int, draw : (Int, Boolean) => Action) extends UIAction
 
-@EnableReflectiveInstantiation
-sealed trait Difficulty {
+sealed trait Difficulty extends Record {
     def html : String
 }
 case object Off extends Difficulty { def html = "Off".hl }
@@ -83,7 +82,7 @@ class CachedBitmap(val node : dom.Element) {
     }
 }
 
-case class GameOverAction(winners : List[Faction], msg : String) extends Action with Soft {
+case class GameOverAction(winners : $[Faction], msg : String) extends Action with Soft {
     def question(implicit game : Game) = winners.none.?("Winner is Humanity").|((winners.num == 1).?("Winner is " + winners.head).|("Winners are " + winners.mkString(", ")))
     def option(implicit game : Game) = msg
 }
@@ -225,7 +224,7 @@ object CthulhuWarsSolo {
                     ("", false)
         }
 
-        val location = dom.window.location.href.take(dom.window.location.href.length - dom.window.location.hash.length)
+        val origin = dom.window.location.origin + "/" // dom.window.location.href.take(dom.window.location.href.length - dom.window.location.hash.length)
         val cwsOptions = Option(getElem("cws-options"))
         val delay = cwsOptions./~(_.getAttribute("data-delay").?)./~(_.toIntOption).|(30)
         val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(5)
@@ -233,7 +232,9 @@ object CthulhuWarsSolo {
         val scroll = cwsOptions./~(_.getAttribute("data-scroll").?)./(_ == "true").|(false)
         val server = cwsOptions./~(_.getAttribute("data-server").?).|("###SERVER-URL###")
         // val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
-        val redirect = location != server
+        println(origin)
+        println(server)
+        val redirect = origin != server
         // val redirect = false // making online games work with AN, as per hauntrollfail's advice
         val localReplay = false
 
@@ -256,7 +257,7 @@ object CthulhuWarsSolo {
         val secs = diff % 60
         val mins = diff / 60
 
-        val version = Info.name + " " + Info.version
+        val version = "Cthulhu Wars HRF " + Info.version
 
         log(version)
 
@@ -267,7 +268,7 @@ object CthulhuWarsSolo {
             actionDiv.scrollTop = 0
         }
 
-        def ask(question : String, options : List[String], onResult : Int => Unit, style : Option[String] = None) : None.type = {
+        def ask(question : String, options : $[String], onResult : Int => Unit, style : Option[String] = None) : None.type = {
             clear(actionDiv)
 
             actionDiv.appendChild(newDiv("", question))
@@ -281,28 +282,29 @@ object CthulhuWarsSolo {
 
         var scrollTop = 0.0
 
-        def askM(headers : $[String], qos : $[(String, String)], onResult : Int => Unit, style : Option[String] = None) : None.type = {
+        def askM(headers : $[String], qos : $[(String, String)], onResult : Int => Unit, style : |[String] = None) : None.type = {
             clear(actionDiv)
 
             headers.foreach(h => actionDiv.appendChild(newDiv("", h)))
 
-            var prev : String = null
+            var prev : |[String] = None
+            var s = style
 
-            qos.zipWithIndex.foreach { case((qq, o), n) =>
-                var q = qq
+            qos.zipWithIndex.foreach { case((qq, oo), n) =>
+                val q = |(qq).but("")
+                val o = |(oo).but("")
 
-                if (q == null)
-                    q = qos.take(n - 1).reverse.lefts.dropWhile(_ == null).headOption.|(null)
+                if (q.any && q != prev) {
+                    if (prev.any)
+                        actionDiv.appendChild(newDiv("", "&nbsp;"))
 
-                if (q != null && q != prev) {
-                    actionDiv.appendChild(newDiv("", q))
+                    actionDiv.appendChild(newDiv("", q.get))
 
                     prev = q
                 }
 
-                var s = style
-
-                actionDiv.appendChild(newDiv("option" + s./(" " + _).|(""), o, () => { scrollTop = actionDiv.scrollTop; clear(actionDiv); onResult(n) }))
+                if (o.any)
+                    actionDiv.appendChild(newDiv("option" + s./(" " + _).|(""), o.get, () => { scrollTop = actionDiv.scrollTop; clear(actionDiv); onResult(n) }))
             }
 
             actionDiv.scrollTop = scrollTop
@@ -325,7 +327,7 @@ object CthulhuWarsSolo {
         hide(cw)
         hide(ccw)
 
-        def processStatus(strings : List[String], ps : String) = strings
+        def processStatus(strings : $[String], ps : String) = strings
             ./(_.replace("------", "<br/>"))
             ./(s =>
                 (if (s.startsWith("    "))
@@ -341,24 +343,28 @@ object CthulhuWarsSolo {
             n.head + " " + c.head + " " + n.last
         }
 
-        def startOnlineGame(setup : Setup, recorded : List[String] = Nil) {
+        def startOnlineGame(setup : Setup, recorded : $[String] = Nil) {
             val roles = setup.seating.%(f => setup.difficulty(f) == Human).map(_.short).mkString(" ")
             val stp = (setup.seating.%(f => setup.difficulty(f) != Off)./(f => f.short + ":" + setup.difficulty(f)).mkString("/") + " " + setup.options./(_.toString).mkString(" "))
             val name = onlineGameName
-            post(server + "create", List(roles, version, name, stp).mkString("\n")) { master =>
+
+            val urlV = (dom.window.location.search + "&version=").splt("version=")(1).splt("&")(0)
+            val v = (urlV != "").??("?version=" + urlV)
+
+            post(server + "create", $(roles, version, name, stp).mkString("\n")) { master =>
                 get(server + "roles/" + master) { ras =>
                     val rs = ras.split("\n").toList.map(_.split(" ")).map(s => s(0) -> s(1)).filter(_._1 != "$")
                     var ca = "Copy all"
                     def linkMenu() {
                         val op = ca +: rs.map {
-                            case ("#", s) => "<a target=\"_blank\" rel=\"noopener\" href=\"" + server + "play/" + s + "\"><div>" + "Spectator".hl + "</div></a>"
-                            case (f, s) => "<a target=\"_blank\" rel=\"noopener\" href=\"" + server + "play/" + s + "\"><div>" + "Play as".hl + " " + Serialize.parseFaction(f).get + "</div></a>"
+                            case ("#", s) => "<a target=\"_blank\" rel=\"noopener\" href=\"" + server + "play/" + s + v + "\"><div>" + "Spectator".hl + "</div></a>"
+                            case (f, s) => "<a target=\"_blank\" rel=\"noopener\" href=\"" + server + "play/" + s + v + "\"><div>" + "Play as".hl + " " + Serialize.parseFaction(f).get + "</div></a>"
                         }
                         ask(name.hl, op, { n =>
                             if (n == 0)
                                 ca = clipboard(name + "\n" + rs.map {
-                                    case ("#", s) => "Spectate " + server + "play/" + s
-                                    case (f, s) => Serialize.parseFaction(f).get.short + " " + server + "play/" + s
+                                    case ("#", s) => "Spectate " + server + "play/" + s + v
+                                    case (f, s) => Serialize.parseFaction(f).get.short + " " + server + "play/" + s + v
                                 }.mkString("\n")).?("Copied links to clipboard").|("Error copying to clipboard").hl
 
                             linkMenu()
@@ -370,7 +376,7 @@ object CthulhuWarsSolo {
             }
         }
 
-        def startGame(setup : Setup, recorded : List[String] = Nil, self : Option[Faction] = None) {
+        def startGame(setup : Setup, recorded : $[String] = $, self : |[Faction] = None) {
             val seating = setup.seating.%(f => setup.difficulty(f) != Off)
 
             if (seating.num == 5)
@@ -418,9 +424,9 @@ object CthulhuWarsSolo {
             val serializer = new Serialize(game)
 
             def askFaction(c : Continue)(implicit game : Game) : UIAction = {
-                def dontAttack(factions : List[Faction])(a : Action) = factions.map(f => !Explode.isOffense(f)(a)(game)).reduce(_ && _)
+                def dontAttack(factions : $[Faction])(a : Action) = factions.map(f => !Explode.isOffense(f)(a)(game)).reduce(_ && _)
 
-                def filterAttack(actions : List[Action], factions : List[Faction]) = actions.%(dontAttack(factions)).some.|(actions)
+                def filterAttack(actions : $[Action], factions : $[Faction]) = actions.%(dontAttack(factions)).some.|(actions)
 
                 c match {
                     case Force(action) =>
@@ -693,8 +699,8 @@ object CthulhuWarsSolo {
                         None
             }
 
-            var oldPositions : List[DrawItem] = Nil
-            var oldGates : List[Region] = Nil
+            var oldPositions : $[DrawItem] = Nil
+            var oldGates : $[Region] = Nil
             var horizontal = true
 
             def drawMap(implicit game : Game) {
@@ -1010,9 +1016,24 @@ object CthulhuWarsSolo {
                 }
 
                 val deep = if (f.at(GC.deep).any) {
-                    var draws = List(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
+                    var draws = $(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
 
-                    val sortedDeep = f.at(GC.deep).filterNot(_.uclass == Cthulhu).sortWith(game.sortAllUnits(f))
+                    val sortedDeep = f.at(GC.deep).filterNot(_.uclass == Cthulhu).sortBy(_.uclass @@ {
+                        case Cthulhu =>      0
+                        case Abhoth =>       1
+                        case Daoloth =>      2
+                        case Nyogtha =>      3
+                        case Starspawn =>    4
+                        case Shoggoth =>     5
+                        case DeepOne =>      6
+                        case Acolyte =>      7
+                        case HighPriest =>   8
+                        case Ghast =>        9
+                        case Gug =>         10
+                        case Shantak =>     11
+                        case StarVampire => 12
+                        case Filth =>       13
+                    })
 
                     while (draws.num - 1 < sortedDeep.num) {
                         val last = draws.last
@@ -1302,7 +1323,7 @@ object CthulhuWarsSolo {
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.take(n).foreach { a =>
-                    if (a.is[Void].not)
+                    if (a.isVoid.not)
                         g.perform(a)
                 }
 
@@ -1325,12 +1346,12 @@ object CthulhuWarsSolo {
                 val g = new Game(board, track, seating, true, setup.options)
 
                 actions.reverse.indexed./ { (a, i) =>
-                    if (a.is[Void].not) {
+                    if (a.isVoid.not) {
                         val (l, c) = g.perform(a)
 
                         l.foreach(s => log(s, showUndo(i + 1)))
 
-                        if (a.is[OutOfTurn].not)
+                        if (a.isOutOfTurn.not)
                             cc = c
                     }
                 }
@@ -1383,16 +1404,14 @@ object CthulhuWarsSolo {
                                 queue = savedUIAction.$ ++ queue
                                 savedUIAction = None
                                 Some((false, 10))
-                                // updateUI()
-                                // None
                             }
                             case UIPerform(g, a) if hash != "" && self == None && localReplay.not => {
                                 queue :+= UIRead(g)
 
                                 Some((false, 30))
                             }
-                            case UIPerform(g, a) if hash != "" && Explode.isRecorded(a) && localReplay.not => {
-                                postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a)) {
+                            case UIPerform(g, a) if hash != "" && a.isRecorded && localReplay.not => {
+                                postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a.unwrap)) {
                                     queue :+= UIRead(g)
 
                                     startUI()
@@ -1430,12 +1449,12 @@ object CthulhuWarsSolo {
                                         return None
                                     }
 
-                                    if (a.is[Void].not) {
+                                    if (a.isVoid.not) {
                                         val (l, c) = game.perform(a)
 
                                         l.foreach(s => log(s, showUndo(actions.num)))
 
-                                        if (a.is[OutOfTurn].not)
+                                        if (a.isOutOfTurn.not)
                                             cc = |(c)
                                     }
                                 }
@@ -1453,10 +1472,10 @@ object CthulhuWarsSolo {
                                     case a => a
                                 }
 
-                                if (Explode.isRecorded(a))
+                                if (a.isRecorded)
                                     actions +:= a
 
-                                val (l, c) = g.perform(a)
+                                val (l, c) = g.perform(a.unwrap)
 
                                 l.foreach { s =>
                                     queue :+= UILog(s)
@@ -1508,14 +1527,16 @@ object CthulhuWarsSolo {
                             case UIQuestion(f, g, actions) if f != null && hash != "" && self.has(f).not && localReplay.not => {
                                 val extra = self./~(g.outOfTurn)
 
-                                startBackgroundCheck()
+                                if (hash != "")
+                                    startBackgroundCheck()
 
                                 askM($(self.any.??("" + self.get + "<br/><br/>") + "Waiting for " + f + "<br/>“" + actions.first.safeQ(g) + "”<br/><br/>"), extra./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; savedUIAction = |(head) ; perform(extra(n)) }, self./(_.style + "-border"))
                             }
                             case UIQuestion(f, g, aa) => {
                                 cancelUndo()
 
-                                startBackgroundCheck()
+                                if (hash != "")
+                                    startBackgroundCheck()
 
                                 askM($, aa./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; perform(aa(n)) }, |(f)./(_.style + "-border"))
                             }
@@ -1620,10 +1641,10 @@ object CthulhuWarsSolo {
 
         def smaller(s : String) = "<span class=\"smaller\">" + s + "</span>"
 
-        def allSeatings(factions : List[Faction]) = factions.permutations.toList.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
-        def randomSeating(factions : List[Faction]) = allSeatings(factions).sortBy(s => random()).head
+        def allSeatings(factions : $[Faction]) = factions.permutations.toList.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
+        def randomSeating(factions : $[Faction]) = allSeatings(factions).sortBy(s => random()).head
 
-        def startOnlineSetup(factions : List[Faction]) {
+        def startOnlineSetup(factions : $[Faction]) {
             val all = allSeatings(factions)
 
             val seatings = all.%(s => all.indexOf(s) <= all.indexOf(s.take(1) ++ s.drop(1).reverse))
@@ -1659,7 +1680,7 @@ object CthulhuWarsSolo {
                     (factions.has(OW) && factions.num == 4)
                         .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL))
-                        .$("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> (DemandSacrifice.full + " requires " + SL.styled(Tsathoggua) + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
                     $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
                     $("Done" -> "Start game".styled("power")),
                     nn => {
@@ -1787,7 +1808,7 @@ object CthulhuWarsSolo {
             askTop()
         }
 
-        def startSetup(factions : List[Faction]) {
+        def startSetup(factions : $[Faction]) {
             val all = allSeatings(factions)
 
             val seatings = all.%(s => all.indexOf(s) <= all.indexOf(s.take(1) ++ s.drop(1).reverse))
@@ -1823,7 +1844,7 @@ object CthulhuWarsSolo {
                     (factions.has(OW) && factions.num == 4)
                         .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL))
-                        .$("Variants" -> (DemandSacrifice.full + " requires " + Tsathoggua.toString + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> (DemandSacrifice.full + " requires " + SL.styled(Tsathoggua) + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
                     $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
                     $("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
                     $("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++
@@ -2001,8 +2022,30 @@ object CthulhuWarsSolo {
                     get(server + "read/" + hash + "/0") { read =>
                         val logs = read.split("\n").toList
 
-                        if (logs(0) != version)
-                            log("Incorrect game version: " + logs(0).hl)
+                        val oldVersion = logs(0)
+                        if (oldVersion != version)
+                            log("Incorrect game version: " + oldVersion.hl)
+
+                        oldVersion @@ {
+                            case "Cthulhu Wars Solo HRF 1.8"
+                               | "Cthulhu Wars Solo HRF 1.9"
+                               | "Cthulhu Wars Solo HRF 1.10"
+                               | "Cthulhu Wars Solo HRF 1.11"
+                               | "Cthulhu Wars Solo HRF 1.12"
+                               | "Cthulhu Wars Solo HRF 1.13"
+                               | "Cthulhu Wars Solo HRF 1.14"
+                               | "Cthulhu Wars Solo HRF 1.15"
+                               | "Cthulhu Wars Solo HRF 1.16"
+                            =>
+                                val l = dom.document.location
+                                val search = ("version=" + "retro") +: l.search.drop(1).split('&').$.%(_.startsWith("version").not).but("")
+                                val url = l.origin + l.pathname + "?" + search.join("&") + l.hash
+                                log("Reload: " + url)
+                                dom.document.location.assign(url)
+                                return
+
+                            case _ =>
+                        }
 
                         val title = dom.document.createElement("div")
                         title.innerHTML = s"""
@@ -2036,7 +2079,9 @@ object CthulhuWarsSolo {
 
                         log(self./("Playing as " + _).|("Spectating"))
 
-                        val factions = logs(2).split(" ")(0).split("/").toList./(_.split(":"))./(s => Serialize.parseFaction(s(0)).get -> Serialize.parseDifficulty(s(1)).get)
+                        def parseDifficulty(s : String) : |[Difficulty] = Serialize.parseSymbol(s)./~(_.as[Difficulty])
+
+                        val factions = logs(2).split(" ")(0).split("/").toList./(_.split(":"))./(s => Serialize.parseFaction(s(0)).get -> parseDifficulty(s(1)).get)
                         val options = logs(2).split(" ").toList.drop(1)./(Serialize.parseGameOption)./(_.get)
 
                         val setup = new Setup(factions.lefts, Recorded)
@@ -2054,7 +2099,7 @@ object CthulhuWarsSolo {
                     case 999_0 =>
                         val n = 1
                         val pn = n + 3
-                        ask("Play as", allFactions./(_.toString) :+ "Back", nf => {
+                        ask("Play as", allFactions./(_.full) :+ "Back", nf => {
                             if (nf < allFactions.num) {
                                 val faction = allFactions(nf)
                                 val combinations = allFactions.but(faction).combinations(pn - 1).toList
@@ -2112,7 +2157,7 @@ object CthulhuWarsSolo {
                     case 3 => ask("Cthulhu Wars Extra", $("Survival mode".styled("kill"), "Download Offline Version".hl, "<a href='https://necronomicon.app/' target='_blank'><div>Necronomicon</div></a>", "<a href='https://cthulhuwars.fandom.com/' target='_blank'><div>Cthulhu Wars Strategy Wiki</div></a>", "Back"), {
                         case 0 =>
                             val base = allFactions.take(4)
-                            ask("Choose faction", base./(f => f.toString) :+ "Back", nf => {
+                            ask("Choose faction", base./(f => f.full) :+ "Back", nf => {
                                 if (nf < base.num) {
                                     val setup = new Setup(randomSeating(base), AllVsHuman)
                                     setup.difficulty += base(nf) -> Human
@@ -2152,7 +2197,7 @@ object CthulhuWarsSolo {
                         startGame(setup)
                     case 666 =>
                         val base = allFactions.take(4)
-                        ask("Choose faction", base./(f => f.toString) :+ "Back", nf => {
+                        ask("Choose faction", base./(f => f.full) :+ "Back", nf => {
                             if (nf < base.num) {
                                 val setup = new Setup(randomSeating(base), AllVsHuman)
                                 setup.difficulty += base(nf) -> Human

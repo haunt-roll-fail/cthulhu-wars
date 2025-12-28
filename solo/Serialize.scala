@@ -1,15 +1,15 @@
 package cws
 
 import hrf.colmat._
-
-import scala.scalajs.reflect._
+import hrf.reflect._
 
 import fastparse._, NoWhitespace._
 
+import scalajs.reflect._
+
+
 class Serialize(val g : Game) {
     import Serialize._
-
-    def className(o : AnyRef) : String = o.getClass.getName.split("\\.").toList.last.split("\\$").toList.last
 
     def write(o : Any) : String = o match {
         case b : Boolean => b.toString
@@ -23,7 +23,7 @@ class Serialize(val g : Game) {
         case br : BattleRoll => className(br)
         case bf : BattlePhase => className(bf)
         case o : Offer => write(o.f) + "->" + write(o.n)
-        case a : Action => className(a) + a.productIterator.toList./(write).mkString("(", ", ", ")")
+        case a : Action => className(a) + a.productIterator.$.some./(_./(write).mkString("(", ", ", ")")).|("")
         case es : ElderSign => "$" + es.value
 
         case Some(x) => "Some(" + write(x) + ")"
@@ -42,10 +42,10 @@ class Serialize(val g : Game) {
     case class EString(value : String) extends Expr
     case object ENone extends Expr
     case class ESome(value : Expr) extends Expr
-    case class EList(values : List[Expr]) extends Expr
+    case class EList(values : $[Expr]) extends Expr
     case class EPair(pair : (Expr, Expr)) extends Expr
-    case class EMap(values : List[EPair]) extends Expr
-    case class EApply(f : String, params : List[Expr]) extends Expr
+    case class EMap(values : $[EPair]) extends Expr
+    case class EApply(f : String, params : $[Expr]) extends Expr
 
     case class EElderSign(value : Int) extends Expr
     case class EOffer(a : String, b : Int) extends Expr
@@ -134,11 +134,17 @@ class Serialize(val g : Game) {
         case ESome(e) => Some(parseExpr(e))
         case ENone => None
         case EList(l) => l.map(parseExpr)
-        case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).get.newInstance(params.map(parseExpr) : _*))
+        case EApply("MainCancelAction", $(a)) => parseExpr(EApply("MainDoneAction", $(a)))
+        case EApply("MainDoneCancelAction", $(a)) => parseExpr(EApply("MainDoneAction", $(a)))
+        case EApply("CaptureAction", $(a, b, c)) => parseExpr(EApply("CaptureAction", $(a, b, c, ESymbol("Acolyte"), ENone)))
+        case EApply("CaptureAction", $(a, b, c, d)) => parseExpr(EApply("CaptureAction", $(a, b, c, d, ENone)))
+        case EApply("AttackAction", $(a, b, c)) => parseExpr(EApply("AttackAction", $(a, b, c, ENone)))
+        case EApply("NeutralMonstersAction", $(a, b, c)) => parseExpr(EApply("NeutralMonstersAction", $(a, b)))
+        case EApply("LoyaltyCardSummonAction", $(a, b, c, d)) => parseExpr(EApply("LoyaltyCardSummonAction", $(a, b, c)))
+        case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).|!("unknown class " + f).apply(params.map(parseExpr)))
     }
 
-    //def parseRegion(s : String) : Option[Region] = g.board.regions.%(_.name.split(" ").mkString("") == s).single
-    def parseRegion(s : String) : Option[Region] = {
+    def parseRegion(s : String) : |[Region] = {
         val normalized = s.replaceAll(" ", "")
         val allRegions = g.board.regions :+ SL.slumber
         allRegions.find(r => r.name.replaceAll(" ", "") == normalized)
@@ -148,17 +154,15 @@ class Serialize(val g : Game) {
 object Serialize {
     val factions = $(GC, CC, BG, YS, SL, WW, OW, AN) ++ $(NeutralAbhoth)
 
-    val loyaltyCards = List(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard, ByatisCard, AbhothCard, DaolothCard, NyogthaCard)
+    val loyaltyCards = $(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard, ByatisCard, AbhothCard, DaolothCard, NyogthaCard)
 
-    def parseDifficulty(s : String) : Option[Difficulty] = parseSymbol(s).map(_.asInstanceOf[Difficulty])
+    def parseFaction(s : String) : |[Faction] = factions.%(_.short == s).single
 
-    def parseFaction(s : String) : Option[Faction] = factions.%(_.short == s).single
+    def parseGameOption(s : String) : |[GameOption] = GameOptions.all.%(_.toString == s).single
 
-    def parseGameOption(s : String) : Option[GameOption] = GameOptions.all.%(_.toString == s).single
+    def parseLoyaltyCard(s : String) : |[LoyaltyCard] = loyaltyCards.find(_.productPrefix == s)
 
-    def parseLoyaltyCard(s : String) : Option[LoyaltyCard] = loyaltyCards.find(_.productPrefix == s)
+    def parseSymbol(s : String) : |[Any] = lookupObject("cws." + s)
 
-    def parseSymbol(s : String) : Option[Any] = Reflect.lookupLoadableModuleClass("cws." + s + "$").map(_.loadModule())
-
-    def parseActionConstructor(s : String, n : Int) : Option[InvokableConstructor] = Reflect.lookupInstantiatableClass("cws." + s).toList.flatMap(_.declaredConstructors).%(_.parameterTypes.num == n).single
+    def parseActionConstructor(s : String, n : Int) : |[$[Any] => Any] = lookupClass("cws." + s, n)
 }
