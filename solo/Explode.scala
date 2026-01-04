@@ -18,7 +18,7 @@ object Explode {
                 val (_, c) = game.perform(a)
                 c match {
                     case Ask(_, actions) => process(actions)
-                    case Force(a) => process($(a))
+                    case Then(then) => process($(then))
                 }
             }
 
@@ -33,9 +33,9 @@ object Explode {
     }
 
     def isOffense(friend : Faction)(a : Action)(implicit game : Game) = a match {
-        case MoveAction(self : Faction, _, _, dest) if self != friend && friend.gates.contains(dest) => true
+        case MoveAction(self, _, _, dest, cost) if self != friend && friend.gates.has(dest) => true
         case AttackAction(_, _, f, _) if f == friend => true
-        case CaptureAction(_, _, f, _, _) if f == friend => true
+        case CaptureAction(_, _, f, _) if f == friend => true
         case AvatarAction(self, _, _, f) if self != friend && f == friend => true
         case ThousandFormsAskAction(f, _, _, _, _, _, power) if f == friend && power > 0 => true
         case DreamsAction(_, _, f) if f == friend => true

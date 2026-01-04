@@ -8,7 +8,7 @@ import org.scalajs.dom.html
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 import util.canvas._
 
@@ -210,7 +210,7 @@ object Overlays {
             case $("BG", Spread6.text) => requirement("Have units in 6 Areas.")
             case $("BG", Spread8.text) => requirement("Have units in 8 Areas.")
             case $("BG", SpreadSocial.text) => requirement("Share Areas with all enemies. Gain 1 Power per enemy player.")
-            case $("BG", Eliminate2Cultists.text) => requirement("As your Action, for a Round, Eliminate 2 of your Cultists from any Area(s) on the Map.")
+            case $("BG", EliminateTwoCultists.text) => requirement("As your Action, for a Round, Eliminate 2 of your Cultists from any Area(s) on the Map.")
             case $("BG", AwakenShubNiggurath.text) => requirement("Awaken Shub-Niggurath.")
 
             case $("BG", ThousandYoung.name) => spellbook(ThousandYoung.name, "Ongoing", "If Shub-Niggurath is in play, Ghouls, Fungi, and Dark Young cost 1 fewer Power each to Summon.")

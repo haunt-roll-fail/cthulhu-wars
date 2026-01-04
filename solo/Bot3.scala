@@ -27,6 +27,9 @@ case class Bot3(faction : Faction) {
     }
 
     def eval(actions : $[Action])(implicit game : Game) : $[ActionEval] = {
+        if (game.factions.none)
+            return actions./{ a => ActionEval(a, $) }
+
         val self = faction
         val others = game.factions.%(_ != self)
         val power = self.power
@@ -81,6 +84,7 @@ case class Bot3(faction : Faction) {
         }
 
         implicit def unitRefToUnitClassify(r : UnitRef) : UnitClassify = UnitClassify(r)
+        implicit def unitRefToUnitFigureGameEx(r : UnitRef) : UnitFigureGameEx = UnitFigureGameEx(r)
 
         val maxEnemyPower = others./(_.power).max
 
@@ -105,7 +109,7 @@ case class Bot3(faction : Faction) {
 
         def canSummon(u : UnitClass) = self.pool(u).any
 
-        val has1000f = actions.contains(ThousandFormsMainAction(faction))
+        val has1000f = faction.as[CC].?(f => actions.has(ThousandFormsMainAction(f)))
 
         val otherOceanGates = others./(_.gates.%(_.glyph == Ocean).any).any
 
@@ -162,9 +166,9 @@ case class Bot3(faction : Faction) {
                     val c = self.at(r, Acolyte).head
                     true |=> -100 -> "not unless needed"
                     c.gateKeeper |=> -500 -> "don't devolve gatekeeper"
-                    then != MainAction(self) && c.capturable |=> 1000 -> "devolve to avoid capture"
-                    then == MainAction(self) && self.acted.not && self.has(Dreams) && self.pool.cultists.none && game.board.regions.%(r => r.enemyGate && r.controllers.num == 1 && others.%(_.power > 0).%(f => f.at(r).monsterly.any || f.at(r).goos.any).none).any |=> 300 -> "devolve to allow dreams"
-                    then == MainAction(self) && !c.gateKeeper && self.pool.cultists.none && game.board.regions.%(r => r.freeGate && r.capturers.none).any |=> 800 -> "devolve to recruit at free gate"
+                    then != PreMainAction(self) && c.capturable |=> 1000 -> "devolve to avoid capture"
+                    then == PreMainAction(self) && self.acted.not && self.has(Dreams) && self.pool.cultists.none && areas.%(r => r.enemyGate && r.controllers.num == 1 && others.%(_.power > 0).%(f => f.at(r).monsterly.any || f.at(r).goos.any).none).any |=> 300 -> "devolve to allow dreams"
+                    then == PreMainAction(self) && !c.gateKeeper && self.pool.cultists.none && areas.%(r => r.freeGate && r.capturers.none).any |=> 800 -> "devolve to recruit at free gate"
 
                 case DreamsAction(_, r, f) =>
                     val c = f.at(r)(Acolyte).head
@@ -286,28 +290,27 @@ case class Bot3(faction : Faction) {
                         true |=> -1000 -> "unknown"
                 }
 
-                case MainDoneAction(_) =>
+                case EndTurnAction(_) =>
                     self.oncePerRound.contains(Fertility) || self.acted |=> 8000 -> "don't oversummon"
 
-                case MainNextPlayerAction(_) =>
+                case NextPlayerAction(_) =>
                     self.oncePerRound.contains(Fertility) || self.acted && self.all.%(_.capturable).none |=> 8000 -> "don't oversummon"
 
-                case BloodSacrificeAction(_, r, uc) =>
-                    val c = self.at(r, uc).head
+                case BloodSacrificeAction(_, r, u) =>
                     instantDeathNow |=> 10000 -> "instant death now"
                     self.realDoom >= others./(_.aprxDoom).max + 10 && !self.allSB |=> -500 -> "in the lead already, and not all spellbooks yet"
-                    c.gateKeeper |=> -5000 -> "don't sacrifice gatekeeper"
-                    c.capturable |=> 1000 -> "sacrifice capturable"
-                    c.vulnerable |=> 500 -> "sacrifice vulnerable"
+                    u.gateKeeper |=> -5000 -> "don't sacrifice gatekeeper"
+                    u.capturable |=> 1000 -> "sacrifice capturable"
+                    u.vulnerable |=> 500 -> "sacrifice vulnerable"
                     self.cultists > 4 |=> 200 -> "many cultists"
-                    c.friends.%(_.canControlGate).num == 8 |=> 80 -> "many fcultists 8"
-                    c.friends.%(_.canControlGate).num == 7 |=> 70 -> "many fcultists 7"
-                    c.friends.%(_.canControlGate).num == 6 |=> 60 -> "many fcultists 6"
-                    c.friends.%(_.canControlGate).num == 5 |=> 50 -> "many fcultists 5"
-                    c.friends.%(_.canControlGate).num == 4 |=> 40 -> "many fcultists 4"
-                    c.friends.%(_.canControlGate).num == 3 |=> 30 -> "many fcultists 3"
-                    c.friends.%(_.canControlGate).num == 2 |=> 20 -> "many fcultists 2"
-                    c.friends.%(_.canControlGate).num == 1 |=> 10 -> "many fcultists 1"
+                    u.friends.%(_.canControlGate).num == 8 |=> 80 -> "many fcultists 8"
+                    u.friends.%(_.canControlGate).num == 7 |=> 70 -> "many fcultists 7"
+                    u.friends.%(_.canControlGate).num == 6 |=> 60 -> "many fcultists 6"
+                    u.friends.%(_.canControlGate).num == 5 |=> 50 -> "many fcultists 5"
+                    u.friends.%(_.canControlGate).num == 4 |=> 40 -> "many fcultists 4"
+                    u.friends.%(_.canControlGate).num == 3 |=> 30 -> "many fcultists 3"
+                    u.friends.%(_.canControlGate).num == 2 |=> 20 -> "many fcultists 2"
+                    u.friends.%(_.canControlGate).num == 1 |=> 10 -> "many fcultists 1"
                     true |=> 200 -> "sacrifice is good"
 
                 case GhrothMainAction(_) =>
@@ -334,27 +337,25 @@ case class Bot3(faction : Faction) {
                     game.cathedrals.contains(shub.region) && AN.has(UnholyGround) && AN.strength(AN.at(shub.region), self) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
                     game.cathedrals.contains(r) && AN.has(UnholyGround) && AN.strength(AN.at(r), self) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
-                case MoveAction(_, uc, o, d) =>
-                    val u = self.at(o, uc).%(!_.has(Moved)).head
+                case MoveAction(_, u, o, d, cost) =>
+                    self.realDoom > 28 && d.allies.none && o.allies.any && self.needs(Spread8) && self.all.num >= 8 && areas.%(self.at(_).any).num < 8 |=> 3000 -> "final spread"
+                    self.realDoom > 27 && self.needs(SpreadSocial) && d.allies.none && d.foes./(_.faction).%(f => areas.%(r => r.allies.any && f.at(r).any).none).any |=> 1000 -> "final social spread"
 
-                    self.realDoom > 28 && d.allies.none && o.allies.any && self.needs(Spread8) && self.all.num >= 8 && game.board.regions.%(self.at(_).any).num < 8 |=> 3000 -> "final spread"
-                    self.realDoom > 27 && self.needs(SpreadSocial) && d.allies.none && d.foes./(_.faction).%(f => game.board.regions.%(r => r.allies.any && f.at(r).any).none).any |=> 1000 -> "final social spread"
+                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread4) && areas.%(r => r.allies.any).num == 3 |=> 100 -> "get spread 4"
+                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread6) && areas.%(r => r.allies.any).num == 5 |=> 100 -> "get spread 6"
+                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread8) && areas.%(r => r.allies.any).num == 7 |=> 100 -> "get spread 8"
+                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(SpreadSocial) && others.%(f => areas.%(r => r.allies.any && f.at(r).any).none).%(f => f.at(d).none).none |=> 100 -> "get social spread"
 
-                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread4) && game.board.regions.%(r => r.allies.any).num == 3 |=> 100 -> "get spread 4"
-                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread6) && game.board.regions.%(r => r.allies.any).num == 5 |=> 100 -> "get spread 6"
-                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread8) && game.board.regions.%(r => r.allies.any).num == 7 |=> 100 -> "get spread 8"
-                    (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(SpreadSocial) && others.%(f => game.board.regions.%(r => r.allies.any && f.at(r).any).none).%(f => f.at(d).none).none |=> 100 -> "get social spread"
-
-                case Eliminate2CultistsAction(_, a, b) =>
-                    a.allies.cultists.head.gateKeeper |=> -1000 -> "don't eliminate gatekeeper a"
-                    b.allies.cultists.head.gateKeeper |=> -1000 -> "don't eliminate gatekeeper b"
-                    (a == b) && a.ownGate && a.controllers.num == 2 |=> -1000 -> "don't eliminate two gatekeepers"
-                    a.allies.cultists.head.capturable |=> 200 -> "avoid capture a"
-                    b.allies.cultists.head.capturable |=> 200 -> "avoid capture b"
-                    a.allies.none |=> 200 -> "no friends a"
-                    b.allies.none |=> 200 -> "no friends b"
-                    a.ownGate && a.controllers.num < 3 |=> -100 -> "gate a"
-                    a.ownGate && b.controllers.num < 3 |=> -100 -> "gate b"
+                case EliminateTwoCultistsAction(_, a, b) =>
+                    a.gateKeeper |=> -1000 -> "don't eliminate gatekeeper a"
+                    b.gateKeeper |=> -1000 -> "don't eliminate gatekeeper b"
+                    (a.region == b.region) && a.ownGate && a.region.controllers.num == 2 |=> -1000 -> "don't eliminate two gatekeepers"
+                    a.capturable |=> 200 -> "avoid capture a"
+                    b.capturable |=> 200 -> "avoid capture b"
+                    // a.allies.none |=> 200 -> "no friends a"
+                    // b.allies.none |=> 200 -> "no friends b"
+                    a.ownGate && a.region.controllers.num < 3 |=> -100 -> "gate a"
+                    a.ownGate && b.region.controllers.num < 3 |=> -100 -> "gate b"
                     (a == b) |=> -50 -> "a == b"
                     power < self.pool.cultists.num + 2 |=> -200 -> "need power to re-recruit all cultists spellbook"
                     true |=> 400 -> "spell is good"
@@ -362,16 +363,16 @@ case class Bot3(faction : Faction) {
                     self.numSB == 5 && self.realDoom >= 30 |=> 3500 -> "final spellbook"
                     self.cultists == 6 |=> 100 -> "too many cultists"
 
-                case AwakenEliminate2CultistsAction(_, _, _, a, b) =>
-                    a.allies.cultists.head.gateKeeper |=> -1000 -> "don't eliminate gatekeeper a"
-                    b.allies.cultists.head.gateKeeper |=> -1000 -> "don't eliminate gatekeeper b"
-                    (a == b) && a.ownGate && a.controllers.num == 2 |=> -1000 -> "don't eliminate two gatekeepers"
-                    a.allies.cultists.head.capturable |=> 200 -> "avoid capture a"
-                    b.allies.cultists.head.capturable |=> 200 -> "avoid capture b"
-                    a.allies.none |=> 200 -> "no friends a"
-                    b.allies.none |=> 200 -> "no friends b"
-                    a.ownGate && a.controllers.num < 3 |=> -100 -> "gate a"
-                    a.ownGate && b.controllers.num < 3 |=> -100 -> "gate b"
+                case AwakenEliminateTwoCultistsAction(_, _, _, a, b) =>
+                    a.gateKeeper |=> -1000 -> "don't eliminate gatekeeper a"
+                    b.gateKeeper |=> -1000 -> "don't eliminate gatekeeper b"
+                    (a.region == b.region) && a.ownGate && a.region.controllers.num == 2 |=> -1000 -> "don't eliminate two gatekeepers"
+                    a.capturable |=> 200 -> "avoid capture a"
+                    b.capturable |=> 200 -> "avoid capture b"
+                    // a.allies.none |=> 200 -> "no friends a"
+                    // b.allies.none |=> 200 -> "no friends b"
+                    a.ownGate && a.region.controllers.num < 3 |=> -100 -> "gate a"
+                    a.ownGate && b.region.controllers.num < 3 |=> -100 -> "gate b"
                     (a == b) |=> -50 -> "a == b"
                     power < 8 + self.pool.cultists.num + 2 |=> -200 -> "need power to re-recruit all cultists awaken"
                     true |=> 400 -> "awaken shub is good"
@@ -393,7 +394,7 @@ case class Bot3(faction : Faction) {
                     case Passion =>
                         true |=> 1200 -> "passion super"
                     case Zingaya =>
-                        self.pool(Undead).any && game.board.regions.%(r => self.at(r)(Undead).any && r.foes.cultists.any).any |=> 700 -> "make more undead"
+                        self.pool(Undead).any && areas.%(r => self.at(r)(Undead).any && r.foes.cultists.any).any |=> 700 -> "make more undead"
                     case Shriek =>
                         self.count(Byakhee) > 1 |=> 500 -> "byakhee fly"
                     case _ =>
@@ -442,9 +443,9 @@ case class Bot3(faction : Faction) {
                     r.glyph == GlyphWW && self.needs(DesecrateWW) |=> 20 -> "king scream to ww"
                     r.glyph == GlyphOO && self.needs(DesecrateOO) |=> 20 -> "king scream to oo"
 
-                    self.needs(DesecrateAA) && game.board.connected(r).%(_.glyph == GlyphAA).any |=> 10 -> "king scream nearer to aa"
-                    self.needs(DesecrateWW) && game.board.connected(r).%(_.glyph == GlyphWW).any |=> 10 -> "king scream nearer to ww"
-                    self.needs(DesecrateOO) && game.board.connected(r).%(_.glyph == GlyphOO).any |=> 10 -> "king scream nearer to oo"
+                    self.needs(DesecrateAA) && r.connected.%(_.glyph == GlyphAA).any |=> 10 -> "king scream nearer to aa"
+                    self.needs(DesecrateWW) && r.connected.%(_.glyph == GlyphWW).any |=> 10 -> "king scream nearer to ww"
+                    self.needs(DesecrateOO) && r.connected.%(_.glyph == GlyphOO).any |=> 10 -> "king scream nearer to oo"
 
                     self.has(Hastur) && self.has(ThirdEye) |=> 200 -> "desecrate++"
 
@@ -492,9 +493,7 @@ case class Bot3(faction : Faction) {
                 case MoveDoneAction(_) =>
                     true |=> 500 -> "move done"
 
-                case MoveAction(_, uc, o, d) =>
-                    val u = self.at(o, uc).%(!_.has(Moved)).head
-
+                case MoveAction(_, u, o, d, cost) =>
                     true |=> 100 -> "moving is ok"
                     u.gateKeeper && (!u.capturable || u.enemies.goos.none) |=> -1000 -> "don't move gatekeeper"
 
@@ -506,7 +505,7 @@ case class Bot3(faction : Faction) {
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 1 |=> -1000 -> "why move if can summon for same"
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 2 |=> -500 -> "why move if can summon for almost same"
 
-                    u.cultist && self.pool.cultists.any && d.allies.any && !self.all.%(_.has(Moved)).any |=> -1000 -> "why move if can recruit for same"
+                    u.cultist && self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
 
                     power < 3 && u.protector |=> -400 -> "don't move protector if low power"
                     power < 3 && u.defender |=> -400 -> "don't move defender if low power"
@@ -600,7 +599,7 @@ case class Bot3(faction : Faction) {
                     f == AN && r.allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
                     f == AN && AN.has(Extinction) && defenders.num == 1 && defenders(Yothan).any && ((r.allies.goos.any && r.allies.num >= 3 && attack >= 6) || (r.allies.goos.none && attack >= 6)) |=> 1000 -> "attack lone extinct yothan"
 
-                case CaptureAction(_, r, f, _, _) =>
+                case CaptureAction(_, r, f, _) =>
                     true |=> 600 -> "capture"
                     r.enemyGate |=> 100 -> "enemy gate"
                     r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -667,9 +666,7 @@ case class Bot3(faction : Faction) {
                     self.numSB >= 5 && uc == ShubNiggurath && self.needs(AwakenShubNiggurath) |=> 500 -> "need shub niggurath"
                     self.numSB >= 5 && uc == Hastur && self.needs(AwakenHastur) |=> 500 -> "need hastur"
 
-                case AvatarReplacementAction(_, _, r, o, uc) =>
-                    val u = self.at(r, uc).head
-
+                case AvatarReplacementAction(_, _, r, o, u) =>
                     u.cultist && o.capturers.%(_.power > 0).any |=> -100 -> "don't send cultist to be captured"
                     u.cultist && o.capturers.%(_.power > 0).none |=> 100 -> "no capturers with power"
                     u.monsterly && o.foes.%(_.capturable).any |=> 200 -> "send to capture"
@@ -699,6 +696,18 @@ case class Bot3(faction : Faction) {
 
                 case GiveBestMonsterAskAction(_, _, uc, r, _)  =>
                     result = evalA(SummonAction(self, uc, r))
+
+                case ControlGateAction(_, r, u, _) =>
+                    r.allies.%(_.onGate).foreach { c =>
+                        c.uclass == u.uclass |=> -1000000 -> "remain calm"
+                        c.uclass == Acolyte && u.uclass == DarkYoung |=> 1000 -> "dark young on gate"
+                        u.uclass == Acolyte && c.uclass == DarkYoung |=> -1000 -> "dark young on gate"
+                        c.uclass == HighPriest && u.uclass == Acolyte |=> 1000 -> "high priest not on gate"
+                        u.uclass == HighPriest && c.uclass == Acolyte |=> -1000 -> "high priest not on gate"
+                    }
+
+                case AbandonGateAction(_, _, _) =>
+                    true |=> -1000000 -> "never"
 
                 case _ =>
             }
@@ -802,8 +811,7 @@ case class Bot3(faction : Faction) {
                         self.allSB |=> 600 -> "es all spellbooks"
                         self.realDoom > 5 + others./(_.aprxDoom).max |=> -300 -> "doom lead"
 
-                    case NecrophagyAction(_, uc, r) =>
-                        val u = self.at(r, uc).head
+                    case NecrophagyAction(_, u, r) =>
                         battle.attacker != self |=> 100 -> "necrophagy is good"
                         battle.attacker == self |=> -100 -> "necrophagy is bad"
                         u.prevents |=> -1000 -> "prevents capture"

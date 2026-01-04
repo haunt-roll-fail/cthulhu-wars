@@ -134,13 +134,13 @@ class Serialize(val g : Game) {
         case ESome(e) => Some(parseExpr(e))
         case ENone => None
         case EList(l) => l.map(parseExpr)
-        case EApply("MainCancelAction", $(a)) => parseExpr(EApply("MainDoneAction", $(a)))
-        case EApply("MainDoneCancelAction", $(a)) => parseExpr(EApply("MainDoneAction", $(a)))
-        case EApply("CaptureAction", $(a, b, c)) => parseExpr(EApply("CaptureAction", $(a, b, c, ESymbol("Acolyte"), ENone)))
-        case EApply("CaptureAction", $(a, b, c, d)) => parseExpr(EApply("CaptureAction", $(a, b, c, d, ENone)))
-        case EApply("AttackAction", $(a, b, c)) => parseExpr(EApply("AttackAction", $(a, b, c, ENone)))
-        case EApply("NeutralMonstersAction", $(a, b, c)) => parseExpr(EApply("NeutralMonstersAction", $(a, b)))
-        case EApply("LoyaltyCardSummonAction", $(a, b, c, d)) => parseExpr(EApply("LoyaltyCardSummonAction", $(a, b, c)))
+        // case EApply("MainCancelAction", $(a)) => parseExpr(EApply("EndTurnAction", $(a)))
+        // case EApply("MainDoneCancelAction", $(a)) => parseExpr(EApply("EndTurnAction", $(a)))
+        // case EApply("CaptureAction", $(a, b, c)) => parseExpr(EApply("CaptureAction", $(a, b, c, ESymbol("Acolyte"), ENone)))
+        // case EApply("CaptureAction", $(a, b, c, d)) => parseExpr(EApply("CaptureAction", $(a, b, c, d, ENone)))
+        // case EApply("AttackAction", $(a, b, c)) => parseExpr(EApply("AttackAction", $(a, b, c, ENone)))
+        // case EApply("NeutralMonstersAction", $(a, b, c)) => parseExpr(EApply("NeutralMonstersAction", $(a, b)))
+        // case EApply("LoyaltyCardSummonAction", $(a, b, c, d)) => parseExpr(EApply("LoyaltyCardSummonAction", $(a, b, c)))
         case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).|!("unknown class " + f).apply(params.map(parseExpr)))
     }
 

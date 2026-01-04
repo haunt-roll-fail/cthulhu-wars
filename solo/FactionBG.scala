@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 case object Ghoul extends FactionUnitClass(BG, "Ghoul", Monster, 1)
@@ -16,8 +16,8 @@ case object Fertility extends FactionSpellbook(BG, "Fertility Cult")
 case object Avatar extends FactionSpellbook(BG, "Avatar")
 
 case object ThousandYoung extends FactionSpellbook(BG, "The Thousand Young")
-case object Frenzy extends FactionSpellbook(BG, "Frenzy")
-case object Necrophagy extends FactionSpellbook(BG, "Necrophagy")
+case object Frenzy extends FactionSpellbook(BG, "Frenzy") with BattleSpellbook
+case object Necrophagy extends FactionSpellbook(BG, "Necrophagy") with BattleSpellbook
 case object Ghroth extends FactionSpellbook(BG, "Ghroth")
 case object RedSign extends FactionSpellbook(BG, "The Red Sign")
 case object BloodSacrifice extends FactionSpellbook(BG, "Blood Sacrifice")
@@ -26,7 +26,7 @@ case object Spread4 extends Requirement("Units in 4 Areas")
 case object Spread6 extends Requirement("Units in 6 Areas")
 case object Spread8 extends Requirement("Units in 8 Areas")
 case object SpreadSocial extends Requirement("Share Areas will all enemies")
-case object Eliminate2Cultists extends Requirement("Elminiate two cultists")
+case object EliminateTwoCultists extends Requirement("Elminiate two cultists")
 case object AwakenShubNiggurath extends Requirement("Awaken Shub-Niggurath")
 
 
@@ -39,7 +39,7 @@ case object BG extends Faction { f =>
 
     override def abilities = $(Fertility, Avatar)
     override def library = $(Frenzy, Ghroth, Necrophagy, RedSign, BloodSacrifice, ThousandYoung)
-    override def requirements(options : $[GameOption]) = $(Spread4, Spread6, Spread8, SpreadSocial, Eliminate2Cultists, AwakenShubNiggurath)
+    override def requirements(options : $[GameOption]) = $(Spread4, Spread6, Spread8, SpreadSocial, EliminateTwoCultists, AwakenShubNiggurath)
 
     val allUnits =
         1.times(ShubNiggurath) ++
@@ -62,7 +62,7 @@ case object BG extends Faction { f =>
         units(HighPriest).num * f.has(Frenzy).??(1) +
         units(Fungi).num * 1 +
         units(DarkYoung).num * 2 +
-        units(ShubNiggurath).%!(_.has(Zeroed)).num * (
+        units(ShubNiggurath).not(Zeroed).num * (
             f.gates.num +
             f.all.cultists.num +
             f.all(DarkYoung).num * f.has(RedSign).??(1)
@@ -71,63 +71,183 @@ case object BG extends Faction { f =>
 }
 
 
-case class BloodSacrificeDoomAction(self : Faction) extends OptionFactionAction(BloodSacrifice) with DoomQuestion with Soft with PowerNeutral
-case class BloodSacrificeAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(BloodSacrifice, self.styled(uc) + " in " + r)
+case class BloodSacrificeDoomAction(self : BG) extends OptionFactionAction(BloodSacrifice) with DoomQuestion with Soft with PowerNeutral
+case class BloodSacrificeAction(self : BG, r : Region, u : UnitRef) extends ForcedAction
 
-case class Eliminate2CultistsMainAction(self : Faction) extends OptionFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook") with MainQuestion with Soft
-case class Eliminate2CultistsAction(self : Faction, a : Region, b : Region) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook", (a == b).?("Two from " + a)|("From " + a + " and " + b))
+case class EliminateTwoCultistsMainAction(self : BG) extends OptionFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook") with MainQuestion with Soft
+case class EliminateTwoCultistsAction(self : BG, a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook", implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
 
-case class AvatarMainAction(self : Faction, o : Region, l : $[Region]) extends OptionFactionAction(self.styled(Avatar)) with MainQuestion with Soft
-case class AvatarAction(self : Faction, o : Region, r : Region, f : Faction) extends BaseFactionAction(g => self.styled(Avatar), implicit g => "" + f + " in " + r + self.iced(r))
-case class AvatarReplacementAction(self : Faction, f : Faction, r : Region, o : Region, uc : UnitClass) extends BaseFactionAction(Avatar.full + " replacement from " + r + " to " + o, self.styled(uc))
+case class AwakenEliminateTwoCultistsAction(self : BG, uc : UnitClass, l : $[Region], a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " to awaken " + self.styled(uc), implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
 
-case class GhrothMainAction(self : Faction) extends OptionFactionAction(self.styled(Ghroth)) with MainQuestion
-case class GhrothRollAction(f : Faction, x : Int) extends ForcedAction
-case class GhrothAction(f : Faction, x : Int) extends ForcedAction
-case class GhrothContinueAction(f : Faction, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
-case class GhrothAskAction(f : Faction, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
+case class AvatarMainAction(self : BG, o : Region, l : $[Region]) extends OptionFactionAction(self.styled(Avatar)) with MainQuestion with Soft
+case class AvatarAction(self : BG, o : Region, r : Region, f : Faction) extends BaseFactionAction(g => self.styled(Avatar), implicit g => "" + f + " in " + r + self.iced(r))
+case class AvatarReplacementAction(self : Faction, f : BG, r : Region, o : Region, u : UnitRef) extends ForcedAction
+
+case class GhrothMainAction(self : BG) extends OptionFactionAction(self.styled(Ghroth)) with MainQuestion
+case class GhrothRollAction(f : BG, x : Int) extends ForcedAction
+case class GhrothAction(f : BG, x : Int) extends ForcedAction
+case class GhrothContinueAction(f : BG, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
+case class GhrothAskAction(f : BG, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
     g => f.styled(Ghroth) + " demand " + x.styled("power") + " Cultists<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
     (n < 0).?("Refuse to negotiate").|((x == n + offers./(_.n).sum).?("Offer".styled("highlight")).|("Offer") + " " + (n > 0).?(n.styled("power") + (x == n + offers./(_.n).sum).?((" Cultist" + (n > 1).??("s")).styled("highlight")).|((" Cultist" + (n > 1).??("s")))).|((x == n + offers./(_.n).sum).?("0 Cultists".styled("highlight")).|("0 Cultists")))
 )
-case class GhrothSplitAction(self : Faction, x : Int, factions : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions.mkString(" and "))
-case class GhrothSplitNumAction(self : Faction, x : Int, factions : $[Faction], full : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions./(f => "" + f + (full.%(_ == f).num > 0).??(f.styled(" (" + full.%(_ == f).num + ")"))).mkString(", "))
-case class GhrothEliminateAction(f : Faction, factions : $[Faction]) extends ForcedAction
-case class GhrothUnitAction(self : Faction, uc : UnitClass, r : Region, f : Faction, factions : $[Faction]) extends BaseFactionAction((factions.%(_ == self).num > 1).?("Eliminate " + factions.%(_ == self).num.styled("hightlight") + " Cultists").|("Eliminate a Cultist"), self.styled(uc) + " in " + r)
-case class GhrothFactionAction(self : Faction, f : Faction) extends BaseFactionAction("Place " + Acolyte.name, f.styled(Acolyte))
-case class GhrothPlaceAction(self : Faction, f : Faction, r : Region) extends BaseFactionAction("Place " + f.styled(Acolyte) + " in", r)
+case class GhrothSplitAction(self : BG, x : Int, factions : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions.mkString(" and "))
+case class GhrothSplitNumAction(self : BG, x : Int, factions : $[Faction], full : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions./(f => "" + f + (full.%(_ == f).num > 0).??(f.styled(" (" + full.%(_ == f).num + ")"))).mkString(", "))
+case class GhrothEliminateAction(f : BG, l : $[Faction]) extends ForcedAction
+case class GhrothTargetAction(self : Faction, u : UnitRef, f : BG, l : $[Faction]) extends ForcedAction // BaseFactionAction((factions.%(_ == self).num > 1).?("Eliminate " + factions.%(_ == self).num.styled("hightlight") + " Cultists").|("Eliminate a Cultist"), self.styled(uc) + " in " + r)
+case class GhrothFactionAction(self : BG, f : Faction) extends BaseFactionAction("Place " + Acolyte.name, f.styled(Acolyte))
+case class GhrothPlaceAction(self : BG, f : Faction, r : Region) extends BaseFactionAction("Place " + f.styled(Acolyte) + " in", r)
 
 
 object BGExpansion extends Expansion {
+    override def triggers()(implicit game : Game) {
+        val f = BG
+        f.satisfyIf(Spread4, "Have Units in four Areas", areas.%(r => f.at(r).any).num >= 4)
+        f.satisfyIf(Spread6, "Have Units in six Areas", areas.%(r => f.at(r).any).num >= 6)
+        f.satisfyIf(Spread8, "Have Units in eight Areas", areas.%(r => f.at(r).any).num >= 8)
+        f.satisfyIf(SpreadSocial, "Share Areas with all enemies", f.enemies.forall(e => areas.exists(r => f.at(r).any && e.at(r).any)), f.enemies.num)
+    }
+
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // DOOM
+        case DoomAction(f : BG) =>
+            implicit val asking = Asking(f)
+
+            game.rituals(f)
+
+            if (f.can(BloodSacrifice) && f.has(ShubNiggurath) && f.all.cultists.any)
+                + BloodSacrificeDoomAction(f)
+
+            game.reveals(f)
+
+            game.highPriests(f)
+
+            game.hires(f)
+
+            + DoomDoneAction(f)
+
+            asking
+
+        // ACTIONS
+        case MainAction(f : BG) if f.active.not =>
+            UnknownContinue
+
+        case MainAction(f : BG) if f.acted =>
+            implicit val asking = Asking(f)
+
+            if (f.hasAllSB)
+                game.battles(f)
+
+            game.controls(f)
+
+            game.summons(f)
+
+            game.reveals(f)
+
+            + EndTurnAction(f)
+
+            asking
+
+        case MainAction(f : BG) =>
+            implicit val asking = Asking(f)
+
+            game.moves(f)
+
+            game.captures(f)
+
+            game.recruits(f)
+
+            game.battles(f)
+
+            game.controls(f)
+
+            game.builds(f)
+
+            game.summons(f)
+
+            game.awakens(f)
+
+            game.independents(f)
+
+            if (f.has(Avatar) && f.has(ShubNiggurath)) {
+                val r = f.goo(ShubNiggurath).region
+                val t = f.taxIn(r)
+                areas.but(r).%(f.affords(1 + t)).%(r => nfactions.exists(_.at(r).vulnerable.any)).some.foreach { l =>
+                    + AvatarMainAction(f, r, l)
+                }
+            }
+
+            if (f.has(Ghroth) && f.power >= 2)
+                + GhrothMainAction(f)
+
+            if (f.needs(EliminateTwoCultists) && f.all.cultists.num >= 2)
+                + EliminateTwoCultistsMainAction(f)
+
+            game.neutralSpellbooks(f)
+
+            game.highPriests(f)
+
+            game.reveals(f)
+
+            if (f.battled.any || f.oncePerRound.contains(Fertility))
+                + EndTurnAction(f)
+            else
+                + PassAction(f)
+
+            game.toggles(f)
+
+            asking
+
         // BLOOD SACRIFICE
         case BloodSacrificeDoomAction(self) =>
-            Ask(self).each(self.all.cultists)(c => BloodSacrificeAction(self, c.region, c.uclass)).cancel
+            Ask(self).each(self.all.cultists.sort)(u => BloodSacrificeAction(self, u.region, u).as(u.full, "in", u.region)(BloodSacrifice)).cancel
 
-        case BloodSacrificeAction(self, r, uc) =>
-            val c = self.at(r).one(uc)
-
-            game.eliminate(c)
+        case BloodSacrificeAction(self, r, u) =>
+            game.eliminate(u)
             self.oncePerTurn :+= BloodSacrifice
             self.takeES(1)
-            self.log("sacrificed", c, "in", r, "for", 1.es)
+            self.log("sacrificed", u, "in", r, "for", 1.es)
 
             game.checkGatesLost()
 
             CheckSpellbooksAction(DoomAction(self))
 
-        // ELIMINATE CULTISTS
-        case Eliminate2CultistsMainAction(self) =>
-            val cultists = board.regions./~(r => self.at(r, Cultist).take(2))
-            val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a.region, b.region))).distinct
-            Ask(self).each(pairs)((a, b) => Eliminate2CultistsAction(self, a, b)).cancel
+        // FERTILITY
+        case SummonedAction(self, uc, r, l) if self.has(Fertility) && !self.ignored(Fertility) =>
+            self.oncePerRound :+= Fertility
+            AfterAction(self)
 
-        case Eliminate2CultistsAction(self, a, b) =>
-            $(a, b).foreach { r =>
-                val c = self.at(r).one(Cultist)
-                log(c, "in", c.region, "was sacrificed")
-                game.eliminate(c)
+        // ELIMINATE CULTISTS
+        case EliminateTwoCultistsMainAction(self) =>
+            val cultists = areas./~(r => self.at(r).cultists.sort.take(2))
+            val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a, b))).distinct
+            Ask(self).each(pairs)((a, b) => EliminateTwoCultistsAction(self, a, b)).cancel
+
+        case EliminateTwoCultistsAction(self, a, b) =>
+            $(a, b).foreach { u =>
+                log(u, "in", u.region, "was sacrificed")
+                game.eliminate(u)
             }
-            self.satisfy(Eliminate2Cultists, "Eliminate two Cultists")
+            self.satisfy(EliminateTwoCultists, "Eliminate two Cultists")
+            EndAction(self)
+
+        // AWAKEN
+        case AwakenMainAction(self : BG, uc : ShubNiggurath.type, locations) =>
+            val cultists = areas./~(r => self.at(r).cultists.sort.take(2))
+            val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a, b))).distinct
+            Ask(self).each(pairs)((a, b) => AwakenEliminateTwoCultistsAction(self, uc, locations, a, b)).cancel
+
+        case AwakenEliminateTwoCultistsAction(self, uc, locations, a, b) =>
+            val q = locations./~(r => self.awakenCost(uc, r)./(cost => AwakenAction(self, uc, r, cost)))
+            $(a, b).foreach { u =>
+                log(u, "in", u.region, "was sacrificed")
+                game.eliminate(u)
+            }
+            Ask(self).list(q)
+
+        case AwakenedAction(self, ShubNiggurath, r, cost) =>
+            self.satisfy(AwakenShubNiggurath, "Awaken Shub-Niggurath")
+
             EndAction(self)
 
         // AVATAR
@@ -140,22 +260,23 @@ object BGExpansion extends Expansion {
 
             Ask(self).list(variants).cancel
 
-        case AvatarAction(self, o, r, f) =>
+        case AvatarAction(self, o, r, e) =>
             self.power -= 1
             self.payTax(r)
+            self.payTax(o)
+
             val sn = self.goo(ShubNiggurath)
             sn.region = r
             log(sn, "avatared to", r)
-            self.payTax(o)
-            val units = f.at(r).vulnerable
-            val l = units.useIf(units./(_.uclass).distinct.num == 1)(_.take(1))
 
-            Ask(f.real.?(f).|(self)).each(l)(u => AvatarReplacementAction(f, self, r, o, u.uclass))
+            val l = e.at(r).vulnerable.preferablyNotOnGate
 
-        case AvatarReplacementAction(self, f, r, o, uc) =>
-            val u = self.at(r).one(uc)
+            Ask(e.real.?(e).|(self)).each(l)(u => AvatarReplacementAction(e, self, r, o, u).as(u.full)(Avatar, "replacement from", r, "to", o))
+
+        case AvatarReplacementAction(self, f, r, o, u) =>
             log(u, "was sent back to", o)
             u.region = o
+            u.onGate = false
             EndAction(f)
 
         // GHROTH
@@ -267,41 +388,42 @@ object BGExpansion extends Expansion {
             val valid = split.%(s => ff.%(f => f.onMap.cultists.num < s.%(_ == f).num).none)
             Ask(self).each(valid)(l => GhrothSplitNumAction(self, x, ff, l))
 
-        case GhrothSplitNumAction(self, x, ff, full) =>
-            Force(GhrothEliminateAction(self, full))
+        case GhrothSplitNumAction(self, x, ff, l) =>
+            Force(GhrothEliminateAction(self, l))
 
-        case GhrothEliminateAction(f, full) =>
-            if (full.none)
-                EndAction(f)
-            else {
-                val next = full.first
-                val cultists = board.regions./~(r => next.at(r, Cultist))
-                // If we want to allow SL to eliminate a cultist in Cursed Slumber (which you should be able to do, according to the FAQ).
-                // val cultists = {
-                //     val base = board.regions./~(r => next.at(r, Cultist))
-                //     val slumberCultists = next.at(SL.slumber, Cultist)
-                //     if (slumberCultists.any) {
-                //         base ++ slumberCultists
-                //     } else base
-                // }
-                Ask(next).each(cultists)(c => GhrothUnitAction(next, c.uclass, c.region, f, full.drop(1)))
-            }
+        case GhrothEliminateAction(f, Nil) =>
+            EndAction(f)
 
-        case GhrothUnitAction(self, uc, r, f, full) =>
-            val c = self.at(r).one(uc)
-            log(c, "was eliminated in", c.region)
-            game.eliminate(c)
-            Force(GhrothEliminateAction(f, full))
+        case GhrothEliminateAction(f, l) =>
+            val e = l.first
+            val cultists = e.all.cultists.preferablyNotOnGate
+            val n = l.count(e)
+
+            // If we want to allow SL to eliminate a cultist in Cursed Slumber (which you should be able to do, according to the FAQ).
+            // val cultists = {
+            //     val base = areas./~(r => next.at(r, Cultist))
+            //     val slumberCultists = next.at(SL.slumber, Cultist)
+            //     if (slumberCultists.any) {
+            //         base ++ slumberCultists
+            //     } else base
+            // }
+
+            Ask(e).each(cultists)(u => GhrothTargetAction(e, u, f, l.drop(1)).as(u.full, "in", u.region)("Eliminate", (n > 1).?(n.styled("hightlight")).|("a"), "Cultist".s(n)))
+
+        case GhrothTargetAction(self, u, f, l) =>
+            log(u, "was eliminated in", u.region)
+            game.eliminate(u)
+            Force(GhrothEliminateAction(f, l))
 
         case GhrothFactionAction(self, f) =>
-            Ask(self).each(board.regions)(r => GhrothPlaceAction(self, f, r))
+            Ask(self).each(areas)(r => GhrothPlaceAction(self, f, r))
 
         case GhrothPlaceAction(self, f, r) =>
             f.place(Acolyte, r)
             log(f.styled(Acolyte), "was placed in", r)
             EndAction(self)
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 // IGOOs
 
@@ -31,6 +31,7 @@ case object Filth extends UnitClass("Filth", Monster, 1) {
 }
 
 // Byatis
+case object ToadOfBerkeley extends NeutralSpellbook("Toad of Berkeley")
 case object GodOfForgetfulness extends NeutralSpellbook("God of Forgetfulness")
 
 // Abhoth
@@ -38,7 +39,7 @@ case object LostAbhoth extends NeutralSpellbook("Lost Abhoth")
 case object TheBrood extends NeutralSpellbook("The Brood")
 
 // Daoloth
-case object CosmicUnity extends NeutralSpellbook("Cosmic Unity")
+case object CosmicUnity extends NeutralSpellbook("Cosmic Unity") with BattleSpellbook
 case object Interdimensional extends NeutralSpellbook("Interdimensional")
 
 // Nyogtha
@@ -88,6 +89,95 @@ case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAct
 
 
 object IGOOsExpansion extends Expansion {
+    def checkAbhothSpellbook()(implicit game : Game) {
+        factions.foreach { f =>
+            if (f.has(Abhoth) && f.upgrades.has(TheBrood).not) {
+                val monsters = f.units.monsters.inPlay
+
+                if (monsters./(_.uclass).distinct.num >= 4 || monsters.num >= 8) {
+                    f.upgrades :+= TheBrood
+                    f.log("gained", f.styled(TheBrood), "for", f.styled(Abhoth))
+                }
+            }
+        }
+    }
+
+    def checkInterdimensional()(implicit game : Game) {
+        factions.foreach { f =>
+            if (f.has(Interdimensional)) {
+                val r = f.goo(Daoloth).region
+
+                if (r.onMap && game.gates.has(r).not) {
+                    game.gates :+= r
+                    log(f.styled(Daoloth), "placed a Gate in", r, "with", f.styled(Interdimensional))
+                }
+            }
+        }
+    }
+
+    override def triggers()(implicit game : Game) {
+        checkAbhothSpellbook()
+        checkInterdimensional()
+    }
+
+    override def eliminate(u : UnitFigure)(implicit game : Game) {
+        val f = u.faction
+
+        u.uclass @@ {
+            case Byatis =>
+                f.units :-= u
+                f.upgrades :-= GodOfForgetfulness
+
+                f.loyaltyCards :-= ByatisCard
+                game.loyaltyCards :+= ByatisCard
+
+            case Abhoth =>
+                f.units :-= u
+                f.upgrades :-= TheBrood
+
+                f.loyaltyCards :-= AbhothCard
+                game.loyaltyCards :+= AbhothCard
+
+                f.oncePerAction :+= LostAbhoth
+
+            case Daoloth =>
+                f.units :-= u
+                f.upgrades :-= CosmicUnity
+                f.upgrades :-= Interdimensional
+
+                f.loyaltyCards :-= DaolothCard
+                game.loyaltyCards :+= DaolothCard
+
+            case Nyogtha if f.all(Nyogtha).but(u).any =>
+                f.oncePerAction :+= NyogthaMourning
+
+            case Nyogtha =>
+                f.units = f.units.%!(_.uclass == Nyogtha)
+                f.upgrades :-= FromBelow
+                f.upgrades :-= NightmareWeb
+                f.loyaltyCards :-= NyogthaCard
+                game.loyaltyCards :+= NyogthaCard
+
+            case _ =>
+        }
+    }
+
+    override def afterAction()(implicit game : Game) {
+        factions.%(_.oncePerAction.has(LostAbhoth)).foreach { f =>
+            NeutralAbhoth.units = f.units(Filth)./(u => new UnitFigure(NeutralAbhoth, u.uclass, u.index, (u.region == f.reserve).?(NeutralAbhoth.reserve).|(u.region), u.onGate, u.state, u.health))
+
+            f.units = f.units.not(Filth)
+        }
+
+        factions.%(_.oncePerAction.has(NyogthaPrimed)).%!(_.oncePerAction.has(NyogthaMourning)).foreach { f =>
+            if (f.upgrades.has(NightmareWeb).not) {
+                f.upgrades :+= NightmareWeb
+
+                f.log("gained", f.styled(NightmareWeb), "for", f.styled(Nyogtha))
+            }
+        }
+    }
+
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
         case IndependentGOOMainAction(self, lc, l) =>
             Ask(self).each(l)(r => IndependentGOOAction(self, lc, r, lc.power)).cancel
@@ -107,7 +197,7 @@ object IGOOsExpansion extends Expansion {
                     if (game.neutrals.contains(NeutralAbhoth).not)
                         game.neutrals += NeutralAbhoth -> new Player(NeutralAbhoth)
 
-                    self.units ++= NeutralAbhoth.units./(u => new UnitFigure(self, u.uclass, u.index, (u.region == NeutralAbhoth.reserve).?(self.reserve).|(u.region), u.state, u.health))
+                    self.units ++= NeutralAbhoth.units./(u => new UnitFigure(self, u.uclass, u.index, (u.region == NeutralAbhoth.reserve).?(self.reserve).|(u.region), u.onGate, u.state, u.health))
 
                     NeutralAbhoth.units = $
 
@@ -157,15 +247,12 @@ object IGOOsExpansion extends Expansion {
             self.place(Filth, r)
             log(self.styled(Abhoth), "placed", self.styled(Filth), "in", r)
 
-            if (self.has(Fertility) && !self.ignored(Fertility)) {
-                self.oncePerRound :+= Fertility
-                game.checkGatesOwnership(self)
-                CheckSpellbooksAction(MainAction(self))
-            }
-            else
-                EndAction(self)
+            EndAction(self)
 
         // NYOGTHA
+        case MovedAction(self, u, o, r) if u.uclass == Nyogtha =>
+            self.all(Nyogtha).but(u).not(Moved).single./(n => MoveSelectAction(self, n, n.region, 0)).|(MoveContinueAction(self, true))
+
         case NightmareWebMainAction(self, regions) =>
             Ask(self).each(regions)(r => NightmareWebAction(self, r)).cancel
 
@@ -181,7 +268,7 @@ object IGOOsExpansion extends Expansion {
 
             EndAction(self)
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

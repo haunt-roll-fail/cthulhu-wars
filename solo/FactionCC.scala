@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 case object Nightgaunt extends FactionUnitClass(CC, "Nightgaunt", Monster, 1)
@@ -11,14 +11,14 @@ case object HuntingHorror extends FactionUnitClass(CC, "Hunting Horror", Monster
 case object Nyarlathotep extends FactionUnitClass(CC, "Nyarlathotep", GOO, 10)
 
 
-case object Harbinger extends FactionSpellbook(CC, "The Harbinger")
+case object Harbinger extends FactionSpellbook(CC, "The Harbinger") with BattleSpellbook
 case object Flight extends FactionSpellbook(CC, "Flight")
 
-case object Abduct extends FactionSpellbook(CC, "Abduct")
-case object SeekAndDestroy extends FactionSpellbook(CC, "Seek and Destroy")
-case object Invisibility extends FactionSpellbook(CC, "Invisibility")
-case object Madness extends FactionSpellbook(CC, "Madness")
-case object Emissary extends FactionSpellbook(CC, "Emissary of the Outer Gods")
+case object Abduct extends FactionSpellbook(CC, "Abduct") with BattleSpellbook
+case object SeekAndDestroy extends FactionSpellbook(CC, "Seek and Destroy") with BattleSpellbook
+case object Invisibility extends FactionSpellbook(CC, "Invisibility") with BattleSpellbook
+case object Madness extends FactionSpellbook(CC, "Madness") with BattleSpellbook
+case object Emissary extends FactionSpellbook(CC, "Emissary of the Outer Gods") with BattleSpellbook
 case object ThousandForms extends FactionSpellbook(CC, "The Thousand Forms")
 
 
@@ -55,28 +55,98 @@ case object CC extends Faction { f =>
     def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
         units(FlyingPolyp).num * 1 +
         units(HuntingHorror).num * 2 +
-        units(Nyarlathotep).%!(_.has(Zeroed)).num * (f.spellbooks.num + opponent.spellbooks.num) +
+        units(Nyarlathotep).not(Zeroed).num * (f.spellbooks.num + opponent.spellbooks.num) +
         neutralStrength(units, opponent)
 }
 
 
-case class ThousandFormsMainAction(self : Faction) extends OptionFactionAction(self.styled(ThousandForms)) with MainQuestion
-case class ThousandFormsRollAction(f : Faction, x : Int) extends ForcedAction
+case class ThousandFormsMainAction(self : CC) extends OptionFactionAction(self.styled(ThousandForms)) with MainQuestion
+case class ThousandFormsRollAction(f : CC, x : Int) extends ForcedAction
 
-case class ThousandFormsAction(f : Faction, x : Int) extends ForcedAction
-case class ThousandFormsContinueAction(f : Faction, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
-case class ThousandFormsAskAction(f : Faction, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
+case class ThousandFormsAction(f : CC, x : Int) extends ForcedAction
+case class ThousandFormsContinueAction(f : CC, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
+case class ThousandFormsAskAction(f : CC, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
     g => f.styled(ThousandForms) + " demand " + x.power + "<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
     (n < 0).?("Refuse to negotiate").|((x == n + offers./(_.n).sum).?("Offer".styled("highlight")).|("Offer") + " " + (n > 0).?(n.styled("power") + (x == n + offers./(_.n).sum).?(" Power".styled("highlight")).|(" Power")).|((x == n + offers./(_.n).sum).?("0 Power".styled("highlight")).|("0 Power")))
 )
 
-case class Pay4PowerMainAction(self : Faction) extends OptionFactionAction("Pay " + 4.power + " for a spellbook") with MainQuestion
-case class Pay6PowerMainAction(self : Faction) extends OptionFactionAction("Pay " + 6.power + " for a spellbook") with MainQuestion
-case class Pay10PowerMainAction(self : Faction) extends OptionFactionAction("Pay " + 10.power + " for two spellbooks") with MainQuestion
+case class Pay4PowerMainAction(self : CC) extends OptionFactionAction("Pay " + 4.power + " for a spellbook") with MainQuestion
+case class Pay6PowerMainAction(self : CC) extends OptionFactionAction("Pay " + 6.power + " for a spellbook") with MainQuestion
+case class Pay10PowerMainAction(self : CC) extends OptionFactionAction("Pay " + 10.power + " for two spellbooks") with MainQuestion
 
 
 object CCExpansion extends Expansion {
+    override def triggers()(implicit game : Game) {
+        val f = CC
+        f.satisfyIf(Gates3Power12, "Have 12 Power", f.power >= 12)
+        f.satisfyIf(Gates4Power15, "Have 15 Power", f.power >= 15)
+
+        f.satisfyIf(Gates3Power12, "Control three Gates", f.gates.num >= 3)
+        f.satisfyIf(Gates4Power15, "Control four Gates", f.gates.num >= 4)
+    }
+
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // ACTIONS
+        case MainAction(f : CC) if f.active.not =>
+            UnknownContinue
+
+        case MainAction(f : CC) if f.acted =>
+            UnknownContinue
+
+        case MainAction(f : CC) =>
+            implicit val asking = Asking(f)
+
+            game.moves(f)
+
+            game.captures(f)
+
+            game.recruits(f)
+
+            game.battles(f)
+
+            game.controls(f)
+
+            game.builds(f)
+
+            game.summons(f)
+
+            game.awakens(f)
+
+            game.independents(f)
+
+            if (f.can(ThousandForms) && f.has(Nyarlathotep))
+                + ThousandFormsMainAction(f)
+
+            if (f.needs(Pay4Power) && f.power >= 4)
+                + Pay4PowerMainAction(f)
+
+            if (f.needs(Pay6Power) && f.power >= 6)
+                + Pay6PowerMainAction(f)
+
+            if (f.needs(Pay4Power) && f.needs(Pay6Power) && f.power >= 10)
+                + Pay10PowerMainAction(f)
+
+            game.neutralSpellbooks(f)
+
+            game.highPriests(f)
+
+            game.reveals(f)
+
+            if (f.battled.any)
+                + EndTurnAction(f)
+            else
+                + PassAction(f)
+
+            game.toggles(f)
+
+            asking
+
+        // AWAKEN
+        case AwakenedAction(self, Nyarlathotep, r, cost) =>
+            self.satisfy(AwakenNyarlathotep, "Awaken Nyarlathotep")
+
+            EndAction(self)
+
         // PAYXPOWER
         case Pay4PowerMainAction(self) =>
             self.power -= 4
@@ -189,7 +259,7 @@ object CCExpansion extends Expansion {
                 Force(ThousandFormsContinueAction(f, x, Offer(self, n) +: offers, forum, time))
             }
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

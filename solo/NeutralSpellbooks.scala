@@ -2,12 +2,12 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 case object MaoCeremony extends NeutralSpellbook("The Mao Ceremony")
 case object Recriminations extends NeutralSpellbook("Recriminations")
-case object Shriveling extends NeutralSpellbook("Shriveling")
+case object Shriveling extends NeutralSpellbook("Shriveling") with BattleSpellbook
 case object StarsAreRight extends NeutralSpellbook("Stars Are Right")
 case object UmrAtTawil extends NeutralSpellbook("Umr at-Tawil")
 case object Undimensioned extends NeutralSpellbook("Undimensioned")
@@ -36,7 +36,7 @@ object NeutralSpellbooksExpansion extends Expansion {
             self.power += 1
             self.log("sacrificed", c, "in", r, "for", 1.power)
 
-            game.checkPowerReached()
+            game.triggers() // game.checkPowerReached()
 
             game.checkGatesLost()
 
@@ -69,9 +69,9 @@ object NeutralSpellbooksExpansion extends Expansion {
             UndimensionedContinueAction(self, self.units.onMap./(_.region).distinct, false)
 
         case UndimensionedContinueAction(self, destinations, moved) =>
-            val units = self.units.nex.onMap.%!(_.has(Moved)).%(u => destinations.but(u.region).%(self.affords(self.units.onMap.%(_.has(Moved)).none.??(2))).any).sort
+            val units = self.units.nex.onMap.not(Moved).%(u => destinations.but(u.region).%(self.affords(self.units.onMap.tag(Moved).none.??(2))).any).sort
             if (units.none)
-                Force(UndimensionedDoneAction(self))
+                Then(UndimensionedDoneAction(self))
             else
             if (moved)
                 Ask(self).add(UndimensionedDoneAction(self)).each(units)(u => UndimensionedSelectAction(u.faction, destinations, u.uclass, u.region))
@@ -79,9 +79,9 @@ object NeutralSpellbooksExpansion extends Expansion {
                 Ask(self).each(units)(u => UndimensionedSelectAction(u.faction, destinations, u.uclass, u.region)).cancel
 
         case UndimensionedSelectAction(self, destinations, uc, r) =>
-            val options = destinations.but(r).%(self.affords(self.units.onMap.%(_.has(Moved)).none.??(2)))./(d => UndimensionedAction(self, destinations, uc, r, d))
+            val options = destinations.but(r).%(self.affords(self.units.onMap.tag(Moved).none.??(2)))./(d => UndimensionedAction(self, destinations, uc, r, d))
 
-            if (self.units.onMap.%(_.has(Moved)).any)
+            if (self.units.onMap.tag(Moved).any)
                 Ask(self).list(options).add(UndimensionedCancelAction(self, destinations))
             else
                 Ask(self).list(options).cancel
@@ -91,14 +91,14 @@ object NeutralSpellbooksExpansion extends Expansion {
             EndAction(self)
 
         case UndimensionedAction(self, destinations, uc, o, r) =>
-            if (self.units.onMap.%(_.has(Moved)).none) {
+            if (self.units.onMap.tag(Moved).none) {
                 self.log("units are", Undimensioned.full)
                 self.power -= 2
             }
 
             self.payTax(r)
 
-            val u = self.at(o, uc).%!(_.has(Moved)).first
+            val u = self.at(o, uc).not(Moved).first
             u.region = r
             u.add(Moved)
 
@@ -109,7 +109,7 @@ object NeutralSpellbooksExpansion extends Expansion {
         case UndimensionedCancelAction(self, destinations) =>
             UndimensionedContinueAction(self, destinations, true)
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

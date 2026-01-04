@@ -115,9 +115,9 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def owner = game.factions.%(_.gates.contains(r)).single.get
         def capturers = allies.goos.none.??(others.%(f => f.at(r).goos.any || (allies.monsterly.none && f.at(r).monsterly.%(_.canCapture).any)))
         def desecrated = game.desecrated.contains(r)
-        def near = game.board.connected(r)
-        def near2 = game.board.connected(r).flatMap(n => game.board.connected(n)).%(_ != r).%(!near.contains(_))
-        def near012 = game.board.connected(r).flatMap(n => game.board.connected(n)).distinct
+        def near = r.connected
+        def near2 = r.connected./~(_.connected).but(r).%!(near.has)
+        def near012 = r.connected./~(_.connected).distinct
         def ocean = r.glyph == Ocean
         /* Check if unaccompanied cultist for given faction at risk of capture in this region */
         def riskyForCultists(f : Faction) = (allies ++ foes).%!(_.cultist).%!(_.faction == f).any
@@ -212,7 +212,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         if (current == f)
             return !f.allSB
 
-        val factions = (game.order ++ game.order).dropWhile(_ != current)
+        // val factions = (game.order ++ game.order).dropWhile(_ != current)
 
         return factions.indexOf(f) > factions.indexOf(self)
     }
