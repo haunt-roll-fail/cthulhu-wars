@@ -6,4 +6,6 @@ unmanagedSources / excludeFilter := "Stats.scala" || "ReflectStub.scala" || "Hos
 
 scalaJSUseMainModuleInitializer := true
 
+scalaJSLinkerConfig ~= { _.withOptimizer(false) }
+
 libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.0"

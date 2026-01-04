@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 // Neutral Monsters
@@ -47,6 +47,8 @@ case class NeutralMonstersAction(self : Faction, lc : LoyaltyCard) extends BaseF
     "</div>"
 }) with PowerNeutral
 case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "Place " + self.styled(uc) + " in", implicit g => r + self.iced(r))
+
+case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends BaseFactionAction(g => "Summon " + self.styled(uc) + " for free in", implicit g => r + self.iced(r))
 
 case class ShantakCarryCultistAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction("Carry Cultist to " + r, self.styled(uc) + " from " + o)
 
@@ -98,9 +100,27 @@ object NeutralMonstersExpansion extends Expansion {
             else
                 CheckSpellbooksAction(DoomAction(self))
 
+        // GHAST
+        case SummonedAction(self, uc, r, l) if uc == Ghast && self.pool(Ghast).any =>
+            Ask(self).each(self.summonRegions)(r => FreeSummonAction(self, uc, r, l))
+
+        case FreeSummonAction(self, uc, r, l) =>
+            if (l.has(r).not)
+                self.payTax(r)
+
+            self.place(uc, r)
+            self.log("summoned", self.styled(uc), "in", r, "for free")
+
+            SummonedAction(self, uc, r, l :+ r)
+
         // SHANTAK
+        case MovedAction(self, u, o, r) if u.uclass == Shantak =>
+            Ask(self)
+                .each(self.at(o).not(Moved).cultists)(u => ShantakCarryCultistAction(self, o, u.uclass, r))
+                .skip(MoveContinueAction(self, true))
+
         case ShantakCarryCultistAction(self, o, uc, r) =>
-            val u = self.at(o, uc).%!(_.has(Moved)).first
+            val u = self.at(o, uc).not(Moved).first
             u.region = r
 
             u.add(Moved)
@@ -110,7 +130,7 @@ object NeutralMonstersExpansion extends Expansion {
 
             MoveContinueAction(self, true)
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

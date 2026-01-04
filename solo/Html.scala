@@ -2,7 +2,8 @@ package cws
 
 import hrf.colmat._
 
-object Html {
+
+package object html {
     implicit class HtmlString(val s : String) extends AnyVal {
         def styled(l : String*) = "<span class='" + l.mkString(" ")  + "'>" + s + "</span>"
         def power = (s + " Power").styled("power")
@@ -23,12 +24,5 @@ object Html {
             case (a, b) => a.toString + "-" + b.toString
         }
         def power = range.power
-    }
-
-    implicit class ListUnitFigure(val list : $[UnitFigure]) extends AnyVal {
-        def unique = {
-            val distinct = list./(u => (u.uclass, u.state, u.health) -> u).toMap.values.toList
-            list.%(distinct.contains)
-        }
     }
 }

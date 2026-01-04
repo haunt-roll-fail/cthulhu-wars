@@ -8,11 +8,11 @@ import org.scalajs.dom.html
 
 import hrf.colmat._
 
-import Html._
-
 import util.canvas._
 
-import hrf.{BuildInfo => Info}
+import hrf.BuildInfo
+
+import cws.html._
 
 
 sealed trait UIAction
@@ -30,15 +30,15 @@ case class UIRollBattle(game : Game, question : Game => String, n : Int, o : $[B
 case class UIDrawES(game : Game, question : Game => String, es1 : Int, es2 : Int, es3 : Int, draw : (Int, Boolean) => Action) extends UIAction
 
 sealed trait Difficulty extends Record {
-    def html : String
+    def elem : String
 }
-case object Off extends Difficulty { def html = "Off".hl }
-case object Recorded extends Difficulty { def html = "Recorded".hl }
-case object Human extends Difficulty { def html = "Human".hl }
-case object Debug extends Difficulty { def html = "Debug".hl }
-case object Easy extends Difficulty { def html = "Easy".styled("miss") }
-case object Normal extends Difficulty { def html = "Normal".styled("pain") }
-case object AllVsHuman extends Difficulty { def html = "AllVsHuman".styled("pain") }
+case object Off extends Difficulty { def elem = "Off".hl }
+case object Recorded extends Difficulty { def elem = "Recorded".hl }
+case object Human extends Difficulty { def elem = "Human".hl }
+case object Debug extends Difficulty { def elem = "Debug".hl }
+case object Easy extends Difficulty { def elem = "Easy".styled("miss") }
+case object Normal extends Difficulty { def elem = "Normal".styled("pain") }
+case object AllVsHuman extends Difficulty { def elem = "AllVsHuman".styled("pain") }
 
 class Setup(factions : $[Faction], diff : Difficulty) {
     var seating : $[Faction] = factions
@@ -218,6 +218,9 @@ object CthulhuWarsSolo {
             case _ =>
                 val path = dom.window.location.pathname
 
+                if (path.startsWith("/play/quick"))
+                    ("", true)
+                else
                 if (path.startsWith("/play/"))
                     (path.drop("/play/".length), false)
                 else
@@ -253,11 +256,11 @@ object CthulhuWarsSolo {
         }
 
         val msday = 24 * 60 * 60 * 1000
-        val diff = (System.currentTimeMillis - Info.time) % msday / 1000
+        val diff = (System.currentTimeMillis - BuildInfo.time) % msday / 1000
         val secs = diff % 60
         val mins = diff / 60
 
-        val version = "Cthulhu Wars HRF " + Info.version
+        val version = "Cthulhu Wars HRF " + BuildInfo.version
 
         log(version)
 
@@ -312,7 +315,7 @@ object CthulhuWarsSolo {
             None
         }
 
-        var statuses = List(getElem("status-1"), getElem("status-2"), getElem("status-3"), getElem("status-4"), getElem("status-5"))
+        var statuses = $(getElem("status-1"), getElem("status-2"), getElem("status-3"), getElem("status-4"), getElem("status-5"))
 
         val mapWest = getElem("map-west")
         val mapEast = getElem("map-east")
@@ -338,12 +341,61 @@ object CthulhuWarsSolo {
            .mkString("\n")
 
         def onlineGameName = {
-            val n = $("Power", "Doom", "Glory", "Destiny", "Might", "Fight", "Betrayal", "Fate", "Eternity", "Existance", "Time", "Space", "Agony", "Pain", "Torment", "Anything", "Sacrifice", "Death", "Despair", "Rage", "Curse", "Fear", "Undefined", "Shift", "Colour", "Gate", "Break", "Desparation", "Ritual", "Dread", "Discord", "Slaughter").sortBy(_ => math.random())
+            val n = $(
+                "Power",
+                "Doom",
+                "Glory",
+                "Destiny",
+                "Might",
+                "Fight",
+                "Betrayal",
+                "Fate",
+                "Eternity",
+                "Existence",
+                "Time",
+                "Space",
+                "Agony",
+                "Pain",
+                "Torment",
+                "Anything",
+                "Sacrifice",
+                "Death",
+                "Despair",
+                "Rage",
+                "Curse",
+                "Fear",
+                "Undefined",
+                "Shift",
+                "Colour",
+                "Gate",
+                "Break",
+                "Desperation",
+                "Ritual",
+                "Dread",
+                "Discord",
+                "Slaughter",
+                "Horror",
+                "Omen",
+                "Insanity",
+                "Rupture",
+                "Decay",
+                "Blindness",
+                "Continuum",
+                "Catastrophe",
+                "Disaster",
+                "Hazard",
+                "Devastation",
+                "Failure",
+                "Tentacles",
+                "Maw",
+                "Void",
+                "Blood",
+            ).sortBy(_ => math.random())
             val c = $("for", "against", "versus", "through", "and", "of", "in", "as").sortBy(_ => math.random())
             n.head + " " + c.head + " " + n.last
         }
 
-        def startOnlineGame(setup : Setup, recorded : $[String] = Nil) {
+        def startOnlineGame(setup : Setup, recorded : $[String] = $) {
             val roles = setup.seating.%(f => setup.difficulty(f) == Human).map(_.short).mkString(" ")
             val stp = (setup.seating.%(f => setup.difficulty(f) != Off)./(f => f.short + ":" + setup.difficulty(f)).mkString("/") + " " + setup.options./(_.toString).mkString(" "))
             val name = onlineGameName
@@ -376,8 +428,10 @@ object CthulhuWarsSolo {
             }
         }
 
-        def startGame(setup : Setup, recorded : $[String] = $, self : |[Faction] = None) {
+        def startGame(setup : Setup, recorded : $[String] = $, selfFaction : |[Faction] = None) {
             val seating = setup.seating.%(f => setup.difficulty(f) != Off)
+
+            val self = setup.difficulty.keys.$.%(k => setup.difficulty(k) == Human).single
 
             if (seating.num == 5)
                 statuses = statuses.take(3) ++ statuses.drop(4).take(1) ++ statuses.drop(3).take(1)
@@ -429,7 +483,10 @@ object CthulhuWarsSolo {
                 def filterAttack(actions : $[Action], factions : $[Faction]) = actions.%(dontAttack(factions)).some.|(actions)
 
                 c match {
-                    case Force(action) =>
+                    // case Force(action) =>
+                    //     UIPerform(game, action)
+
+                    case Then(action) =>
                         UIPerform(game, action)
 
                     case DelayedContinue(_, continue) =>
@@ -442,7 +499,7 @@ object CthulhuWarsSolo {
                         UIRollD6(game, question, roll)
 
                     case RollBattle(_, 0, roll) =>
-                        UIPerform(game, roll(Nil))
+                        UIPerform(game, roll($))
 
                     case RollBattle(_, n, roll) if setup.dice =>
                         UIPerform(game, roll(List.fill(n)(BattleRoll.roll())))
@@ -460,7 +517,7 @@ object CthulhuWarsSolo {
                         UIDrawES(game, question, es1, es2, es3, draw)
 
                     case GameOver(winners) =>
-                        UIQuestion(null, game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
+                        UIQuestion(self.||(winners.starting).|(game.setup.first), game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
 
                     case Ask(faction, actions) =>
                         if (actions(0).isInstanceOf[PlayDirectionAction] || actions(0).isInstanceOf[StartingRegionAction]) {
@@ -468,7 +525,7 @@ object CthulhuWarsSolo {
                             hide(ccw)
                         }
                         else {
-                            if (game.order.dropWhile(_ != game.factions(0)) ++ game.order.takeWhile(_ != game.factions(0)) == game.factions) {
+                            if ((game.factions ++ game.factions).containsSlice(game.setup)) {
                                 show(cw)
                                 hide(ccw)
                             }
@@ -699,8 +756,8 @@ object CthulhuWarsSolo {
                         None
             }
 
-            var oldPositions : $[DrawItem] = Nil
-            var oldGates : $[Region] = Nil
+            var oldPositions : $[DrawItem] = $
+            var oldGates : $[Region] = $
             var horizontal = true
 
             def drawMap(implicit game : Game) {
@@ -786,12 +843,13 @@ object CthulhuWarsSolo {
 
                 var draws : $[DrawItem] = $
 
-                game.board.regions.foreach { r =>
+                areas.foreach { r =>
                     val (px, py) = gateXY(r)
                     val gated = game.gates.contains(r)
 
-                    val controler = game.factions.%(_.gates.has(r)).single
-                    val keeper = controler.flatMap(f => f.at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).headOption)
+                    val controler = game.setup.%(_.gates.has(r)).single
+                    // val keeper = controler.flatMap(f => f.at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).headOption)
+                    val keeper = controler./~(_.at(r).%(_.onGate).%(_.health == Alive).starting)
 
                     var fixed : $[DrawItem] = $
                     var all : $[DrawItem] = $
@@ -802,12 +860,12 @@ object CthulhuWarsSolo {
                         fixed +:= DrawItem(r, null, Gate, Alive, px, py)
 
                     keeper match {
-                        case Some(uf) => fixed +:= DrawItem(r, uf.faction, uf.uclass, uf.health, px, py)
+                        case Some(u) => fixed +:= DrawItem(r, u.faction, u.uclass, u.health, px, py)
                         case _ =>
                     }
 
                     (game.factions ++ game.neutrals.keys).foreach { f =>
-                        f.at(r).diff(keeper.toList).foreach { u =>
+                        f.at(r).diff(keeper.$).foreach { u =>
                             all +:= DrawItem(r, f, u.uclass, u.health, 0, 0)
                         }
                     }
@@ -825,12 +883,12 @@ object CthulhuWarsSolo {
                         saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit && d.health == o.health) match {
                             case Some(o) =>
                                 sticking +:= o.copy(health = d.health)
-                                saved = saved.diff(List(o))
+                                saved :-= o
                             case None =>
                             saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit) match {
                                 case Some(o) =>
                                     sticking +:= o.copy(health = d.health)
-                                    saved = saved.diff(List(o))
+                                    saved :-= o
                                 case None =>
                                     free +:= d
                             }
@@ -839,7 +897,7 @@ object CthulhuWarsSolo {
 
                     if (free.num > sticking.num * 0 + 3 || free.%(_.unit.utype == GOO).any || (!oldGates.contains(r) && game.gates.contains(r))) {
                         free = free ++ sticking
-                        sticking = Nil
+                        sticking = $
                     }
 
                     def rank(d : DrawItem) = d.unit.utype match {
@@ -902,7 +960,7 @@ object CthulhuWarsSolo {
             val statusBitmaps = statuses.take(seating.num)./(s => new CachedBitmap(s))
 
             def factionStatus(f : Faction, b : CachedBitmap)(implicit game : Game) {
-                if (!game.factions.contains(f))
+                if (!game.setup.contains(f))
                     return
 
                 def div(styles : String*)(content : String) = if (styles.none) "<div>" + content + "</div>" else "<div class=\"" + styles.mkString(" ") + "\">" + content + "</div>"
@@ -1015,7 +1073,7 @@ object CthulhuWarsSolo {
                     }
                 }
 
-                val deep = if (f.at(GC.deep).any) {
+                val deep = f.at(GC.deep).any.?? {
                     var draws = $(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
 
                     val sortedDeep = f.at(GC.deep).filterNot(_.uclass == Cthulhu).sortBy(_.uclass @@ {
@@ -1166,10 +1224,10 @@ object CthulhuWarsSolo {
                     }
 
                     draws./(_.rect)
-                } else Nil
+                }
 
                 val captured = {
-                    var draws : $[DrawItem] = Nil
+                    var draws : $[DrawItem] = $
 
                     game.factions.%(_ != f)./~(e => e.at(f.prison)).foreach { u =>
                         val (prisonXOffset, prisonYOffset) = u.uclass match {
@@ -1202,7 +1260,7 @@ object CthulhuWarsSolo {
 
             def updateStatus() {
                 0.until(seating.num).foreach { n =>
-                    factionStatus(displayGame.factions(n), statusBitmaps(n))(displayGame)
+                    factionStatus(displayGame.setup(n), statusBitmaps(n))(displayGame)
                 }
 
                 mapWest.innerHTML = (board.west :+ GC.deep)./(r => processStatus(displayGame.regionStatus(r), "p8")).mkString("")
@@ -1324,7 +1382,7 @@ object CthulhuWarsSolo {
 
                 actions.reverse.take(n).foreach { a =>
                     if (a.isVoid.not)
-                        g.perform(a)
+                        g.perform(a.unwrap)
                 }
 
                 overrideGame = |(g)
@@ -1347,7 +1405,7 @@ object CthulhuWarsSolo {
 
                 actions.reverse.indexed./ { (a, i) =>
                     if (a.isVoid.not) {
-                        val (l, c) = g.perform(a)
+                        val (l, c) = g.perform(a.unwrap)
 
                         l.foreach(s => log(s, showUndo(i + 1)))
 
@@ -1385,8 +1443,8 @@ object CthulhuWarsSolo {
                             case UIPerform(g, a : GameOverAction) if a.msg == "Save replay" => {
                                 val ir = hrf.html.ImageResources(Map(), Map(), hrf.HRF.imageCache)
                                 val resources = hrf.html.Resources(ir, () => Map())
-                                val title = "Cthulhu Wars " + Info.version + " Replay"
-                                val filename = "cthulhu-wars-" + Info.version + "-replay-" + hrf.HRF.startAt.toISOString().take(16).replace("T", "-")
+                                val title = "Cthulhu Wars " + BuildInfo.version + " Replay"
+                                val filename = "cthulhu-wars-" + BuildInfo.version + "-replay-" + hrf.HRF.startAt.toISOString().take(16).replace("T", "-")
 
                                 hrf.quine.Quine.save(title, g.factions, g.options, resources, actions.reverse, new Serialize(g), filename, true, "", {
                                     val winners = a.winners
@@ -1450,7 +1508,7 @@ object CthulhuWarsSolo {
                                     }
 
                                     if (a.isVoid.not) {
-                                        val (l, c) = game.perform(a)
+                                        val (l, c) = game.perform(a.unwrap)
 
                                         l.foreach(s => log(s, showUndo(actions.num)))
 
@@ -1538,7 +1596,21 @@ object CthulhuWarsSolo {
                                 if (hash != "")
                                     startBackgroundCheck()
 
-                                askM($, aa./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; perform(aa(n)) }, |(f)./(_.style + "-border"))
+                                val extra = g.outOfTurn(f)
+
+                                println(extra)
+
+                                askM($, (aa ++ extra)./(a => a.question(g) -> a.option(g)), n => {
+                                    stopBackgroundCheck()
+
+                                    if (n < aa.num)
+                                        perform(aa(n))
+                                    else {
+                                        savedUIAction = |(head)
+
+                                        perform(extra(n - aa.num))
+                                    }
+                                }, |(f)./(_.style + "-border"))
                             }
                             case UIQuestionDebug(f, g, actions) => {
                                 cancelUndo()
@@ -1585,7 +1657,7 @@ object CthulhuWarsSolo {
 
             def replayMenu() {
                 def action = recorded.lift(actions.num).map(_.replace("&gt;", ">")).map(serializer.parseAction)
-                ask("Replay (" + actions.num + " / " + recorded.num + ")", List(paused.?("Play").|("Pause"), "Start", "End", "Next"), {
+                ask("Replay (" + actions.num + " / " + recorded.num + ")", $(paused.?("Play").|("Pause"), "Start", "End", "Next"), {
                     case 0 =>
                         if (paused) {
                             paused = false
@@ -1598,8 +1670,8 @@ object CthulhuWarsSolo {
                         replayMenu()
                     case 1 =>
                         paused = true
-                        game = new Game(game.board, game.ritualTrack, game.factions, game.logging, Nil)
-                        actions = Nil
+                        game = new Game(game.board, game.ritualTrack, game.factions, game.logging, $)
+                        actions = $
                         clear(logDiv)
                         updateStatus()
                         replayMenu()
@@ -1653,7 +1725,7 @@ object CthulhuWarsSolo {
 
             def setupQuestions() {
                 askM($,
-                    factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
+                    factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).elem + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
@@ -1686,7 +1758,7 @@ object CthulhuWarsSolo {
                     nn => {
                         var n = nn
                         if (n >= 0 && n < factions.num) {
-                            setup.difficulty += factions(n) -> List(Human, Easy, Normal, Human).dropWhile(_ != setup.difficulty(factions(n))).drop(1).head
+                            setup.difficulty += factions(n) -> $(Human, Easy, Normal, Human).dropWhile(_ != setup.difficulty(factions(n))).drop(1).head
                             setupQuestions()
                         }
                         n -= factions.num
@@ -1817,7 +1889,7 @@ object CthulhuWarsSolo {
 
             def setupQuestions() {
                 askM($,
-                    factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).html + ")")) ++
+                    factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).elem + ")")) ++
                     seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
@@ -1853,7 +1925,7 @@ object CthulhuWarsSolo {
                     nn => {
                         var n = nn
                         if (n >= 0 && n < factions.num) {
-                            setup.difficulty += factions(n) -> List(Human, Easy, Normal, Human).dropWhile(_ != setup.difficulty(factions(n))).drop(1).head
+                            setup.difficulty += factions(n) -> $(Human, Easy, Normal, Human).dropWhile(_ != setup.difficulty(factions(n))).drop(1).head
                             setupQuestions()
                         }
                         n -= factions.num
@@ -1990,7 +2062,7 @@ object CthulhuWarsSolo {
             askTop()
         }
 
-        val allFactions = List(GC, CC, BG, YS, SL, WW, OW, AN)
+        val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN)
 
         val replay = getElem("replay").?./(_.innerHTML).|("")
 
@@ -2095,7 +2167,7 @@ object CthulhuWarsSolo {
         }
         else {
             def topMenu() {
-                ask("Cthulhu Wars", List("Quick Game".hl, "Local Game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online Game".hl), "Extra", "About", "Test").take(menu), {
+                ask("Cthulhu Wars", $("Quick Game".hl, "Local Game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online Game".hl), "Extra", "About", "Test").take(menu), {
                     case 999_0 =>
                         val n = 1
                         val pn = n + 3
@@ -2171,7 +2243,7 @@ object CthulhuWarsSolo {
                             val resources = hrf.html.Resources(ir, () => Map())
                             var game = new Game(EarthMap3, RitualTrack.for3, $(GC, CC, BG), true, $)
 
-                            hrf.quine.Quine.save("cthulhu-wars-solo-" + Info.version, $, $, resources, $, new Serialize(game), "cthulhu-wars-solo-" + Info.version, false, "", topMenu())
+                            hrf.quine.Quine.save("cthulhu-wars-solo-" + BuildInfo.version, $, $, resources, $, new Serialize(game), "cthulhu-wars-solo-" + BuildInfo.version, false, "", topMenu())
                         case 2 | 3 | 4 =>
                             topMenu()
                     })
@@ -2207,10 +2279,10 @@ object CthulhuWarsSolo {
                                 topMenu()
                         })
                     case 777 =>
-                        val setup = new Setup(randomSeating(List(YS, GC, BG, AN)), Normal)
+                        val setup = new Setup(randomSeating($(YS, GC, BG, AN)), Normal)
                         startGame(setup)
                     case 888 =>
-                        val setup = new Setup(randomSeating(List(GC, CC, YS, OW)), Normal)
+                        val setup = new Setup(randomSeating($(GC, CC, YS, OW)), Normal)
                         setup.difficulty += OW -> Debug
                         startGame(setup)
                 })

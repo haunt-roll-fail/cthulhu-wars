@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 case object Mutant extends FactionUnitClass(OW, "Mutant", Monster, 2)
@@ -14,8 +14,8 @@ case object BeyondOne extends FactionSpellbook(OW, "The Beyond One")
 case object KeyAndGate extends FactionSpellbook(OW, "The Key and the Gate")
 
 case object TheyBreakThrough extends FactionSpellbook(OW, "They Break Through")
-case object MillionFavoredOnes extends FactionSpellbook(OW, "The Million Favored Ones")
-case object ChannelPower extends FactionSpellbook(OW, "Channel Power")
+case object MillionFavoredOnes extends FactionSpellbook(OW, "The Million Favored Ones") with BattleSpellbook
+case object ChannelPower extends FactionSpellbook(OW, "Channel Power") with BattleSpellbook
 case object DreadCurse extends FactionSpellbook(OW, "Dread Curse of Azathoth")
 case object DragonAscending extends FactionSpellbook(OW, "Dragon Ascending")
 case object DragonDescending extends FactionSpellbook(OW, "Dragon Descending")
@@ -57,45 +57,160 @@ case object OW extends Faction { f =>
         units(Mutant).num * 1 +
         units(Abomination).num * 2 +
         units(SpawnOW).num * 3 +
-        units(YogSothoth).%!(_.has(Zeroed)).num * (2 * factions.but(f)./(_.all.factionGOOs.num).sum) +
+        units(YogSothoth).not(Zeroed).num * (2 * factions.but(f)./(_.all.factionGOOs.num).sum) +
         neutralStrength(units, opponent)
 }
 
 
-case class BeyondOneMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(self.styled(BeyondOne)) with MainQuestion with Soft
-case class BeyondOneUnitAction(self : Faction, o : Region, uc : UnitClass) extends BaseFactionAction(self.styled(BeyondOne), self.styled(uc) + " from " + o) with Soft
-case class BeyondOneAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(self.styled(BeyondOne) + " from " + o + " with " + self.styled(uc) + " to", implicit g => r + self.iced(r))
+case class BeyondOneMainAction(self : OW, l : $[Region]) extends OptionFactionAction(self.styled(BeyondOne)) with MainQuestion with Soft
+case class BeyondOneUnitAction(self : OW, o : Region, uc : UnitClass) extends BaseFactionAction(self.styled(BeyondOne), self.styled(uc) + " from " + o) with Soft
+case class BeyondOneAction(self : OW, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(self.styled(BeyondOne) + " from " + o + " with " + self.styled(uc) + " to", implicit g => r + self.iced(r))
 
-case class DreadCurseMainAction(self : Faction, n : Int, l : $[Region]) extends OptionFactionAction(self.styled(DreadCurse)) with MainQuestion with Soft
-case class DreadCurseAction(self : Faction, n : Int, r : Region) extends BaseFactionAction(self.styled(DreadCurse), implicit g => r + self.iced(r))
-case class DreadCurseRollAction(f : Faction, r : Region, x : $[BattleRoll]) extends ForcedAction
-case class DreadCurseSplitAction(self : Faction, r : Region, x : $[BattleRoll], e : $[Faction], k : $[Faction], p : $[Faction]) extends BaseFactionAction(self.styled(DreadCurse) + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
-case class DreadCurseAssignAction(f : Faction, r : Region, e : $[Faction], k : $[Faction], p : $[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, self.styled(uc))
-case class DreadCurseRetreatAction(self : Faction, r : Region, e : $[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, self.styled(uc))
-case class DreadCurseRetreatToAction(self : Faction, r : Region, e : $[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + f.styled(uc) + " from " + r + " to", d)
+case class DreadCurseMainAction(self : OW, n : Int, l : $[Region]) extends OptionFactionAction(self.styled(DreadCurse)) with MainQuestion with Soft
+case class DreadCurseAction(self : OW, n : Int, r : Region) extends BaseFactionAction(self.styled(DreadCurse), implicit g => r + self.iced(r))
+case class DreadCurseRollAction(f : OW, r : Region, x : $[BattleRoll]) extends ForcedAction
+case class DreadCurseSplitAction(self : OW, r : Region, x : $[BattleRoll], e : $[Faction], k : $[Faction], p : $[Faction]) extends BaseFactionAction(self.styled(DreadCurse) + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
+case class DreadCurseAssignAction(f : OW, r : Region, e : $[Faction], k : $[Faction], p : $[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, self.styled(uc))
+case class DreadCurseRetreatAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, self.styled(uc))
+case class DreadCurseRetreatToAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + f.styled(uc) + " from " + r + " to", d)
 
-case class DragonDescendingDoomAction(self : Faction, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending.full) with DoomQuestion
+case class DragonDescendingDoomAction(self : OW, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending.full) with DoomQuestion
 
-case class DragonAscendingMainAction(self : Faction) extends OptionFactionAction(self.styled(DragonAscending)) with MainQuestion with Soft
-case class DragonAscendingDoomAction(self : Faction) extends OptionFactionAction(self.styled(DragonAscending)) with DoomQuestion with Soft
+case class DragonAscendingMainAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with MainQuestion with Soft
+case class DragonAscendingDoomAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with DoomQuestion with Soft
 
-case class DragonAscendingAction(self : Faction, f : Option[Faction], reason : String, n : Int, then : ForcedAction) extends BaseFactionAction(self.styled(DragonAscending) + " before " + f./("" + _ + " ").|("") + reason, "Rise to " + n.power)
-case class DragonAscendingAskAction(self : Faction, f : Option[Faction], reason : String, then : ForcedAction) extends ForcedAction
+case class DragonAscendingAction(self : OW, f : |[Faction], reason : String, n : Int, then : ForcedAction) extends BaseFactionAction(self.styled(DragonAscending) + " before " + f./("" + _ + " ").|("") + reason, "Rise to " + n.power)
+case class DragonAscendingAskAction(self : OW, f : |[Faction], reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingInstantAction(then : ForcedAction) extends ForcedAction
 case class DragonAscendingUpAction(reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingDownAction(f : Faction, reason : String, then : ForcedAction) extends ForcedAction
-case class DragonAscendingCancelAction(self : Faction, then : ForcedAction) extends BaseFactionAction(None, "Cancel")
-case class DragonAscendingNotThisTurnAction(self : Faction, then : ForcedAction) extends BaseFactionAction(None, "Not in this Action Phase")
+case class DragonAscendingCancelAction(self : OW, then : ForcedAction) extends BaseFactionAction(None, "Cancel")
+case class DragonAscendingNotThisTurnAction(self : OW, then : ForcedAction) extends BaseFactionAction(None, "Not in this Action Phase")
 
 
 object OWExpansion extends Expansion {
+    override def triggers()(implicit game : Game) {
+        val f = OW
+        f.satisfyIf(EightGates, "Eight Gates on the map", game.allGates.%(_.glyph.onMap).num >= 8)
+        f.satisfyIf(TenGates, "Ten Gates on the map", game.allGates.%(_.glyph.onMap).num >= 10)
+        f.satisfyIf(TwelveGates, "Twelve Gates on the map", game.allGates.%(_.glyph.onMap).num >= 12)
+        f.satisfyIf(GooMeetsGoo, "GOO shares Area with another GOO", areas.%(r => f.at(r).goos.any && f.enemies.%(_.at(r).goos.any).any).any)
+        f.satisfyIf(UnitsAtEnemyGates, "Units at two enemy Gates", areas.%(r => f.at(r).any && f.enemies.%(_.gates.has(r)).any).num >= 2)
+    }
+
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // DOOM
+        case DoomAction(f : OW) =>
+            implicit val asking = Asking(f)
+
+            if (f.want(DragonAscending) && factions.%(_.power > f.power).any)
+                + DragonAscendingDoomAction(f)
+
+            game.rituals(f)
+
+            if (f.can(DragonDescending))
+                if (f.power >= game.ritualCost && f.acted.not)
+                    + DragonDescendingDoomAction(f, game.ritualCost)
+
+            game.reveals(f)
+
+            game.highPriests(f)
+
+            game.hires(f)
+
+            + DoomDoneAction(f)
+
+            asking
+
+        // ACTIONS
+        case MainAction(f : OW) if f.active.not =>
+            implicit val asking = Asking(f)
+
+            if (f.want(DragonAscending) && f.power < f.enemies./(_.power).max)
+                + DragonAscendingMainAction(f)
+
+            game.reveals(f)
+
+            + NextPlayerAction(f).as("Skip")
+
+            asking
+
+        case MainAction(f : OW) if f.acted =>
+            UnknownContinue
+
+        case MainAction(f : OW) =>
+            implicit val asking = Asking(f)
+
+            if (f.want(DragonAscending) && f.power < f.enemies./(_.power).max)
+                + DragonAscendingMainAction(f)
+
+            game.moves(f)
+
+            if (f.has(BeyondOne) && game.gates.num < areas.num && areas.diff(game.gates).%(f.affords(1)).any)
+                game.gates.%(r => f.enemies.%(_.at(r, GOO).any).none).%(r => f.at(r).%(_.uclass.cost >= 3).%(_.canMove).any).some.foreach {
+                    + BeyondOneMainAction(f, _)
+                }
+
+            game.captures(f)
+
+            game.recruits(f)
+
+            game.battles(f)
+
+            game.controls(f)
+
+            game.builds(f)
+
+            game.summons(f)
+
+            game.awakens(f)
+
+            game.independents(f)
+
+            if (f.has(DreadCurse)) {
+                val n = f.all(Abomination).num + f.all(SpawnOW).num
+                if (n > 0) {
+                    val l = areas.%(f.affords(2)).%(r => f.enemies.exists(_.at(r).any))
+                    if (l.any)
+                        + DreadCurseMainAction(f, n, l)
+                }
+            }
+
+            game.neutralSpellbooks(f)
+
+            game.highPriests(f)
+
+            game.reveals(f)
+
+            if (f.battled.any)
+                + EndTurnAction(f)
+            else
+                + PassAction(f)
+
+            game.toggles(f)
+
+            asking
+
+        // AWAKEN
+        case AwakenedAction(self, YogSothoth, r, cost) =>
+            val s = self.at(r).one(SpawnOW)
+
+            game.eliminate(s)
+
+            self.log("replaced", s, "in", r)
+
+            self.unitGate = self.at(r, YogSothoth).single
+
+            self.satisfy(AwakenYogSothoth, "Awaken Yog-Sothoth")
+
+            EndAction(self)
+
         // BEYOND ONE
         case BeyondOneMainAction(self, l) =>
             Ask(self).each(l./~(r => self.at(r).%(_.uclass.cost >= 3)).%(_.canMove))(u => BeyondOneUnitAction(self, u.region, u.uclass)).cancel
 
         case BeyondOneUnitAction(self, o, uc) =>
-            Ask(self).each(board.regions.diff(game.gates).%(self.affords(1)))(BeyondOneAction(self, o, uc, _)).cancel
+            Ask(self).each(areas.diff(game.gates).%(self.affords(1)))(BeyondOneAction(self, o, uc, _)).cancel
 
         case BeyondOneAction(self, o, uc, r) =>
             self.power -= 1
@@ -105,7 +220,7 @@ object OWExpansion extends Expansion {
             factions.%(_.gates.contains(o)).foreach { f =>
                 f.gates :-= o
                 f.gates :+= r
-                f.at(o).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).first.region = r
+                f.at(o).%(_.onGate).only.region = r
             }
             self.at(o).one(uc).region = r
             self.log("moved gate with", self.styled(uc), "from", o, "to", r)
@@ -172,7 +287,7 @@ object OWExpansion extends Expansion {
                 val rs = (k.count(f) - f.at(r).%(_.health == Killed).num).times(Kill) ++ (p.count(f) - f.at(r).%(_.health == Pained).num).times(Pain)
                 val us = f.at(r).%(_.health == Alive)./(_.uclass).sortBy(_.cost)
                 val uu = (us.num > 1).?(us).|(us.take(1))
-                Ask(self).each(uu)(u => DreadCurseAssignAction(self, r, e, k, p, f, rs.first, u))
+                Ask(f).each(uu)(u => DreadCurseAssignAction(self, r, e, k, p, f, rs.first, u))
             }
             else {
                 e.foreach { f =>
@@ -198,11 +313,12 @@ object OWExpansion extends Expansion {
             Ask(f).add(DreadCurseSplitAction(f, r, $, e, k, p))
 
         case DreadCurseRetreatAction(self, r, e, f, uc) =>
-            Ask(self).each(board.connected(r))(d => DreadCurseRetreatToAction(self, r, e, f, uc, d))
+            Ask(self).each(r.connected)(d => DreadCurseRetreatToAction(self, r, e, f, uc, d))
 
         case DreadCurseRetreatToAction(self, r, e, f, uc, d) =>
             val u = f.at(r, uc).%(_.health == Pained).first
             u.region = d
+            u.onGate = false
             u.health = Alive
             log(u, "was", "pained".styled("pain"), "to", d)
 
@@ -222,8 +338,11 @@ object OWExpansion extends Expansion {
             Force(RitualAction(self, cost, 2))
 
         // DRAGON ASCENDING
+        case DoomNextPlayerAction(f : OW) =>
+            CheckSpellbooksAction(DragonAscendingInstantAction(DragonAscendingDownAction(f, "doom action", DoomAction(f))))
+
         case DragonAscendingMainAction(self) =>
-            Ask(self).add(DragonAscendingAction(self, |(self), "own action", factions./(_.power).max, MainAction(self))).cancel
+            Ask(self).add(DragonAscendingAction(self, |(self), "own action", factions./(_.power).max, PreMainAction(self))).cancel
 
         case DragonAscendingDoomAction(self) =>
             Ask(self).add(DragonAscendingAction(self, |(self), "own " + "Doom".styled("doom") + " action", factions./(_.power).max, DoomAction(self))).cancel
@@ -236,6 +355,7 @@ object OWExpansion extends Expansion {
 
         case DragonAscendingAction(self, _, _, p, then) =>
             self.power = p
+            self.active = self.hibernating.not
             self.oncePerGame :+= DragonAscending
 
             factions.foreach(_.ignorePerInstant = $)
@@ -257,28 +377,26 @@ object OWExpansion extends Expansion {
             Force(then)
 
         case DragonAscendingUpAction(reason, then) =>
-            val daf = factions.%(_.power < factions./(_.power).max).%(_.want(DragonAscending))
+            val daf = factions.%(_.power < factions./(_.power).max).%(_.want(DragonAscending)).of[OW]
 
-            if (daf.none) {
-                Force(then)
-            }
+            if (daf.none)
+                then
             else {
                 val self = daf(0)
                 DragonAscendingAskAction(self, None, reason, DragonAscendingUpAction(reason, then))
             }
 
         case DragonAscendingDownAction(f, reason, then) =>
-            val daf = game.targetDragonAscending(f)
+            val daf = (f.power > f.enemies./(_.power).max).??(f.enemies.%(_.want(DragonAscending)).of[OW])
 
-            if (daf.none || (f.hibernating && then == MainAction(f))) {
-                Force(then)
-            }
+            if (daf.none || (f.hibernating && then == PreMainAction(f)))
+                then
             else {
                 val self = daf(0)
-                DragonAscendingAskAction(self, Some(f), reason, DragonAscendingDownAction(f, reason, then))
+                DragonAscendingAskAction(self, |(f), reason, DragonAscendingDownAction(f, reason, then))
             }
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

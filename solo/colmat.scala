@@ -219,6 +219,17 @@ object colmat {
         def shuffleSeed(s : Int) = new scala.util.Random(s).shuffle(l)
         def occurrences[K](d : T => K) : Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
 
+        def sameBy[U](f : T => U) = {
+            l match {
+                case Nil => false
+                case List(_) => true
+                case _ =>
+                    val u = f(l.head)
+                    l.forall(t => f(t) == u)
+
+            }
+        }
+
         def :-(x : T) = l.diff(List(x))
         def of[U : ClassTag] : List[T with U] = l.collect { case m : U => m.asInstanceOf[T with U] }
         def notOf[U : ClassTag] : List[T] = l.filter { case m : U => false ; case _ => true }

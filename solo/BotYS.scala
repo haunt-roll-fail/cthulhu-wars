@@ -184,7 +184,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
         a match {
             case FirstPlayerAction(_, f) =>
-                f == self && game.board.regions.%(_.allies.goos.any).%(_.foes.goos.any).any |=> 100 -> "play first goos together"
+                f == self && areas.%(_.allies.goos.any).%(_.foes.goos.any).any |=> 100 -> "play first goos together"
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
@@ -249,7 +249,9 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 impunity |=> 1000000 -> "impunity move done"
                 true |=> 500 -> "move done"
 
-            case MoveAction(_, Acolyte, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Acolyte =>
+                u.onGate |=> -10 -> "on gate"
+
                 val unemployed = !((o.ownGate || o.freeGate) && o.allies.cultists.num == 1)
                 val safe = d.allies.goos.any || (d.foes.goos.active.none && (d.allies.monsterly.any || d.foes.monsterly.active.none))
 
@@ -261,10 +263,8 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 impunity && unemployed && safe && power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.active.none && active.none |=> 105000 -> "impunity move take gate 2 step"
 
-                val u = self.at(o, Acolyte).%!(_.has(Moved)).head
-
                 !unemployed && (!u.capturable || u.enemies.goos.none) |=> -120 -> "dont move gatekeeper"
-                self.pool.cultists.any && d.allies.any && !self.all.%(_.has(Moved)).any |=> -1000 -> "why move if can recruit for same"
+                self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
                 o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d == EarthMap4v35.NorthAsia |=> 800 -> "crowded cultists - north asia"
                 o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d.near.%(_.enemyGate).num > 1 |=> 800 -> "crowded cultists 6 explore near other gates"
                 o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d.ocean.not |=> 800 -> "crowded cultists 6 explore"
@@ -289,11 +289,11 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 (o.allies.num > 1 || !o.desecrated) && !have(KingInYellow) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsterly.none && d.foes.goos.none && d.allies.none |=> 300 -> "go awaken kiy"
 
                 power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && active.none |=> 450 -> "ic free gate 2 steps"
-                power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && self.all.%(_.has(Moved)).none |=> 1100 -> "ic free gate and goo 2 steps"
+                power > 1 && o.allies.cultists.num > o.capturers.active.num + 1 && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.%(!_.gateKeeper).none && d.capturers.none && self.all.tag(Moved).none |=> 1100 -> "ic free gate and goo 2 steps"
 
                 needRegion(d)
 
-            case MoveAction(_, Byakhee, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Byakhee =>
                 impunity && d.desecrated && d.allies.none && (!o.desecrated || o.allies.num > 1) |=> 50000 -> "impunity move feast"
 
                 true |=> -100 -> "byakhee dont move"
@@ -303,7 +303,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 needRegion(d)
 
-            case MoveAction(_, Undead, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Undead =>
                 impunity && d.desecrated && d.allies.none && (!o.desecrated || o.allies.num > 1) |=> 50000 -> "impunity move feast"
 
                 o.allies(KingInYellow).any |=> -200 -> "undead dont leave kiy"
@@ -313,7 +313,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
 
                 needRegion(d)
 
-            case MoveAction(_, KingInYellow, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == KingInYellow =>
                 self.has(ScreamingDead) && !oncePerRound.contains(ScreamingDead) |=> -1000 -> "dont walk just scream"
 
                 power > 11 && !have(Hastur) && d.ownGate && !(o.freeGate && o.allies.cultists.any) |=> 1300 -> "go awaken hastur"
@@ -472,7 +472,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 o.allies(Hastur).any && o.allies.num < 4 && active.%(_.allSB).any && power == 0 |=> -2000 -> "stay to protect hastur"
                 d.foes(Nyarlathotep).any |=> 3000 -> "all undead to nya"
 
-            case MoveAction(_, Hastur, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Hastur =>
                 needRegion(d)
 
                 oncePerRound.contains(ScreamingDead) && d.allies(KingInYellow).any && active.%(_.allSB).any |=> 1000000 -> "hastur shadow kiy"
@@ -503,7 +503,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-            case CaptureAction(_, r, f, _, _) =>
+            case CaptureAction(_, r, f, _) =>
                 val safe = active.%(f => f.strength(f.at(r).diff(f.at(r).cultists.take(1)), self) > r.allies.num).none
 
                 safe && impunity && !r.enemyGate |=> 105000 -> "impunity capture"
@@ -828,8 +828,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 r.enemyGate && r.owner == f && r.allies.cultists.any && r.controllers.num == 1 |=> 1500 -> "zingaya off gate"
                 r.enemyGate && r.owner == f && r.controllers.num == 1 |=> 150 -> "zingaya off gate"
 
-            case AvatarReplacementAction(_, _, r, o, uc) =>
-                val u = self.at(r, uc).head
+            case AvatarReplacementAction(_, _, r, o, u) =>
                 u.cultist && o.capturers.%(_.power > 0).any |=> -100 -> "don't send cultist to be captured"
                 u.cultist && o.capturers.none |=> 150 -> "no capturers"
                 u.cultist && o.capturers.any && o.capturers.%(_.power > 0).none |=> 100 -> "no capturers with power"
@@ -866,15 +865,14 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                 n == 0 |=> 1000 -> "wait"
                 n == 1 && have(Passion) |=> 2000 -> "cash passion"
 
-            case GhrothUnitAction(_, uc, r, f, _) =>
-                val c = self.at(r, uc).head
+            case GhrothTargetAction(_, c, f, _) =>
                 c.friends.cultists.none && c.region.capturers.%(!_.blind(f)).any |=> 1000 -> "will be captured anyway"
                 c.gateKeeper |=> -900 -> "gate keeper"
                 c.friends.cultists.none && c.region.capturers.any |=> 800 -> "can be captured one"
                 c.friends.cultists.any && c.region.capturers.any |=> 700 -> "can be captured many"
                 c.friends.cultists.any |=> 600 -> "cultist friends"
                 c.friends.goos.any |=> -500 -> "goo huggers"
-                c.friends.none && r.desecrated |=> -400 -> "sole feast"
+                c.friends.none && c.region.desecrated |=> -400 -> "sole feast"
 
             case GiveWorstMonsterAskAction(_, _, uc, r, _)  =>
                 result = eval(SummonAction(self, uc, r))
@@ -882,10 +880,19 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             case GiveBestMonsterAskAction(_, _, uc, r, _)  =>
                 result = eval(SummonAction(self, uc, r))
 
-            case MainDoneAction(_) =>
+            case EndTurnAction(_) =>
                 (oncePerRound.contains(HWINTBN) || oncePerRound.contains(ScreamingDead)) && impunity |=> 500000 -> "double action impunity done"
                 (oncePerRound.contains(HWINTBN) || oncePerRound.contains(ScreamingDead)) && active.%(_.allSB).none |=> 5000 -> "double action done"
                 true |=> 500 -> "main done"
+
+            case ControlGateAction(_, r, u, _) =>
+                r.allies.%(_.onGate).foreach { c =>
+                    c.uclass == u.uclass |=> -1000000 -> "remain calm"
+                    c.uclass == HighPriest && u.uclass == Acolyte |=> 1000 -> "high priest not on gate"
+                }
+
+            case AbandonGateAction(_, _, _) =>
+                true |=> -1000000 -> "never"
 
             case _ =>
         }
@@ -1010,9 +1017,9 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                         u.goo && r.allies.goos.any |=> 5000 -> "goo to goo"
 
                         if (u.goo)
-                            result ++= eval(MoveAction(u.faction, u.uclass, u.region, r))
+                            result ++= eval(MoveAction(u.faction, u, u.region, r, 0))
 
-                        true |=> (game.board.connected(r) ++ game.board.connected(r).flatMap(game.board.connected)).distinct.num -> "reachable regions"
+                        true |=> (r.connected ++ r.connected./~(_.connected)).distinct.num -> "reachable regions"
 
                     case _ =>
                 }

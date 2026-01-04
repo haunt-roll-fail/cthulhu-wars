@@ -2,7 +2,7 @@ package cws
 
 import hrf.colmat._
 
-import Html._
+import html._
 
 
 case object Wizard extends FactionUnitClass(SL, "Wizard", Monster, 1)
@@ -17,10 +17,10 @@ case object Burrow extends FactionSpellbook(SL, "Burrow")
 case object EnergyNexus extends FactionSpellbook(SL, "Energy Nexus")
 case object AncientSorcery extends FactionSpellbook(SL, "Ancient Sorcery")
 case object CaptureMonster extends FactionSpellbook(SL, "Capture Monster")
-case object DemandSacrifice extends FactionSpellbook(SL, "Demand Sacrifice")
+case object DemandSacrifice extends FactionSpellbook(SL, "Demand Sacrifice") with BattleSpellbook
 case object CursedSlumber extends FactionSpellbook(SL, "Cursed Slumber")
 
-case object KillsArePains extends FactionSpellbook(SL, "Kills are Pains")
+case object KillsArePains extends FactionSpellbook(SL, "Kills are Pains") with BattleSpellbook
 
 case object Pay3SomeoneGains3 extends Requirement("Pay 3, Someone gains 3 Power")
 case object Pay3EverybodyGains1 extends Requirement("Pay 3, Everybody gains 1 Power")
@@ -57,41 +57,153 @@ case object SL extends Faction { f =>
     def strength(units : $[UnitFigure], opponent : Faction)(implicit game : Game) : Int =
         units(SerpentMan).num * 1 +
         units(FormlessSpawn).num * (f.all(FormlessSpawn).num + f.all(Tsathoggua).num) +
-        units(Tsathoggua).%!(_.has(Zeroed)).num * max(2, opponent.power) +
+        units(Tsathoggua).not(Zeroed).num * max(2, opponent.power) +
         neutralStrength(units, opponent)
 }
 
 
-case class DeathFromBelowDoomAction(self : Faction) extends OptionFactionAction(DeathFromBelow) with DoomQuestion with Soft with PowerNeutral
-case class DeathFromBelowSelectMonsterAction(self : Faction, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc))
-case class DeathFromBelowAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc) + " in " + r)
+case class DeathFromBelowDoomAction(self : SL) extends OptionFactionAction(DeathFromBelow) with DoomQuestion with Soft with PowerNeutral
+case class DeathFromBelowSelectMonsterAction(self : SL, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc))
+case class DeathFromBelowAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc) + " in " + r)
 
-case class LethargyMainAction(self : Faction) extends OptionFactionAction(Lethargy) with MainQuestion with PowerNeutral
+case class LethargyMainAction(self : SL) extends OptionFactionAction(Lethargy) with MainQuestion with PowerNeutral
 
-case class Pay3SomeoneGains3MainAction(self : Faction) extends OptionFactionAction("Pay " + 3.power + " and another faction gains " + 3.power) with MainQuestion with Soft
-case class Pay3SomeoneGains3Action(self : Faction, f : Faction) extends BaseFactionAction("Get spellbook for " + 3.power, "" + f + " gets " + 3.power)
+case class Pay3SomeoneGains3MainAction(self : SL) extends OptionFactionAction("Pay " + 3.power + " and another faction gains " + 3.power) with MainQuestion with Soft
+case class Pay3SomeoneGains3Action(self : SL, f : Faction) extends BaseFactionAction("Get spellbook for " + 3.power, "" + f + " gets " + 3.power)
 
-case class Pay3EverybodyLoses1MainAction(self : Faction) extends OptionFactionAction("Pay " + 3.power + ", other factions lose " + 1.power + " each") with MainQuestion
-case class Pay3EverybodyGains1MainAction(self : Faction) extends OptionFactionAction("Pay " + 3.power + ", other factions gain " + 1.power + " each") with MainQuestion
+case class Pay3EverybodyLoses1MainAction(self : SL) extends OptionFactionAction("Pay " + 3.power + ", other factions lose " + 1.power + " each") with MainQuestion
+case class Pay3EverybodyGains1MainAction(self : SL) extends OptionFactionAction("Pay " + 3.power + ", other factions gain " + 1.power + " each") with MainQuestion
 
-case class CaptureMonsterMainAction(self : Faction) extends OptionFactionAction(CaptureMonster) with MainQuestion with Soft
-case class CaptureMonsterAction(self : Faction, r : Region, f : Faction) extends BaseFactionAction(CaptureMonster, "Capture " + f + " Monster in " + r)
-case class CaptureMonsterUnitAction(f : Faction, r : Region, self : Faction, uc : UnitClass) extends BaseFactionAction(CaptureMonster.full + " in " + r, self.styled(uc))
+case class CaptureMonsterMainAction(self : SL) extends OptionFactionAction(CaptureMonster) with MainQuestion with Soft
+case class CaptureMonsterAction(self : SL, r : Region, f : Faction) extends BaseFactionAction(CaptureMonster, "Capture " + f + " Monster in " + r)
+case class CaptureMonsterUnitAction(f : SL, r : Region, self : Faction, uc : UnitClass) extends BaseFactionAction(CaptureMonster.full + " in " + r, self.styled(uc))
 
-case class AncientSorceryMainAction(self : Faction) extends OptionFactionAction(AncientSorcery) with MainQuestion with Soft
-case class AncientSorceryAction(self : Faction, a : Spellbook) extends BaseFactionAction(AncientSorcery, a) with Soft
-case class AncientSorceryUnitAction(self : Faction, a : Spellbook, r : Region, uc : UnitClass) extends BaseFactionAction("Access " + a.full + " with", self.styled(uc) + " from " + r)
-case class AncientSorceryDoomAction(self : Faction) extends OptionFactionAction(AncientSorcery) with DoomQuestion with Soft
-case class AncientSorceryPlaceAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction("Place " + uc + " in", r)
+case class AncientSorceryMainAction(self : SL) extends OptionFactionAction(AncientSorcery) with MainQuestion with Soft
+case class AncientSorceryAction(self : SL, a : Spellbook) extends BaseFactionAction(AncientSorcery, a) with Soft
+case class AncientSorceryUnitAction(self : SL, a : Spellbook, r : Region, uc : UnitClass) extends BaseFactionAction("Access " + a.full + " with", self.styled(uc) + " from " + r)
+case class AncientSorceryDoomAction(self : SL) extends OptionFactionAction(AncientSorcery) with DoomQuestion with Soft
+case class AncientSorceryPlaceAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction("Place " + uc + " in", r)
 
-case class CursedSlumberSaveMainAction(self : Faction) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
-case class CursedSlumberSaveAction(self : Faction, r : Region) extends BaseFactionAction("Move gate to " + CursedSlumber.full + " from", r)
-case class CursedSlumberLoadMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
-case class CursedSlumberLoadAction(self : Faction, r : Region) extends BaseFactionAction("Move gate from " + CursedSlumber.full + " to", implicit g => r + self.iced(r))
+case class CursedSlumberSaveMainAction(self : SL) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
+case class CursedSlumberSaveAction(self : SL, r : Region) extends BaseFactionAction("Move gate to " + CursedSlumber.full + " from", r)
+case class CursedSlumberLoadMainAction(self : SL, l : $[Region]) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
+case class CursedSlumberLoadAction(self : SL, r : Region) extends BaseFactionAction("Move gate from " + CursedSlumber.full + " to", implicit g => r + self.iced(r))
 
 
 object SLExpansion extends Expansion {
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
+        // DOOM
+        case DoomAction(f : SL) =>
+            implicit val asking = Asking(f)
+
+            game.rituals(f)
+
+            if (f.can(DeathFromBelow) && f.pool.monsters.any)
+                + DeathFromBelowDoomAction(f)
+
+            game.reveals(f)
+
+            game.highPriests(f)
+
+            game.hires(f)
+
+            if (f.has(AncientSorcery) && f.at(SL.slumber, SerpentMan).any)
+                + AncientSorceryDoomAction(f)
+            else
+                + DoomDoneAction(f)
+
+            asking
+
+        // ACTIONS
+        case MainAction(f : SL) if f.acted && game.nexed.any =>
+            implicit val asking = Asking(f)
+
+            game.controls(f)
+
+            + NextPlayerAction(f).as("Skip")
+
+            asking
+
+        case MainAction(f : SL) if f.active.not =>
+            UnknownContinue
+
+        case MainAction(f : SL) if f.acted =>
+            UnknownContinue
+
+        case MainAction(f : SL) =>
+            implicit val asking = Asking(f)
+
+            if (f.has(Lethargy) && f.has(Tsathoggua) && game.nexed.none && f.enemies.%(e => e.power > 0 && !e.hibernating).any)
+                if (game.options.has(IceAgeAffectsLethargy).not || f.affords(0)(f.goo(Tsathoggua).region))
+                    + LethargyMainAction(f)
+
+            game.moves(f)
+
+            game.captures(f)
+
+            if (f.has(CaptureMonster) && areas.nex.%(f.affords(1)).%(r => f.at(r, Tsathoggua).any && (f.enemies.exists(e => e.at(r).goos.none && e.at(r).monsters.any))).any)
+                + CaptureMonsterMainAction(f)
+
+            game.recruits(f)
+
+            game.battles(f)
+
+            game.controls(f)
+
+            game.builds(f)
+
+            if (f.has(CursedSlumber) && game.gates.%(_.glyph == Slumber).none && f.gates.nex.%(_.glyph.onMap).any)
+                + CursedSlumberSaveMainAction(f)
+
+            if (f.has(CursedSlumber) && game.gates.%(_.glyph == Slumber).any)
+                areas.nex.%!(game.gates.has).%(f.affords(1)).some.foreach { l =>
+                    + CursedSlumberLoadMainAction(f, l)
+                }
+
+            game.summons(f)
+
+            game.awakens(f)
+
+            game.independents(f)
+
+            if (f.has(AncientSorcery) && f.onMap(SerpentMan).nex.any && f.borrowed.num < factions.num - 1)
+                + AncientSorceryMainAction(f)
+
+            if (f.needs(Pay3SomeoneGains3) && f.power >= 3)
+                + Pay3SomeoneGains3MainAction(f)
+
+            if (f.needs(Pay3EverybodyLoses1) && f.power >= 3)
+                + Pay3EverybodyLoses1MainAction(f)
+
+            if (f.needs(Pay3EverybodyGains1) && f.power >= 3)
+                + Pay3EverybodyGains1MainAction(f)
+
+            game.neutralSpellbooks(f)
+
+            game.highPriests(f)
+
+            game.reveals(f)
+
+            if (f.battled.any || game.nexed.any)
+                + EndTurnAction(f)
+            else
+                + PassAction(f)
+
+            game.toggles(f)
+
+            asking
+
+        // AWAKEN
+        case AwakenedAction(self, Tsathoggua, r, cost) =>
+            if (self.has(Immortal)) {
+                self.log("gained", 1.es, "as", Immortal.full)
+                self.takeES(1)
+            }
+
+            self.satisfy(AwakenTsathoggua, "Awaken Tsathoggua")
+
+            EndAction(self)
+
         // DEATH FROM BELOW
         case DeathFromBelowDoomAction(self) =>
             val unitClasses = self.pool.monsters./(_.uclass)
@@ -100,14 +212,14 @@ object SLExpansion extends Expansion {
             val ucs = unitClasses.filter(_.cost == minCost).distinct
 
             if (ucs.num == 1) {
-                Ask(self).each(board.regions.%(r => self.at(r).any).some.|(board.regions))(r => DeathFromBelowAction(self, r, ucs.first)).cancel
+                Ask(self).each(areas.%(r => self.at(r).any).some.|(areas))(r => DeathFromBelowAction(self, r, ucs.first)).cancel
             }
             else {
                 Ask(self).each(ucs)(uc => DeathFromBelowSelectMonsterAction(self, uc)).cancel
             }
 
         case DeathFromBelowSelectMonsterAction(self, uc) =>
-            Ask(self).each(board.regions.%(r => self.at(r).any).some.|(board.regions))(r => DeathFromBelowAction(self, r, uc)).cancel
+            Ask(self).each(areas.%(r => self.at(r).any).some.|(areas))(r => DeathFromBelowAction(self, r, uc)).cancel
 
         case DeathFromBelowAction(self, r, uc) =>
             self.place(uc, r)
@@ -121,7 +233,7 @@ object SLExpansion extends Expansion {
                 self.payTax(self.goo(Tsathoggua).region)
 
             self.log("was sleeping")
-            self.battled = board.regions
+            self.battled = areas
             EndAction(self)
 
         // PAY 3 POWER
@@ -137,21 +249,21 @@ object SLExpansion extends Expansion {
 
         case Pay3EverybodyLoses1MainAction(self) =>
             self.power -= 3
-            self.enemies.%(f => f.power > 0).foreach(f => f.power -= 1)
+            self.enemies.%(_.power > 0).foreach(_.power -= 1)
             self.log("spent", 3.power, "and each other faction lost", 1.power)
             self.satisfy(Pay3EverybodyLoses1, "Everybody loses 1 power")
             EndAction(self)
 
         case Pay3EverybodyGains1MainAction(self) =>
             self.power -= 3
-            self.enemies.foreach(f => f.power += 1)
+            self.enemies.foreach(_.power += 1)
             self.log("spent", 3.power, "and each other faction gained", 1.power)
             self.satisfy(Pay3EverybodyGains1, "Everybody gains 1 power")
             EndAction(self)
 
         // CAPTURE MONSTER
         case CaptureMonsterMainAction(self) =>
-            val variants = board.regions./~ { r =>
+            val variants = areas./~ { r =>
                 self.at(r, Tsathoggua).any.?? {
                     self.enemies.%(f => f.at(r).monsters.any && f.at(r, GOO).none)
                         ./(f => CaptureMonsterAction(self, r, f))
@@ -167,7 +279,8 @@ object SLExpansion extends Expansion {
 
         case CaptureMonsterUnitAction(self, r, f, uc) =>
             val m = f.at(r).one(uc)
-            game.capture(self, m)
+            game.eliminate(m)
+            m.region = self.prison
             self.log("captured", m, "in", r)
             EndAction(self)
 
@@ -186,7 +299,7 @@ object SLExpansion extends Expansion {
             EndAction(self)
 
         case AncientSorceryDoomAction(self) =>
-            Ask(self).each(board.regions)(r => AncientSorceryPlaceAction(self, r, SerpentMan)).cancel
+            Ask(self).each(areas)(r => AncientSorceryPlaceAction(self, r, SerpentMan)).cancel
 
         case AncientSorceryPlaceAction(self, r, uc) =>
             self.at(SL.slumber).one(uc).region = r
@@ -206,7 +319,7 @@ object SLExpansion extends Expansion {
             game.gates :-= r
             game.gates :+= SL.slumber
 
-            self.at(r).one(Cultist).region = SL.slumber
+            self.at(r).%(_.onGate).only.region = SL.slumber
 
             self.log("moved gate from", r, "to", CursedSlumber.full)
 
@@ -231,7 +344,7 @@ object SLExpansion extends Expansion {
 
             EndAction(self)
 
-
+        // ...
         case _ => UnknownContinue
     }
 }

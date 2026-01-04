@@ -200,7 +200,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
         a match {
             case FirstPlayerAction(_, f) =>
-                f == self && game.board.regions.%(_.allies.goos.any).%(_.foes.goos.any).any |=> 100 -> "play first goos together"
+                f == self && areas.%(_.allies.goos.any).%(_.foes.goos.any).any |=> 100 -> "play first goos together"
                 f == self && allSB |=> 100 -> "play first all SB"
                 f == self |=> -50 -> "stall"
 
@@ -266,20 +266,20 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             case MoveDoneAction(_) =>
                 true |=> 1000 -> "move done"
 
-            case MainNextPlayerAction(_) =>
+            case NextPlayerAction(_) =>
                 true |=> 0 -> "cancel"
 
-            case MoveAction(_, GnophKeh, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == GnophKeh =>
                 true |=> -100 -> "gnophkeh dont move"
                 o.ownGate && o.foes.monsterly.active.any && o.allies.monsterly.num == 1 && o.allies.goos.none |=> -500 -> "dont abandon gate"
                 o.ownGate |=> -20 -> "leave own gate"
 
-            case MoveAction(_, Wendigo, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Wendigo =>
                 o.allies(RhanTegoth).any |=> -200 -> "wendigo dont leave rha"
                 o.ownGate && o.foes.monsterly.active.any && o.allies.monsterly.num == 1 && o.allies.goos.none |=> -500 -> "dont abandon gate"
                 o.ownGate |=> -20 -> "leave own gate"
 
-            case MoveAction(_, RhanTegoth, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == RhanTegoth =>
                 self.has(ScreamingDead) && !oncePerRound.contains(ScreamingDead) |=> -1000 -> "dont walk just scream"
 
                 val protecting1 = o.ownGate && o.allies.goos.num == 1 && o.foes.goos.active.any
@@ -316,7 +316,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
                 game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
-            case MoveAction(_, Ithaqua, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Ithaqua =>
                 true |=> 100 -> "walk"
 
                 o.allies.cultists.any && need(OppositeGate) && game.board.distance(d, opposite) < game.board.distance(o, opposite) |=> 900 -> "go build opposite gate"
@@ -335,28 +335,29 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 game.cathedrals.contains(o) && AN.has(UnholyGround) && o.str(AN) > 0 && (AN.power > 0 || power == 1) |=> 50000 -> "flee from unholy ground"
                 game.cathedrals.contains(d) && AN.has(UnholyGround) && d.str(AN) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
-            case ArcticWindAction(_, o, Acolyte, r) =>
+            case ArcticWindAction(_, o, u, r) if u.uclass == Acolyte =>
                 true |=> 100 -> "move a"
                 o.ownGate && o.allies.cultists.num == 1 && (o.allies.goos.any || o.foes.active.goos.none) |=> -1000 -> "leave gate keeper"
 
-            case ArcticWindAction(_, o, Wendigo, r) =>
+            case ArcticWindAction(_, o, u, r) if u.uclass == Wendigo =>
                 true |=> 200 -> "move w"
 
-            case ArcticWindAction(_, o, GnophKeh, r) =>
+            case ArcticWindAction(_, o, u, r) if u.uclass == GnophKeh =>
                 true |=> 300 -> "move gk"
 
-            case ArcticWindAction(_, o, RhanTegoth, r) =>
+            case ArcticWindAction(_, o, u, r) if u.uclass == RhanTegoth =>
                 o.ownGate |=> -2000 -> "stay on gate"
                 o.noGate |=> 1000 -> "move no gate"
 
-            case MoveAction(_, Acolyte, o, d) =>
+            case MoveAction(_, u, o, d, cost) if u.uclass == Acolyte =>
+                u.onGate |=> -10 -> "on gate"
+
                 // Adjusted to stop moving cultist if they will be captured at opposite pole
                 need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 0 |=> 900 -> "go build opposite gate"
                 need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 1 |=> 800 -> "go build opposite gate"
                 need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 2 |=> 700 -> "go build opposite gate"
                 need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 3 |=> 600 -> "go build opposite gate"
 
-                val u = self.at(o, Acolyte).%!(_.has(Moved)).head
                 !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
                 !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
                 !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && self.iceAge.has(d) && d.capturers.%(_.power > 1).none |=> 1400 -> "ic free ice gate"
@@ -376,7 +377,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 f.has(Abhoth) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 200 -> "get rid of filth"
                 f.has(Abhoth) && f.has(TheBrood) && enemyStr == 0 && ownStr >= foes(Filth).num * 2 |=> 400 -> "get rid of brood filth"
 
-            case CaptureAction(_, r, f, _, _) =>
+            case CaptureAction(_, r, f, _) =>
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && r.foes.%(_.canControlGate).num > 1 |=> -700 -> "give gate away"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 3000 -> "capture and open gate"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && f.power > 0 |=> 4000 -> "capture and open gate"
@@ -537,12 +538,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 true |=> 500 -> "ok"
                 r.allies.none && r.foes.active(Cthulhu).any |=> -1000 -> "dont feed cth"
 
-            case CannibalismDoneAction(_) =>
-                true |=> 100 -> "done"
-
-
-            case AvatarReplacementAction(_, _, r, o, uc) =>
-                val u = self.at(r, uc).head
+            case AvatarReplacementAction(_, _, r, o, u) =>
                 u.cultist && o.capturers.%(_.power > 0).any |=> -100 -> "don't send cultist to be captured"
                 u.cultist && o.capturers.none |=> 150 -> "no capturers"
                 u.cultist && o.capturers.any && o.capturers.%(_.power > 0).none |=> 100 -> "no capturers with power"
@@ -579,8 +575,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 n == 0 |=> 1000 -> "wait"
                 n == 1 && have(Passion) |=> 2000 -> "cash passion"
 
-            case GhrothUnitAction(_, uc, r, f, _) =>
-                val c = self.at(r, uc).head
+            case GhrothTargetAction(_, c, f, _) =>
                 c.friends.cultists.none && c.region.capturers.%(!_.blind(f)).any |=> 1000 -> "will be captured anyway"
                 c.gateKeeper |=> -900 -> "gate keeper"
                 c.friends.cultists.none && c.region.capturers.any |=> 800 -> "can be captured one"
@@ -594,12 +589,20 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             case GiveBestMonsterAskAction(_, _, uc, r, _)  =>
                 result = eval(SummonAction(self, uc, r))
 
-            case MainDoneAction(_) =>
+            case EndTurnAction(_) =>
                 (oncePerRound.contains(HWINTBN) || oncePerRound.contains(ScreamingDead)) && active.%(_.allSB).none |=> 5000 -> "double action done"
                 true |=> 500 -> "main done"
 
+            case ControlGateAction(_, r, u, _) =>
+                r.allies.%(_.onGate).foreach { c =>
+                    c.uclass == u.uclass |=> -1000000 -> "remain calm"
+                    c.uclass == HighPriest && u.uclass == Acolyte |=> 1000 -> "high priest not on gate"
+                }
 
-            case _ if game.battle.any =>
+            case AbandonGateAction(_, _, _) =>
+                true |=> -1000000 -> "never"
+
+            case _ if game.battle.none =>
                 // battle
 
             case _ =>
@@ -673,9 +676,6 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     case EternalPayAction(_, _, Pain) =>
                         true |=> -1000 -> "dont save from pain"
 
-                    case EternalIgnoreAction(_) =>
-                        true |=> 0 -> "other"
-
                     case HowlPreBattleAction(_) =>
                         attacking && enemies.num == 1 |=> -1000 -> "dont howl only foe"
                         true |=> -100 -> "dont generally"
@@ -728,9 +728,9 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                         u.monsterly && r.foes(Tsathoggua).any |=> -450 -> "dont send monster to tsa"
 
                         if (u.goo)
-                            result ++= eval(MoveAction(u.faction, u.uclass, u.region, r))
+                            result ++= eval(MoveAction(u.faction, u, u.region, r, 0))
 
-                        true |=> (game.board.connected(r) ++ game.board.connected(r).flatMap(game.board.connected)).distinct.num -> "reachable regions"
+                        true |=> (r.connected ++ r.connected./~(_.connected)).distinct.num -> "reachable regions"
 
                     case _ =>
                         true |=> 1000 -> "todo"
