@@ -165,12 +165,7 @@ object ANExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any)
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any)
 
             asking
 

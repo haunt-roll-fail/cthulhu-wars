@@ -5,9 +5,11 @@ import hrf.colmat._
 
 package object html {
     implicit class HtmlString(val s : String) extends AnyVal {
-        def styled(l : String*) = "<span class='" + l.mkString(" ")  + "'>" + s + "</span>"
+        def styled(l : String*) : String = "<span class='" + l.mkString(" ")  + "'>" + s + "</span>"
+        def styled(f : Faction) : String = s.styled(f.style)
         def power = (s + " Power").styled("power")
         def hl = s.styled("highlight")
+        def hh = s.styled("halfhigh")
     }
 
     implicit class HtmlInt(val n : Int) extends AnyVal {

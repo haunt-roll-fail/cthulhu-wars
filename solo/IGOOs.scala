@@ -5,12 +5,10 @@ import hrf.colmat._
 import html._
 
 // IGOOs
-
-// name, doomCost (to obtain), powerCost (to obtain), quantity, cost (to summon), combat
-case object ByatisCard extends LoyaltyCard(Byatis.name, 0, 4, 1, 4, 4, Byatis, ByatisIcon)
-case object AbhothCard extends LoyaltyCard(Abhoth.name, 0, 4, 1, 4, 0, Abhoth, AbhothIcon)
-case object DaolothCard extends LoyaltyCard(Daoloth.name, 0, 6, 1, 6, 0, Daoloth, DaolothIcon)
-case object NyogthaCard extends LoyaltyCard(Nyogtha.name, 0, 6, 2, 6, 0, Nyogtha, NyogthaIcon)
+case object ByatisCard extends IGOOLoyaltyCard(ByatisIcon, Byatis, power = 4, combat = 4)
+case object AbhothCard extends IGOOLoyaltyCard(AbhothIcon, Abhoth, power = 4)
+case object DaolothCard extends IGOOLoyaltyCard(DaolothIcon, Daoloth, power = 6)
+case object NyogthaCard extends IGOOLoyaltyCard(NyogthaIcon, Nyogtha, power = 6, quantity = 2, combat = 4)
 
 case object ByatisIcon extends UnitClass(Byatis.name + " Icon", Token, 0)
 case object AbhothIcon extends UnitClass(Abhoth.name + " Icon", Token, 0)
@@ -27,6 +25,9 @@ case object Daoloth extends UnitClass("Daoloth", GOO, 6) with IGOO
 case object Nyogtha extends UnitClass("Nyogtha", GOO, 6) with IGOO
 
 case object Filth extends UnitClass("Filth", Monster, 1) {
+    override def canMove(u : UnitFigure)(implicit game : Game) = false
+    override def canBattle(u : UnitFigure)(implicit game : Game) = false
+    override def canCapture(u : UnitFigure)(implicit game : Game) = false
     override def canBeSummoned(f : Faction)(implicit game : Game) = f.has(Fertility)
 }
 
@@ -68,7 +69,7 @@ case object NeutralAbhoth extends NeutralFaction {
 }
 
 
-case class IndependentGOOMainAction(self : Faction, lc : LoyaltyCard, l : $[Region]) extends OptionFactionAction(g => {
+case class IndependentGOOMainAction(self : Faction, lc : IGOOLoyaltyCard, l : $[Region]) extends OptionFactionAction(g => {
     val qm = Overlays.imageSource("question-mark")
     val p = s""""${lc.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}", false""".replace('"'.toString, "&quot;")
     "<div class=sbdiv>" +

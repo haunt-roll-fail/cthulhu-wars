@@ -255,15 +255,15 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 var wz = allies(Wizard).num
                 var sm = allies(SerpentMan).num
                 var fs = allies(FormlessSpawn).num
-                val tsa = allies.has(Tsathoggua)
+                val tsa = allies.got(Tsathoggua)
 
                 f.has(Invisibility) &&            foes(FlyingPolyp).num >= foes.num    |=> -10000000 -> "polyp can invis all"
                 f.has(Invisibility) && tsa.not && foes(FlyingPolyp).num >= allies.num  |=> -10000000 -> "polyp can invis all"
 
                 r.ownGate && allies.num < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
-                var eby = foes.has(Byatis)
-                var eab = foes.has(Abhoth)
+                var eby = foes.got(Byatis)
+                var eab = foes.got(Abhoth)
                 var eny = foes(Nyogtha).num
                 var eght = foes(Ghast).num
                 var egug = foes(Gug).num
@@ -282,7 +282,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                         def gh = foes(Ghoul).num
                         def fu = foes(Fungi).num
                         def dy = foes(DarkYoung).num
-                        def shu = foes.has(ShubNiggurath)
+                        def shu = foes.got(ShubNiggurath)
 
                         gh > 0 && ec + fu + dy + eght + egug + esht + esv + eby.??(4) + eab.??(efi) + eny == 0 && BG.has(ShubNiggurath) && BG.has(ThousandYoung) && BG.power > 0 |=> -1000 -> "dont fight free ghouls"
 
@@ -290,8 +290,8 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                         def ec = foes(Acolyte).num
                         def un = foes(Undead).num
                         def by = foes(Byakhee).num
-                        def kiy = foes.has(KingInYellow)
-                        def has = foes.has(Hastur)
+                        def kiy = foes.got(KingInYellow)
+                        def has = foes.got(Hastur)
 
                         r.ownGate && kiy && (ownStr > enemyStr || ownStr >= foes.num * 2) && !(self.allSB && power > 1) |=> 4444 -> "chase kiy away"
 
@@ -461,7 +461,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
             case AwakenAction(_, _, r, _) =>
                 numSB >= 5 && need(AwakenTsathoggua) |=> 5000 -> "need tsathoggua"
-                r.foes.has(Hastur) |=> -3000 -> "hastur is scary"
+                r.foes.got(Hastur) |=> -3000 -> "hastur is scary"
                 numSB < 5 && numSB > 3 && need(AwakenTsathoggua) |=> 2500 -> "need tsathoggua"
                 power > 8 |=> 2000 -> "yes awaken"
                 power == 8 |=> 1800 -> "maybe awaken"
@@ -545,7 +545,6 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 val uc = f.at(r).monsters.minBy(_.uclass.cost)
 
                 uc.uclass.cost == 1 |=> 600 -> "capture monster 1"
-                // uc.uclass.cost == 2 |=> 900 -> "capture monster 2"
                 uc.uclass.cost == 2 |=> 1100 -> "capture monster 2"
                 uc.uclass.cost == 3 |=> 1700 -> "capture monster 3"
 

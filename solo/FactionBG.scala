@@ -144,7 +144,7 @@ object BGExpansion extends Expansion {
 
             game.reveals(f)
 
-            + EndTurnAction(f)
+            game.endTurn(f)(true)
 
             asking
 
@@ -172,7 +172,7 @@ object BGExpansion extends Expansion {
             if (f.has(Avatar) && f.has(ShubNiggurath)) {
                 val r = f.goo(ShubNiggurath).region
                 val t = f.taxIn(r)
-                areas.but(r).%(f.affords(1 + t)).%(r => nfactions.exists(_.at(r).vulnerable.any)).some.foreach { l =>
+                areas.but(r).%(f.affords(1 + t)).%(r => factionlike.exists(_.at(r).vulnerable.any)).some.foreach { l =>
                     + AvatarMainAction(f, r, l)
                 }
             }
@@ -189,12 +189,7 @@ object BGExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any || f.oncePerRound.contains(Fertility))
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any || f.oncePerRound.contains(Fertility))
 
             asking
 
@@ -252,13 +247,7 @@ object BGExpansion extends Expansion {
 
         // AVATAR
         case AvatarMainAction(self, o, l) =>
-            val variants = l.flatMap { r =>
-                nfactions.filter(_.at(r).vulnerable.any).map(f =>
-                    AvatarAction(self, o, r, f)
-                )
-            }
-
-            Ask(self).list(variants).cancel
+            Ask(self).some(l)(r => factionlike.%(_.at(r).vulnerable.any).map(f => AvatarAction(self, o, r, f))).cancel
 
         case AvatarAction(self, o, r, e) =>
             self.power -= 1

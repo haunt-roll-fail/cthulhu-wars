@@ -1,8 +1,7 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <base href="/hrf/" /> <!-- Need this for online mode to work -->
-        <!-- <base href="" /> --> <!-- Temp for test (comment out before deploying) -->
+        <base href="/hrf/" />
         <title id="cws-options" data-server="###SERVER-URL###" data-delay="1" data-menu="222" data-scroll="true" data-online="true">Cthulhu Wars Solo DEV</title>
         <style>
             html {
@@ -131,7 +130,11 @@
             }
 
             .highlight {
-                color: lightgray;
+                color: #d3d3d3;
+            }
+
+            .halfhigh {
+                color: #a0a0a0;
             }
 
             .doom {
@@ -235,37 +238,37 @@
             }
 
             .gc-border {
-                border-color: #002b00 !important;
+                outline-color: #002b00 !important;
             }
 
             .cc-border {
-                border-color: #111755 !important;
+                outline-color: #111755 !important;
             }
 
             .bg-border {
-                border-color: #550000 !important;
+                outline-color: #550000 !important;
             }
 
             .ys-border {
-                border-color: #444400 !important;
+                outline-color: #444400 !important;
             }
 
             .sl-border {
-                border-color: #502719 !important;
+                outline-color: #502719 !important;
             }
 
             .ww-border {
-                border-color: #485b6a !important;
-                border-color: #36434a !important;
+                outline-color: #485b6a !important;
+                outline-color: #36434a !important;
             }
 
             .ow-border {
-                border-color: #241633 !important;
-                border-color: #331d31 !important;
+                outline-color: #241633 !important;
+                outline-color: #331d31 !important;
             }
 
             .an-border {
-                border-color: #3c5c5c !important;
+                outline-color: #3c5c5c !important;
             }
 
             .p8 {
@@ -312,14 +315,22 @@
             }
 
             .option {
-                border: #333333 solid 4px;
-                border: #333333 solid 0.4vmin;
+                outline: #333333 solid 4px;
+                outline: #333333 solid 0.4vmin;
                 padding: 4px;
                 padding: 0.4vh;
-                margin: 5px;
-                margin: 0.5vh;
+                margin: 12px;
+                margin-top: 11px;
+                margin: 1.22vh;
+                margin-top: 1.12vh;
                 background-color: #111111;
                 cursor: pointer;
+            }
+
+            .thin {
+                outline-width: 1px;
+                outline-width: 0.1vmin;
+                cursor: default;
             }
 
             .spellbook {

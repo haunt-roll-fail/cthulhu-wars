@@ -184,12 +184,7 @@ object SLExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any || game.nexed.any)
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any || game.nexed.any)
 
             asking
 
@@ -263,14 +258,8 @@ object SLExpansion extends Expansion {
 
         // CAPTURE MONSTER
         case CaptureMonsterMainAction(self) =>
-            val variants = areas./~ { r =>
-                self.at(r, Tsathoggua).any.?? {
-                    self.enemies.%(f => f.at(r).monsters.any && f.at(r, GOO).none)
-                        ./(f => CaptureMonsterAction(self, r, f))
-                }
-            }
-
-            Ask(self).list(variants).cancel
+            val r = self.goo(Tsathoggua).region
+            Ask(self).each(factionlike.but(self).%(_.at(r).use(l => l.monsters.any && l.goos.none)))(e => CaptureMonsterAction(self, r, e)).cancel
 
         case CaptureMonsterAction(self, r, f) =>
             self.power -= 1

@@ -89,52 +89,52 @@ case class AssignPainAction(self : Faction, count : Int, faction : Faction, ur :
 
 case class RetreatOrderAction(self : Faction, a : Faction, b : Faction) extends BaseFactionAction("Retreat order", "" + a + " then " + b)
 
-case class EliminateNoWayAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Nowhere to retreat, a pained unit is eliminated", ur.short)
+case class EliminateNoWayAction(self : Faction, ur : UnitRef) extends ForcedAction
 
 case class RetreatAllAction(self : Faction, f : Faction, r : Region) extends BaseFactionAction("Retreat all pained " + f + " units to", r)
 case class RetreatSeparatelyAction(self : Faction, f : Faction, destinations : $[Region]) extends BaseFactionAction(None, "Retreat separately") with More
 
-case class RetreatUnitAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction("Retreat " + ur.short, r)
+case class RetreatUnitAction(self : Faction, ur : UnitRef, r : Region) extends ForcedAction
 
 
 // GC
 case class DevourPreBattleAction(self : Faction) extends OptionFactionAction(Devour) with PreBattleQuestion
-case class DevourAction(self : Faction, ur : UnitRef) extends BaseFactionAction(Devour, ur.short)
+case class DevourAction(self : Faction, ur : UnitRef) extends ForcedAction
 
 case class AbsorbPreBattleAction(self : Faction) extends OptionFactionAction(Absorb) with PreBattleQuestion with Soft
-case class AbsorberAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Absorb with", ur.full) with Soft
-case class AbsorbeeAction(self : Faction, ur : UnitRef, tr : UnitRef) extends BaseFactionAction(g => "Absorb with " + ur.full, g => (tr.uclass == Shoggoth).??("Another ") + tr.short)
+case class AbsorberAction(self : Faction, ur : UnitRef) extends ForcedAction
+case class AbsorbeeAction(self : Faction, ur : UnitRef, tr : UnitRef) extends ForcedAction
 
 // CC
 case class AbductPreBattleAction(self : Faction) extends OptionFactionAction(Abduct) with PreBattleQuestion
 case class AbductAction(self : Faction, ur : UnitRef, tr : UnitRef) extends BaseFactionAction(Abduct, tr.full)
 
 case class InvisibilityPreBattleAction(self : Faction) extends OptionFactionAction(Invisibility) with PreBattleQuestion with Soft
-case class InvisibilityAction(self : Faction, ur : UnitRef, tr : UnitRef) extends BaseFactionAction("Make invisible", g => "" + tr.full + (ur == tr).??(" (self)"))
+case class InvisibilityAction(self : Faction, ur : UnitRef, tr : UnitRef) extends ForcedAction
 
 case class SeekAndDestroyPreBattleAction(self : Faction) extends OptionFactionAction(SeekAndDestroy) with PreBattleQuestion with Soft
 case class SeekAndDestroyAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction("Bring with " + self.styled(SeekAndDestroy), self.styled(uc) + " from " + r)
 
-case class HarbingerPowerAction(self : Faction, ur : UnitRef, n : Int) extends BaseFactionAction(Harbinger.full + " for " + ur.short, "Get " + n.power)
-case class HarbingerESAction(self : Faction, ur : UnitRef, e : Int) extends BaseFactionAction(Harbinger.full + " for " + ur.short, "Gain " + e.es)
+case class HarbingerPowerAction(self : Faction, ur : UnitRef, n : Int) extends ForcedAction
+case class HarbingerESAction(self : Faction, ur : UnitRef, e : Int) extends ForcedAction
 case class HarbingerAction(self : Faction, ur : UnitRef) extends ForcedAction
 
 // BG
-case class NecrophagyAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction(g => Necrophagy.full + " to " + g.battle.get.arena, ur.short + " from " + r)
+case class NecrophagyAction(self : Faction, ur : UnitRef, r : Region) extends ForcedAction
 
 // SL
 case class DemandSacrificePreBattleAction(self : Faction) extends OptionFactionAction(DemandSacrifice) with PreBattleQuestion
-case class DemandSacrificeProvideESAction(self : Faction) extends BaseFactionAction(DemandSacrifice, g => "" + self.opponent(g.battle.get) + " gains " + 1.es)
-case class DemandSacrificeKillsArePainsAction(self : Faction) extends BaseFactionAction(DemandSacrifice, "Rolled " + "Kills".styled("kill") + " become " + "Pains".styled("pain"))
+case class DemandSacrificeProvideESAction(self : Faction) extends ForcedAction
+case class DemandSacrificeKillsArePainsAction(self : Faction) extends ForcedAction
 
 // WW
 case class HowlPreBattleAction(self : Faction) extends OptionFactionAction(Howl) with PreBattleQuestion
-case class HowlUnitAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Retreat unit from " + Howl.full, ur.full)
-case class HowlAction(self : Faction, ur : UnitRef, r : Region) extends BaseFactionAction("Retreat " + ur.short + " to", r)
+case class HowlUnitAction(self : Faction, ur : UnitRef) extends ForcedAction
+case class HowlAction(self : Faction, ur : UnitRef, r : Region) extends ForcedAction
 
-case class EternalPayAction(self : Faction, u : UnitRef, result : BattleRoll) extends BaseFactionAction("Save " + u.short + " from " + result, "Pay " + 1.power + " for " + self.styled(Eternal))
+case class EternalPayAction(self : Faction, u : UnitRef, result : BattleRoll) extends ForcedAction
 
-case class BerserkergangAction(self : Faction, n : Int, u : UnitRef) extends BaseFactionAction(Berserkergang.full + " eliminates" + (n == 1).?("").|(" " + n + " units"), u.short)
+case class BerserkergangAction(self : Faction, n : Int, u : UnitRef) extends ForcedAction
 
 case class CannibalismAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction("Spawn with " + self.styled(Cannibalism) + " in " + r, self.styled(uc))
 
@@ -144,16 +144,16 @@ case class ChannelPowerAction(self : Faction, n : Int) extends BaseFactionAction
 case class MillionFavoredOnesAction(self : Faction, r : Region, uc : UnitClass, nw : $[UnitClass]) extends BaseFactionAction(self.styled(MillionFavoredOnes), self.styled(uc) + " in " + r + " to " + self.styled((nw.num > 1).?("" + nw.num + " " + nw(0).plural).|(nw(0).name)))
 
 // AN
-case class UnholyGroundAction(self : Faction, o : Faction, cr : Region) extends BaseFactionAction("Remove a cathedral with " + UnholyGround.full, cr)
-case class UnholyGroundEliminateAction(self : Faction, f : Faction, ur : UnitRef) extends BaseFactionAction(g => "Choose a GOO to eliminate in " + g.battle.get.arena, ur.short)
+case class UnholyGroundAction(self : Faction, o : Faction, cr : Region) extends ForcedAction
+case class UnholyGroundEliminateAction(self : Faction, f : Faction, ur : UnitRef) extends ForcedAction
 
 // Independent Great Old Ones
 case class CosmicUnityPreBattleAction(self : Faction) extends OptionFactionAction(self.styled(CosmicUnity)) with PreBattleQuestion
-case class CosmicUnityAction(self : Faction, ur : UnitRef) extends BaseFactionAction("Target for " + self.styled(CosmicUnity), ur.short)
+case class CosmicUnityAction(self : Faction, ur : UnitRef) extends ForcedAction
 
 // Neutral Spellbooks
 case class ShrivelingPreBattleAction(self : Faction) extends OptionFactionAction(Shriveling) with PreBattleQuestion
-case class ShrivelingAction(self : Faction, ur : UnitRef) extends BaseFactionAction(Shriveling, ur.short)
+case class ShrivelingAction(self : Faction, ur : UnitRef) extends ForcedAction
 
 
 trait BattleImplicits {
@@ -194,12 +194,10 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
     var phase : BattlePhase = BattleStart
 
-    var hidden : $[UnitFigure] = $
+    var exempted : $[UnitFigure] = $
 
     def exempt(u : UnitFigure) {
-        u.state = $
-        u.add(Hidden)
-        hidden :+= u
+        exempted :+= u
         sides.foreach(_.forces :-= u)
     }
 
@@ -346,9 +344,6 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             s.str = str
         }
 
-        s.forces.foreach(_.remove(Absorbed))
-        s.forces.foreach(_.remove(Invised))
-
         if (s.has(Harbinger) && s.forces(Nyarlathotep).any)
             s.add(Harbinger)
 
@@ -375,6 +370,9 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
     }
 
     def postroll(s : Faction) {
+        s.forces.foreach(_.remove(Absorbed))
+        s.forces.foreach(_.remove(Invised))
+
         if (s.tag(Regenerate))
             s.forces(Starspawn).foreach(_.health = DoubleHP(Alive, Alive))
 
@@ -386,7 +384,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
     }
 
     def assigner(s : Faction) : Faction =
-        if (s.opponent.has(Vengeance))
+        if (s.opponent.tag(Vengeance))
             s.opponent
         else
         if (s.neutral)
@@ -456,7 +454,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         val chooser : Faction = retreater(s)
 
         if (destinations.none)
-            Ask(s).each(refugees.sortBy(_.uclass.cost))(u => EliminateNoWayAction(s, u))
+            Ask(s).each(refugees.sortBy(_.uclass.cost))(u => EliminateNoWayAction(s, u).as(u)("Nowhere to retreat, a pained unit is eliminated"))
         else
         if (destinations.num == 1) {
             val r = destinations.only
@@ -469,7 +467,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         }
         else
         if (refugees.num == 1 || s.forces.tag(Retreated).any)
-            Ask(chooser).each(destinations)(d => RetreatUnitAction(chooser, refugees.first, d))
+            Ask(chooser).each(destinations)(d => RetreatUnitAction(chooser, refugees.first, d).as(d)("Retreat", refugees.first, "to"))
         else
             Ask(chooser).each(destinations)(d => RetreatAllAction(chooser, s, d)).add(RetreatSeparatelyAction(chooser, s, destinations))
     }
@@ -517,6 +515,18 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     log(s, "gained", s.styled(GodOfForgetfulness), "for", s.styled(Byatis))
                 }
             }
+    }
+
+    def checkDaolothSpellbook() : Unit = {
+        factions.foreach { f =>
+            if (f.upgrades.has(Interdimensional).not && f.has(Daoloth)) {
+                if (sides.exists(s => s.forces.exists(u => u.goo && u.health == Killed))) {
+                    f.upgrades :+= Interdimensional
+
+                    log(f, "gained", f.styled(Interdimensional), "for", f.styled(Daoloth))
+                }
+            }
+        }
     }
 
     def jump(bp : BattlePhase) : Continue = {
@@ -623,7 +633,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     val killed = s.forces.%(_.health == Killed)
 
                     doubleKilled.foreach { u =>
-                        log(u.short, "was", "killed".styled("kill"), "with two", "Kills".styled("kill"))
+                        log(u, "was", "killed".styled("kill"), "with two", "Kills".styled("kill"))
                         u.health = Killed
                     }
 
@@ -637,7 +647,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 sides.foreach { s =>
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Killed).not(Harbinged).some.foreach { l =>
-                            return Ask(s).add(HarbingerPowerAction(s, l.first, l.first.uclass.cost / 2)).add(HarbingerESAction(s, l.first, 2))
+                            val u = l.first
+                            val n = u.uclass.cost / 2
+                            return Ask(s)
+                                .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
+                                .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
                         }
                     }
                 }
@@ -655,7 +669,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                             s.remove(Eternal)
 
-                            return Ask(s).each(rt)(u => EternalPayAction(s, u, Kill)).skip(BattleDoneAction(s))
+                            return Ask(s).each(rt)(u => EternalPayAction(s, u, Kill).as("Pay", 1.power, "for", Eternal)("Save", u, "from", Kill)).skip(BattleDoneAction(s))
                         }
                     }
                 }
@@ -677,6 +691,8 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     checkByatisSpellbook(s)
                 }
 
+                checkDaolothSpellbook()
+
                 sides.foreach { s =>
                     s.forces.%(_.health == Killed).foreach(eliminate)
                 }
@@ -695,7 +711,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                                 targets.foreach(eliminate)
                             }
                             else
-                                return Ask(s.opponent).each(targets)(u => BerserkergangAction(s.opponent, count, u))
+                                return Ask(s.opponent).each(targets)(u => BerserkergangAction(s.opponent, count, u).as(u.full)(Berserkergang, "eliminates", (count > 1).?("" + count + " units")))
                     }
                 }
 
@@ -707,7 +723,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                         s.remove(UnholyGround)
 
                         if (s.opponent.forces.goos.any && game.cathedrals.has(arena))
-                            return Ask(s).each(game.cathedrals)(r => UnholyGroundAction(s, s.opponent, r)).skip(BattleDoneAction(s))
+                            return Ask(s).each(game.cathedrals)(r => UnholyGroundAction(s, s.opponent, r).as(r)("Remove a cathedral with", UnholyGround)).skip(BattleDoneAction(s))
                     }
                 }
 
@@ -722,7 +738,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     f.oncePerAction :-= Necrophagy
 
                     return Ask(f)
-                        .each(f.all(Ghoul).diff(attacker.forces).diff(defender.forces).diff(hidden))(u => NecrophagyAction(f, u, u.region))
+                        .each(f.all(Ghoul).diff(attacker.forces).diff(defender.forces).diff(exempted))(u => NecrophagyAction(f, u, u.region).as(u, "from", u.region)(Necrophagy, "to", arena))
                         .done(BattleDoneAction(f))
                 }
 
@@ -738,11 +754,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 sides.foreach { s =>
                     s.forces.foreach(u => u.health match {
                         case DoubleHP(Alive, Alive) =>
-                        case DoubleHP(Pained, Pained) => log(u.short, "was assigned two", "" + Pain + "s".styled("pain"))
-                        case DoubleHP(Killed, Alive) => log(u.short, "was assigned", Kill, "and was", "pained".styled("pain"))
-                        case DoubleHP(Pained, Alive) => log(u.short, "was assigned", Pain, "and was", "pained".styled("pain"))
-                        case DoubleHP(Killed, Pained) => log(u.short, "was assigned", Kill, "and", Pain, "and was", "pained".styled("pain"))
-                        case DoubleHP(l, r) => log(u.short, "was assigned", List(l, r).%(_ != Alive).mkString(" and "), "and was", "pained".styled("pain"))
+                        case DoubleHP(Pained, Pained) => log(u, "was assigned two", "" + Pain + "s".styled("pain"))
+                        case DoubleHP(Killed, Alive) => log(u, "was assigned", Kill, "and was", "pained".styled("pain"))
+                        case DoubleHP(Pained, Alive) => log(u, "was assigned", Pain, "and was", "pained".styled("pain"))
+                        case DoubleHP(Killed, Pained) => log(u, "was assigned", Kill, "and", Pain, "and was", "pained".styled("pain"))
+                        case DoubleHP(l, r) => log(u, "was assigned", $(l, r).%(_ != Alive).mkString(" and "), "and was", "pained".styled("pain"))
                         case _ =>
                     })
 
@@ -783,7 +799,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                             s.remove(Eternal)
 
-                            return Ask(s).each(rt)(u => EternalPayAction(s, u, Pain)).skip(BattleDoneAction(s))
+                            return Ask(s).each(rt)(u => EternalPayAction(s, u, Pain).as("Pay", 1.power, "for", Eternal)("Save", u, "from", Pain)).skip(BattleDoneAction(s))
                         }
                     }
                 }
@@ -862,7 +878,9 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             case BattleEnd =>
                 sides.foreach(_.forces.foreach(_.remove(Retreated)))
                 sides.foreach(_.forces.foreach(_.remove(Zeroed)))
-                hidden.foreach(_.remove(Hidden))
+
+                exempted.foreach(_.remove(Hidden))
+                exempted.foreach(_.remove(Absorbed))
 
                 attacker.battled :+= arena
 
@@ -939,7 +957,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
         case RetreatUnitAction(self, u, r) =>
             retreat(u, r)
-            log(u.short, "retreated to", r)
+            log(u, "retreated to", r)
             proceed()
 
         case RetreatAllAction(self, f, r) =>
@@ -955,34 +973,34 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         case RetreatSeparatelyAction(self, f, l) =>
             val u = f.forces.%(_.health == Pained).first
 
-            Ask(self).each(l)(r => RetreatUnitAction(self, u, r))
+            Ask(self).each(l)(r => RetreatUnitAction(self, u, r).as(r)("Retreat", u, "to"))
 
         case EliminateNoWayAction(self, u) =>
             if (self.tag(Emissary) && u.uclass == Nyarlathotep) {
-                self.log("had nowhere to retreat but", u.short, "remained as an", self.styled(Emissary))
+                self.log("had nowhere to retreat but", u, "remained as an", self.styled(Emissary))
             }
             else {
                 eliminate(u)
 
-                self.log("had nowhere to retreat and eliminated", u.short)
+                self.log("had nowhere to retreat and eliminated", u)
             }
             self.forces.foreach(_.health = Alive)
             proceed()
 
         // DEVOUR
         case DevourPreBattleAction(self) =>
-            Ask(self.opponent).each(self.opponent.forces.vulnerable)(u => DevourAction(self.opponent, u))
+            Ask(self.opponent).each(self.opponent.forces.vulnerable)(u => DevourAction(self.opponent, u).as(u.full)(Devour))
 
         case DevourAction(self, u) =>
             u.faction.opponent.add(Devour)
             eliminate(u)
-            log(u.short, "was devoured by", self.opponent)
+            log(u, "was devoured by", self.opponent)
             proceed()
 
         // ABSORB
         case AbsorbPreBattleAction(self) =>
             val shoggoths = self.forces(Shoggoth)
-            val actions = shoggoths./(u => AbsorberAction(self, u))
+            val actions = shoggoths./(u => AbsorberAction(self, u).as(u.full)("Absorb with"))
 
             if (shoggoths./(_.state.sorted).distinct.num == 1)
                 Ask(self).list(actions.take(1))
@@ -990,12 +1008,12 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 Ask(self).list(actions).cancel
 
         case AbsorberAction(self, u) =>
-            Ask(self).each(self.forces.but(u).vulnerable)(t => AbsorbeeAction(self, u, t)).cancel
+            Ask(self).each(self.forces.but(u).vulnerable)(t => AbsorbeeAction(self, u, t).as((t.uclass == Shoggoth).??("Another"), t)("Absorb with", u.full)).cancel
 
         case AbsorbeeAction(self, u, t) =>
             0.to(t.count(Absorbed)).foreach(_ => u.add(Absorbed))
             eliminate(t)
-            log(u.short, "absorbed", t.short, "and increased its strength by", (3 + t.count(Absorbed) * 3).str)
+            log(u, "absorbed", t, "and increased its strength by", (3 + t.count(Absorbed) * 3).str)
             proceed()
 
         // ABDUCT
@@ -1006,21 +1024,25 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         case AbductAction(self, u, t) =>
             eliminate(u)
             eliminate(t)
-            log(t.short, "was abducted by", u.short)
+            log(t, "was abducted by", u)
             proceed()
 
         // INVISIBILITY
         case InvisibilityPreBattleAction(self) =>
             val u = self.forces(FlyingPolyp).not(Invised).head
-            Ask(self).each((self.opponent.forces ++ self.forces).vulnerable)(t => InvisibilityAction(self, u, t)).cancel
+            Ask(self).each((self.opponent.forces ++ self.forces).vulnerable)(t => InvisibilityAction(self, u, t).as(t.full, (u == t).?("(self)"))(u, "makes invisible")).cancel
 
         case InvisibilityAction(self, u, t) =>
-            u.add(Invised)
+            t.add(Hidden)
             exempt(t)
+
+            u.add(Invised)
+
             if (u == t)
-                log(u.short, "hid itself")
+                log(u, "hid itself")
             else
-                log(t.short, "was hidden by", u.short)
+                log(t, "was hidden by", u)
+
             proceed()
 
         // SEEK AND DESTROY
@@ -1038,8 +1060,8 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         // DEMAND SACRIFICE
         case DemandSacrificePreBattleAction(self) =>
             Ask(self.opponent)
-                .add(DemandSacrificeKillsArePainsAction(self.opponent))
-                .add(DemandSacrificeProvideESAction(self.opponent))
+                .add(DemandSacrificeKillsArePainsAction(self.opponent).as("Rolled", "Kills".styled("kill"), "become", "Pains".styled("pain"))(DemandSacrifice))
+                .add(DemandSacrificeProvideESAction(self.opponent).as(self, "gains", 1.es)(DemandSacrifice))
 
         case DemandSacrificeProvideESAction(self) =>
             self.opponent.takeES(1)
@@ -1059,16 +1081,16 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             val e = self.opponent
             val l = e.forces.%(_.canBeMoved)
 
-            Ask(e.real.?(e).|(self)).each(e.forces.%(_.canBeMoved))(u => HowlUnitAction(e, u))
+            Ask(e.real.?(e).|(self)).each(e.forces.%(_.canBeMoved))(u => HowlUnitAction(e, u).as(u)("Retreat unit from", Howl))
 
-        case HowlUnitAction(self, ur) =>
-            Ask(self).each(arena.connected)(r => HowlAction(self, ur, r))
+        case HowlUnitAction(self, u) =>
+            Ask(self).each(arena.connected)(r => HowlAction(self, u, r).as(r)("Retreat", u.full, "to"))
 
         case HowlAction(self, u, r) =>
             self.forces :-= u
             u.region = r
             u.onGate = false
-            log(u.short, "was howled to", r)
+            log(u, "was howled to", r)
             proceed()
 
         // HARBINGER
@@ -1107,20 +1129,20 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         case EternalPayAction(self, u, result) =>
             self.power -= 1
             u.health = Spared(Alive)
-            self.log("payed", 1.power, "for", self.styled(Eternal), "to cancel", result, "on", u.short)
+            self.log("payed", 1.power, "for", Eternal, "to cancel", result, "on", u)
             proceed()
 
         // BERSERKERGANG
         case BerserkergangAction(self, n, u) =>
             eliminate(u)
-            log(u.short, "was eliminated with", self.styled(Berserkergang))
+            log(u, "was eliminated with", Berserkergang)
             if (n > 1)
                 Ask(self).each(self.forces.vulnerable)(t => BerserkergangAction(self, n - 1, t))
             else
                 proceed()
 
          case CannibalismAction(self, r, uc) =>
-             self.log("spawned", self.styled(uc), "in", r, "with", self.styled(Cannibalism))
+             self.log("spawned", self.styled(uc), "in", r, "with", Cannibalism)
              self.place(uc, r)
              proceed()
 
@@ -1147,7 +1169,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             self.add(UnholyGround)
             game.cathedrals :-= cr
             log(self.styled("Cathedral"), "in", cr, "was removed with", self.styled(UnholyGround))
-            Ask(o).each(o.forces.goos.distinctBy(_.uclass))(u => UnholyGroundEliminateAction(o, self, u))
+            Ask(o).each(o.forces.goos.distinctBy(_.uclass))(u => UnholyGroundEliminateAction(o, self, u).as(u)(UnholyGround, "eliminates in", arena))
 
         case UnholyGroundEliminateAction(self, f, u) =>
             if (u.uclass == Nyogtha && self.all(Nyogtha).num > 1) {
@@ -1155,19 +1177,19 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                 self.all(Nyogtha).foreach(game.eliminate)
 
-                log("All", u.short, "were eliminated with", f.styled(UnholyGround))
+                log("All", u, "were eliminated with", f.styled(UnholyGround))
             }
             else {
                 eliminate(u)
 
-                log(u.short, "was eliminated with", f.styled(UnholyGround))
+                log(u, "was eliminated with", f.styled(UnholyGround))
             }
 
             proceed()
 
         // SHRIVELING
         case ShrivelingPreBattleAction(self) =>
-            Ask(self).each(self.opponent.forces.vulnerable)(u => ShrivelingAction(self, u)).cancel
+            Ask(self).each(self.opponent.forces.vulnerable)(u => ShrivelingAction(self, u).as(u)(Shriveling)).cancel
 
         case ShrivelingAction(self, u) =>
             self.add(Shriveling)
@@ -1179,16 +1201,16 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             if (self.opponent.real) {
                 self.opponent.power += p
 
-                log(u.short, "was shriveled and", self.opponent, "got", p.power)
+                log(u, "was shriveled and", self.opponent, "got", p.power)
             }
             else
-                log(u.short, "was shriveled")
+                log(u, "was shriveled")
 
             proceed()
 
         // COSMIC UNITY
         case CosmicUnityPreBattleAction(self) =>
-            Ask(self).each(self.opponent.forces.goos.distinctBy(_.uclass))(u => CosmicUnityAction(self, u)).cancel
+            Ask(self).each(self.opponent.forces.goos.distinctBy(_.uclass))(u => CosmicUnityAction(self, u).as(u)(CosmicUnity, "unites")).cancel
 
         case CosmicUnityAction(self, u) =>
             self.add(CosmicUnity)
@@ -1198,7 +1220,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 self.log("targeted both", u.faction.styled(Nyogtha), "units with", self.styled(CosmicUnity))
             } else {
                 u.add(Zeroed)
-                self.log("targeted", u.short, "with", self.styled(CosmicUnity))
+                self.log("targeted", u, "with", self.styled(CosmicUnity))
             }
 
             proceed()

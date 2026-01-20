@@ -22,8 +22,8 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
             var ra = allies(Reanimated).num
             var yo = allies(Yothan).num
 
-            var eby = foes.has(Byatis)
-            var eab = foes.has(Abhoth)
+            var eby = foes.got(Byatis)
+            var eab = foes.got(Abhoth)
             var eny = foes(Nyogtha).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
@@ -36,7 +36,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
                     var shield = ac + um + ra + yo - 1
@@ -55,7 +55,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                     var ng = foes(Nightgaunt).num
                     var fp = foes(FlyingPolyp).num
                     var hh = foes(HuntingHorror).num
-                    var nya = foes.has(Nyarlathotep)
+                    var nya = foes.got(Nyarlathotep)
 
                     var abd = f.has(Abduct).??(ng)
 
@@ -110,7 +110,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                     var wz = foes(Wizard).num
                     var sm = foes(SerpentMan).num
                     var fs = foes(FormlessSpawn).num
-                    var tsa = foes.has(Tsathoggua)
+                    var tsa = foes.got(Tsathoggua)
 
                     val shield = ac + um + ra + yo
 
@@ -135,7 +135,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                     val mu = foes(Mutant).num
                     val ab = foes(Abomination).num
                     val sp = foes(SpawnOW).num
-                    val yog = foes.has(YogSothoth)
+                    val yog = foes.got(YogSothoth)
 
                     val ownStr = adjustedOwnStrengthForCosmicUnity(ra * 2 + yo * 7, allies, foes, opponent = f)
 

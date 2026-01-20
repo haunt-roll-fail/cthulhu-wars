@@ -170,12 +170,7 @@ object YSExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any || f.oncePerRound.contains(HWINTBN) || f.oncePerRound.contains(ScreamingDead))
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any || f.oncePerRound.contains(HWINTBN) || f.oncePerRound.contains(ScreamingDead))
 
             asking
 

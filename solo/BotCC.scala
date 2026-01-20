@@ -271,7 +271,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 var fp = allies(FlyingPolyp).num
                 var hh = allies(HuntingHorror).num
 
-                val nya = allies.has(Nyarlathotep)
+                val nya = allies.got(Nyarlathotep)
 
                 var ihh = have(SeekAndDestroy).??(self.all(HuntingHorror).diff(allies).num)
 
@@ -279,8 +279,8 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
                 r.ownGate && allies.num + ihh < 2 + igh |=> -1000 -> "ghouls will knock off the gate"
 
-                var eby = foes.has(Byatis)
-                var eab = foes.has(Abhoth)
+                var eby = foes.got(Byatis)
+                var eab = foes.got(Abhoth)
                 var eny = foes(Nyogtha).num
                 var eght = foes(Ghast).num
                 var egug = foes(Gug).num
@@ -294,7 +294,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         var dp = foes(DeepOne).num
                         var sh = foes(Shoggoth).num
                         var ss = foes(Starspawn).num
-                        var cth = foes.has(Cthulhu)
+                        var cth = foes.got(Cthulhu)
 
                         if (have(Abduct)) 1.to(ng).foreach { x =>
                             ng -= 1
@@ -390,7 +390,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         def gh = foes(Ghoul).num
                         def fu = foes(Fungi).num
                         def dy = foes(DarkYoung).num
-                        def shu = foes.has(ShubNiggurath)
+                        def shu = foes.got(ShubNiggurath)
 
                         // TODO: Should subtract probable invised units here, like we do for GC?
 
@@ -408,8 +408,8 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         def ec = foes(Acolyte).num
                         def un = foes(Undead).num
                         def by = foes(Byakhee).num
-                        def kiy = foes.has(KingInYellow)
-                        def has = foes.has(Hastur)
+                        def kiy = foes.got(KingInYellow)
+                        def has = foes.got(Hastur)
 
                         // TODO: Should subtract probable invised units here, like we do for GC?
 
@@ -433,7 +433,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         var wz = foes(Wizard).num
                         var sm = foes(SerpentMan).num
                         var fs = foes(FormlessSpawn).num
-                        var tsa = foes.has(Tsathoggua)
+                        var tsa = foes.got(Tsathoggua)
 
                         // TODO: Should add neutrals here.
                         // Why *3 and *2 here if we only check if more than 1? Was the intention to check if less than ownStr? Like in factor 1?
@@ -447,8 +447,8 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         def ec = foes(Acolyte).num
                         def we = foes(Wendigo).num
                         def gk = foes(GnophKeh).num
-                        def rha = foes.has(RhanTegoth)
-                        def ith = foes.has(Ithaqua)
+                        def rha = foes.got(RhanTegoth)
+                        def ith = foes.got(Ithaqua)
 
                         val goo = rha || ith
 
@@ -463,7 +463,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                         var mu = foes(Mutant).num
                         var ab = foes(Abomination).num
                         val sp = foes(SpawnOW).num
-                        val ygs = foes.has(YogSothoth)
+                        val ygs = foes.got(YogSothoth)
 
                         nya && !ygs && ownStr >= (mu + ab + sp + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny) * 5 |=> 100 -> "ok ow attack"
 
@@ -616,7 +616,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
             case AwakenAction(_, _, r, _) =>
                 numSB >= 5 && need(AwakenNyarlathotep) |=> 5000 -> "need nyarlathotep"
-                r.foes.has(Hastur) |=> -3000 -> "hastur is scary"
+                r.foes.got(Hastur) |=> -3000 -> "hastur is scary"
                 numSB < 5 && numSB > 3 && need(AwakenNyarlathotep) |=> 2500 -> "need nyarlathotep"
                 power > 10 |=> 2000 -> "yes awaken"
                 power == 10 |=> 1800 -> "maybe awaken"
@@ -876,7 +876,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 def fp = allies(FlyingPolyp).num
                 def hh = allies(HuntingHorror).num
                 def ihh = have(SeekAndDestroy).?(self.all(HuntingHorror).diff(allies).num).|(0)
-                def nya = allies.has(Nyarlathotep)
+                def nya = allies.got(Nyarlathotep)
 
                 def ec = enemies(Acolyte).num
 
@@ -885,32 +885,32 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 def dp = enemies(DeepOne).num
                 def sh = enemies(Shoggoth).num
                 def ss = enemies(Starspawn).num
-                def cth = enemies.has(Cthulhu)
+                def cth = enemies.got(Cthulhu)
 
                 def gh = enemies(Ghoul).num
                 def fu = enemies(Fungi).num
                 def dy = enemies(DarkYoung).num
-                def shu = enemies.has(ShubNiggurath)
+                def shu = enemies.got(ShubNiggurath)
 
                 def un = enemies(Undead).num
                 def by = enemies(Byakhee).num
-                def kiy = enemies.has(KingInYellow)
-                def has = enemies.has(Hastur)
+                def kiy = enemies.got(KingInYellow)
+                def has = enemies.got(Hastur)
 
                 def wz = enemies(Wizard).num
                 def sm = enemies(SerpentMan).num
                 def fs = enemies(FormlessSpawn).num
-                def tsa = enemies.has(Tsathoggua)
+                def tsa = enemies.got(Tsathoggua)
 
                 def we = enemies(Wendigo).num
                 def gk = enemies(GnophKeh).num
-                def rha = enemies.has(RhanTegoth)
-                def ith = enemies.has(Ithaqua)
+                def rha = enemies.got(RhanTegoth)
+                def ith = enemies.got(Ithaqua)
 
                 def mu = enemies(Mutant).num
                 def ab = enemies(Abomination).num
                 def sp = enemies(SpawnOW).num
-                def ygs = enemies.has(YogSothoth)
+                def ygs = enemies.got(YogSothoth)
 
                 def um = enemies(UnMan).num
                 def ra = enemies(Reanimated).num
@@ -922,8 +922,8 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 def esv = enemies(StarVampire).num
                 def efi = enemies(Filth).num
 
-                def eby = enemies.has(Byatis)
-                def eab = enemies.has(Abhoth)
+                def eby = enemies.got(Byatis)
+                def eab = enemies.got(Abhoth)
                 def eny = enemies(Nyogtha).num
 
                 def emissary = have(Emissary) && nya && enemies.goos.none

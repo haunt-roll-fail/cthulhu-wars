@@ -93,7 +93,7 @@ object Quine {
                     val self = $(tab, """<!-- "/> --><img style="display: none" id="html-quine" data-src="""", java.util.Base64.getEncoder().encodeToString(HRF.stringLoader.get(HRF.html).getBytes), """" />""")
                     val assets = resources.images.sources.keys.$./~(k => $(tab, """<!-- "/> --><img style="display: none" id="asset-""", k, """" src="""", loader.get(resources.images.sources(k)), """" />"""))
 
-                    val story = actions./(_.unwrap)./(serializer.write)
+                    val story = actions.unwrap./(serializer.write)
                     val lobby = $("meta " + meta.name, "version " + meta.gaming.version, "title " + title) ++
                         seating./(f => "user " + meta.writeFaction(f) + " player-" + meta.writeFaction(f).toLowerCase) ++
                         seating.%(f => resources.getName(f).any)./(f => "name player-" + meta.writeFaction(f).toLowerCase + " " + resources.getName(f).get) ++

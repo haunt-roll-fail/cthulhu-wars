@@ -6,12 +6,10 @@ import html._
 
 
 // Neutral Monsters
-
-// name, doomCost (to obtain), powerCost (to obtain), quantity, cost (to summon), combat
-case object GhastCard extends LoyaltyCard(Ghast.name, 2, 0, 4, 2, 0, Ghast, GhastIcon)
-case object GugCard extends LoyaltyCard(Gug.name, 2, 0, 2, 1, 3, Gug, GugIcon)
-case object ShantakCard extends LoyaltyCard(Shantak.name, 2, 0, 2, 2, 2, Shantak, ShantakIcon)
-case object StarVampireCard extends LoyaltyCard(StarVampire.name, 2, 0, 3, 2, 1, StarVampire, StarVampireIcon)
+case object GhastCard extends NeutralMonsterLoyaltyCard(GhastIcon, Ghast, cost = 2, quantity = 4, combat = 0)
+case object GugCard extends NeutralMonsterLoyaltyCard(GugIcon, Gug, cost = 1, quantity = 2, combat = 3)
+case object ShantakCard extends NeutralMonsterLoyaltyCard(ShantakIcon, Shantak, cost = 2, quantity = 2, combat = 2)
+case object StarVampireCard extends NeutralMonsterLoyaltyCard(StarVampireIcon, StarVampire, cost = 2, quantity = 3, combat = 1)
 
 case object GhastIcon extends UnitClass(Ghast.name + " Icon", Token, 0)
 case object GugIcon extends UnitClass(Gug.name + " Icon", Token, 0)
@@ -27,18 +25,9 @@ case object Gug extends UnitClass("Gug", Monster, 1) with NeutralMonster {
 case object Shantak extends UnitClass("Shantak", Monster, 2) with NeutralMonster
 case object StarVampire extends UnitClass("Star Vampire", Monster, 2) with NeutralMonster
 
-// High Priests
-
-case object HighPriestCard extends LoyaltyCard(HighPriest.name, 0, 0, 1, 3, 0, HighPriest, HighPriestIcon)
-case object HighPriestIcon extends UnitClass(HighPriest.name + " Icon", Token, 0)
-case object HighPriest extends UnitClass("High Priest", Cultist, 3) {
-    override def canCapture(u : UnitFigure)(implicit game : Game) = false
-    override def canControlGate(u : UnitFigure)(implicit game : Game) = true
-}
-
 
 case class LoyaltyCardDoomAction(self : Faction) extends OptionFactionAction("Obtain " + "Loyalty Card".styled("nt")) with DoomQuestion with Soft with PowerNeutral
-case class NeutralMonstersAction(self : Faction, lc : LoyaltyCard) extends BaseFactionAction(g => "Obtain " + "Loyalty Card".styled("nt"), {
+case class NeutralMonstersAction(self : Faction, lc : NeutralMonsterLoyaltyCard) extends BaseFactionAction(g => "Obtain " + "Loyalty Card".styled("nt"), {
     val qm = Overlays.imageSource("question-mark")
     val p = s""""${lc.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;")
     "<div class=sbdiv>" +
@@ -56,16 +45,10 @@ case class ShantakCarryCultistAction(self : Faction, o : Region, uc : UnitClass,
 object NeutralMonstersExpansion extends Expansion {
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
         case LoyaltyCardDoomAction(self) =>
-            val availableCards = game.loyaltyCards
-                .filter { c =>
-                    val doomOK  = self.doom  >= c.doom
-                    val powerOK = self.power >= c.power
-                    doomOK && powerOK && c.doom > 0
-                }
-                .distinct
+            val cards = game.loyaltyCards.of[NeutralMonsterLoyaltyCard].%(_.doom <= self.doom).%(_.power <= self.power).distinct
 
             Ask(self)
-                .each(availableCards)(c => NeutralMonstersAction(self, c))
+                .each(cards)(c => NeutralMonstersAction(self, c))
                 .cancel
 
         case NeutralMonstersAction(self, lc) =>
