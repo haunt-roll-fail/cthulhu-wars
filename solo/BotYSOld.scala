@@ -166,8 +166,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 var ac = allies(Acolyte).num
                 val un = allies(Undead).num
                 val by = allies(Byakhee).num
-                val kiy = allies.has(KingInYellow)
-                val has = allies.has(Hastur)
+                val kiy = allies.got(KingInYellow)
+                val has = allies.got(Hastur)
 
                 f match {
                     case GC =>
@@ -175,7 +175,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                         var dp = foes(DeepOne).num
                         var sh = foes(Shoggoth).num
                         var ss = foes(Starspawn).num
-                        var cth = foes.has(Cthulhu)
+                        var cth = foes.got(Cthulhu)
 
                         var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(12)
                         var shield = ac + un + by
@@ -196,7 +196,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                         var ng = foes(Nightgaunt).num
                         var fp = foes(FlyingPolyp).num
                         var hh = foes(HuntingHorror).num
-                        var nya = foes.has(Nyarlathotep)
+                        var nya = foes.got(Nyarlathotep)
                         var shield = ac + un + by
 
                         var ihh = f.has(SeekAndDestroy).?(f.all(HuntingHorror).diff(foes).num).|(0)
@@ -234,8 +234,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
 
             case BuildGateAction(_, r) =>
                 YS.has(Hastur) && YS.power > 1 |=> -1000 -> "hastur in play"
-                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -800 -> "shub in play and lone cultist"
-                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && !r.allies.has(Nyarlathotep) |=> -700 -> "cthulhu has dreams"
+                BG.has(ShubNiggurath) && BG.power > 0 && r.allies.cultists.num == 1 && !r.allies.got(Nyarlathotep) |=> -800 -> "shub in play and lone cultist"
+                GC.has(Dreams) && GC.power > 1 && r.allies.cultists.num == 1 && !r.allies.got(Nyarlathotep) |=> -700 -> "cthulhu has dreams"
                 (power >= 3 + maxEnemyPower || self.gates.num <= 1) && r.capturers.none |=> 500 -> "building gates is good"
 
             case RecruitAction(_, Acolyte, r) =>
@@ -277,10 +277,10 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 r.allies.num == 3 |=> 300 -> "3 allies"
                 r.allies.num == 2 |=> 200 -> "2 allies"
 
-                r.foes.has(Nyarlathotep) && CC.power > 0 |=> -7000 -> "don't feed nya"
+                r.foes.got(Nyarlathotep) && CC.power > 0 |=> -7000 -> "don't feed nya"
                 r.allies(Hastur).none && CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any |=> -6000 -> "nya can crush"
 
-                r.foes.has(Cthulhu) && GC.power > 0 |=> -7000 -> "don't feed cth"
+                r.foes.got(Cthulhu) && GC.power > 0 |=> -7000 -> "don't feed cth"
                 r.allies(Hastur).none && GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any |=> -6000 -> "cth can crush"
                 r.allies(Hastur).none && GC.power > 0 && GC.allSB && GC.at(GC.deep).any |=> -6000 -> "cth can crush"
 
@@ -362,8 +362,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ac = allies(Acolyte).num
                     val un = allies(Undead).num
                     val by = allies(Byakhee).num
-                    val kiy = allies.has(KingInYellow)
-                    val has = allies.has(Hastur)
+                    val kiy = allies.got(KingInYellow)
+                    val has = allies.got(Hastur)
 
                     val iby = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d).num)
 
@@ -371,7 +371,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ng = foes(Nightgaunt).num
                     val fp = foes(FlyingPolyp).num
                     val hh = foes(HuntingHorror).num
-                    val nya = foes.has(Nyarlathotep)
+                    val nya = foes.got(Nyarlathotep)
                     val shield = ac + un + by + iby - f.has(Abduct).??(ng) - f.has(Invisibility).??(fp)
 
                     val ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
@@ -391,8 +391,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ac = allies(Acolyte).num
                     val un = allies(Undead).num
                     val by = allies(Byakhee).num
-                    val kiy = allies.has(KingInYellow)
-                    val has = allies.has(Hastur)
+                    val kiy = allies.got(KingInYellow)
+                    val has = allies.got(Hastur)
 
                     val iby = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d).num)
 
@@ -400,7 +400,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
                     var shield = ac + un + by - 1
@@ -488,8 +488,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ac = allies(Acolyte).num
                     val un = allies(Undead).num
                     val by = allies(Byakhee).num
-                    val kiy = allies.has(KingInYellow)
-                    val has = allies.has(Hastur)
+                    val kiy = allies.got(KingInYellow)
+                    val has = allies.got(Hastur)
 
                     val iby = self.all(Byakhee).%(_.region != d).num
 
@@ -497,7 +497,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ng = foes(Nightgaunt).num
                     val fp = foes(FlyingPolyp).num
                     val hh = foes(HuntingHorror).num
-                    val nya = foes.has(Nyarlathotep)
+                    val nya = foes.got(Nyarlathotep)
                     val shield = ac + un + by + iby - f.has(Abduct).??(ng) - f.has(Invisibility).??(fp)
 
                     val ihh = f.has(SeekAndDestroy).??(f.all(HuntingHorror).diff(foes).num)
@@ -515,8 +515,8 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     val ac = allies(Acolyte).num
                     val un = allies(Undead).num
                     val by = allies(Byakhee).num
-                    val kiy = allies.has(KingInYellow)
-                    val has = allies.has(Hastur)
+                    val kiy = allies.got(KingInYellow)
+                    val has = allies.got(Hastur)
 
                     val iby = (power > 2 && have(Shriek)).??(self.all(Byakhee).%(_.region != d).num)
 
@@ -524,7 +524,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6)
                     var shield = ac + un + by - 1

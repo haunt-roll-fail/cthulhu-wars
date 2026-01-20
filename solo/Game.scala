@@ -39,7 +39,7 @@ trait GameImplicits {
 
     def options(implicit game : Game) = game.options
     def factions(implicit game : Game) = game.factions
-    def nfactions(implicit game : Game) = game.nfactions
+    def factionlike(implicit game : Game) = game.factionlike
     def areas(implicit game : Game) = game.board.regions
 
 
@@ -48,10 +48,14 @@ trait GameImplicits {
     implicit class FactionEx(f : Faction)(implicit game : Game) {
         def neutral = f.is[NeutralFaction]
         def real = f.is[NeutralFaction].not
-        def enemies = game.nfactions.but(f)
+        def enemies = game.factions.but(f)
         def factionGOOs = f.all.factionGOOs
         def log(m : Any*) = game.appendLog(f +: m.$)
         def any = game.players.contains(f)
+    }
+
+    implicit class FactionListEx(l : $[Faction])(implicit game : Game) {
+        def real = l.notOf[NeutralFaction]
     }
 
     implicit class UnitFigureEx(u : UnitFigure) {
@@ -89,6 +93,7 @@ trait GameImplicits {
     implicit class UnitFigureListEx(l : $[UnitFigure]) {
         def apply(uc : UnitClass) = l.%(_.uclass == uc)
         def not(uc : UnitClass) = l.%(_.uclass != uc)
+        def got(uc : UnitClass) = l.exists(_.uclass == uc)
         def one(uc : UnitClass) = l.%(_.uclass == uc).sortBy(_.onGate).first
         def one(ut : UnitType) = l.%(_.uclass.utype == ut).sortBy(_.onGate).first
         def goos = l.%(_.uclass.utype == GOO)
@@ -111,20 +116,23 @@ trait GameImplicits {
         def sort = l.sortWith(game.compareUnits)
         def preferablyNotOnGate =
             l.sortWith(game.compareUnits)
-                .useIf(l./(_.faction).distinct.only.ignoreGateDiplomacy)(_.take(1))
-                .use(l => (l.sameBy(_.onGate) && l.sameBy(_.region) && l.sameBy(_.uclass)).?(l.take(1)).|(l))
+                .useIf(l => l.sameBy(_.region) && l.sameBy(_.uclass) && (l.sameBy(_.onGate) || l./(_.faction).distinct.only.clings))(_.take(1))
         def nex = game.nexed.some./(x => l.%(u => x.has(u.region))).|(l)
         def tag(s : UnitState) = l.%(_.tag(s))
         def not(s : UnitState) = l.%!(_.tag(s))
     }
 
-    implicit def string2desc(s : String) : Game => String = (g : Game) => s
-    implicit def region2desc(r : Region) : Game => String = (g : Game) => r.toString
-    implicit def faction2desc(f : Faction) : Game => String = (g : Game) => f.full
-    implicit def spellbook2desc(b : Spellbook) : Game => String = (g : Game) => b.full
-    implicit def option2desc(n : |[String]) : Game => String = (g : Game) => n.|(null)
-    implicit def unitrefshort2desc(ur : UnitRefShort) : Game => String = (g : Game) => g.unit(ur.r).short
-    implicit def unitreffull2desc(ur : UnitRefFull) : Game => String = (g : Game) => g.unit(ur.r).full
+    implicit class ActionListEx(l : $[Action]) {
+        def unwrap = l./(_.unwrap)
+    }
+
+    implicit def stringToDesc(s : String) : Game => String = (g : Game) => s
+    implicit def regionToDesc(r : Region) : Game => String = (g : Game) => r.toString
+    implicit def factionToDesc(f : Faction) : Game => String = (g : Game) => f.full
+    implicit def spellbookToDesc(b : Spellbook) : Game => String = (g : Game) => b.full
+    implicit def optionToDesc(n : |[String]) : Game => String = (g : Game) => n.|(null)
+    implicit def unitRefShortToDesc(ur : UnitRefShort) : Game => String = (g : Game) => g.unit(ur.r).short
+    implicit def unitRefFullToDesc(ur : UnitRefFull) : Game => String = (g : Game) => g.unit(ur.r).full
 
     implicit def actionToForce(a : ForcedAction) : Continue = Force(a)
     implicit def askWrapperToAsk(w : AskWrapper) : Continue = w.ask
@@ -166,8 +174,27 @@ case class ElderSign(value : Int) {
 }
 
 
-abstract class LoyaltyCard(val name : String, val doom : Int, val power : Int, val quantity : Int, val cost : Int, val combat : Int, val unit : UnitClass, val icon : UnitClass) {
+trait LoyaltyCard {
+    val icon : UnitClass
+    val unit : UnitClass
+    val name = unit.name
+    val doom : Int = 0
+    val power : Int = 0
+    val cost : Int
+    val quantity : Int
+    val combat : Int
+
     def short = name.styled("nt")
+}
+
+abstract class IGOOLoyaltyCard(val icon : UnitClass, val unit : UnitClass, override val power : Int, val quantity : Int = 1, val combat : Int = 0) extends LoyaltyCard {
+    override val doom = 0
+    override val cost = power
+}
+
+abstract class NeutralMonsterLoyaltyCard(val icon : UnitClass, val unit : UnitClass, val cost : Int, val quantity : Int, val combat : Int) extends LoyaltyCard {
+    override val doom = 2
+    override val power = 0
 }
 
 
@@ -187,6 +214,7 @@ trait IGOO
 
 abstract class UnitClass(val name : String, val utype : UnitType, val cost : Int) extends Record {
     def plural = name + "s"
+    def styled(f : Faction) = name.styled(f)
     val priority = utype.priority * 1_00_00_00 + cost * 1_00 + this.is[NeutralMonster].??(1_00_00)
 
     def canMove(u : UnitFigure)(implicit game : Game) : Boolean = true
@@ -198,10 +226,26 @@ abstract class UnitClass(val name : String, val utype : UnitType, val cost : Int
     def canBeSummoned(f : Faction)(implicit game : Game) : Boolean = utype == Monster || utype == Terror
 }
 
+
 case object Acolyte extends UnitClass("Acolyte", Cultist, 1) {
     override def canCapture(u : UnitFigure)(implicit game : Game) = false
     override def canControlGate(r : UnitFigure)(implicit game : Game) : Boolean = true
 }
+
+case object HighPriest extends UnitClass("High Priest", Cultist, 3) {
+    override def canCapture(u : UnitFigure)(implicit game : Game) = false
+    override def canControlGate(u : UnitFigure)(implicit game : Game) = true
+}
+
+case object HighPriestIcon extends UnitClass(HighPriest.name + " Icon", Token, 0)
+case object HighPriestCard extends LoyaltyCard {
+    val icon = HighPriestIcon
+    val unit = HighPriest
+    val cost = 3
+    val quantity = 1
+    val combat = 0
+}
+
 
 abstract class FactionUnitClass(val faction : Faction, name : String, utype : UnitType, cost : Int) extends UnitClass(name, utype, cost) {
     def elem = faction.styled(name)
@@ -324,7 +368,7 @@ object NoFaction extends Faction {
 
 trait Action extends Record {
     def question(implicit game : Game) : String
-    def safeQ(implicit game : Game) = question(game)
+    def safeQ(implicit game : Game) = question(game).splt("<br/>").first
     def option(implicit game : Game) : String
     def unwrap : Action = this
 
@@ -364,6 +408,12 @@ trait Action extends Record {
         case _ => false
     }
 
+    def isNoClear : Boolean = this match {
+        case a : Wrapped => unwrap.isNoClear
+        case a : NoClear => true
+        case _ => false
+    }
+
     def isRecorded = (isMore || isCancel || isSoft || isVoid).not
 
     def unary_+(implicit wrapper : AskWrapper) = wrapper.ask = wrapper.ask.add(this)
@@ -379,8 +429,15 @@ trait Info extends Action
 trait More extends Soft
 trait PowerNeutral extends Action
 trait Wrapped extends Action
+trait NoClear extends Action
 
 trait Continue
+
+object Info {
+    def apply(l : Any*)(g : Any*) = InfoAction(g.$, l.$)
+}
+
+case class MultiAsk(asks : $[Ask]) extends Continue
 
 case class Ask(faction : Faction, actions : $[Action] = $) extends Continue {
     def add(a : Action) = Ask(faction, actions :+ a)
@@ -439,6 +496,18 @@ case class GroupAction(t : String) extends Action with Info {
     def option(implicit game : Game) = ""
 }
 
+case class InfoAction(g : $[Any], o : $[Any]) extends Action with Info {
+    def question(implicit game : Game) = g./(game.desc).but("").mkString(" ")
+    def option(implicit game : Game) = o./(game.desc).but("").mkString(" ")
+}
+
+trait HiddenAction extends Action with Info {
+    def question(implicit game : Game) = ""
+    def option(implicit game : Game) = ""
+}
+
+case object NeedOk extends HiddenAction
+
 
 case class WrappedForcedAction(action : ForcedAction, o : $[Any]) extends Action with Wrapped {
     override def unwrap = action.unwrap
@@ -455,12 +524,95 @@ case class WrappedQForcedAction(action : ForcedAction, q : $[Any], o : $[Any]) e
 
 trait Void { self : ForcedAction => }
 trait OutOfTurn { self : Action => }
-trait OutOfTurnReturn extends Soft { self : Action => }
+
+case object OutOfTurnReturn extends ForcedAction with Soft
+case object OutOfTurnDone extends ForcedAction
+case class OutOfTurnRepeat(faction : Faction, action : Action with Soft with OutOfTurn) extends ForcedAction with Soft
+
 
 
 case object ReloadAction extends ForcedAction with Void
 case object UpdateAction extends ForcedAction with Void
 case class CommentAction(comment : String) extends ForcedAction with Void
+
+
+trait Plan extends Record {
+    val label : String
+    val unselected : String = label
+    val selected : String = label.hl
+    val info : String = label.hh
+    val group : String
+    val requires : $[$[Plan]] = $($)
+    def followers : $[Plan] = $
+    def unfollowers : $[Plan] = $
+}
+trait DefaultPlan extends Plan
+trait OnlyOnPlan extends Plan
+trait OneOfPlan extends Plan with OnlyOnPlan
+
+
+sealed abstract class GateDiplomacyPlan(val label : String) extends Plan {
+    val group = "Gate Diplomacy".hh
+}
+case object GateDiplomacyPrompt extends GateDiplomacyPlan("Display all options") with DefaultPlan with OneOfPlan
+case object GateDiplomacySkipAbandon extends GateDiplomacyPlan("Don't prompt abandoning gates") with OneOfPlan
+case object GateDiplomacyCling extends GateDiplomacyPlan("Cling to the gates") with OneOfPlan
+
+
+sealed abstract class HighPriestGatesPlan(val label : String) extends Plan {
+    val group = "High Priests".hh
+}
+case object HighPriestGatesPrompt extends HighPriestGatesPlan("Prompt controlling a gate") with DefaultPlan with OneOfPlan
+case object HighPriestGatesSkip extends HighPriestGatesPlan("Always prefer Acolytes on the gates") with OneOfPlan
+
+
+sealed abstract class DevolvePlan(val label : String) extends Plan {
+    val group = "Devolve".styled(GC)
+}
+case object DevolvePrompt extends DevolvePlan("Always prompt") with DefaultPlan with OneOfPlan
+case object DevolveSkip extends DevolvePlan("Skip, unless Acolyte is under...") with OneOfPlan { override val followers = $(DevolveThreatOfCapture) }
+trait DevolveThreat extends DevolvePlan { override val requires = $($(DevolveSkip)) }
+case object DevolveThreatOfCapture extends DevolvePlan("...threat of capture") with DevolveThreat
+case object DevolveThreatOfZingaya extends DevolvePlan("...threat of Zingaya") with DevolveThreat
+case object DevolveThreatOfBeyondOne extends DevolvePlan("...threat of Beyond One") with DevolveThreat
+case object DevolveThreatOfAttackOnGate extends DevolvePlan("...credible threat to the controlled gate") with DevolveThreat
+case object DevolveThreatOfAttackOnGOO extends DevolvePlan("...credible threat of battle against GOO") with DevolveThreat
+
+
+sealed abstract class DragonAscendingPlan(val label : String) extends Plan {
+    val group = "Dragon Ascending".styled(OW)
+}
+case object DragonAscendingPrompt extends DragonAscendingPlan("Always prompt") with DefaultPlan with OneOfPlan
+case object DragonAscendingSkip extends DragonAscendingPlan("Skip this action phase, unless...") with OneOfPlan { override val followers = $(DragonAscendingPowerPlus2) }
+trait DragonAscendingPower extends DragonAscendingPlan with OnlyOnPlan {
+    override val requires = $($(DragonAscendingSkip))
+    override def unfollowers = $(DragonAscendingPowerPlus2, DragonAscendingPowerPlus3, DragonAscendingPowerPlus5, DragonAscendingPowerPlus7, DragonAscendingPowerPlus9).diff($(this))
+    val power : Int
+}
+case object DragonAscendingPowerPlus2 extends DragonAscendingPlan("...to gain 2+ power") with DragonAscendingPower { val power = 2 }
+case object DragonAscendingPowerPlus3 extends DragonAscendingPlan("...to gain 3+ power") with DragonAscendingPower { val power = 3 }
+case object DragonAscendingPowerPlus5 extends DragonAscendingPlan("...to gain 5+ power") with DragonAscendingPower { val power = 5 }
+case object DragonAscendingPowerPlus7 extends DragonAscendingPlan("...to gain 7+ power") with DragonAscendingPower { val power = 7 }
+case object DragonAscendingPowerPlus9 extends DragonAscendingPlan("...to gain 9+ power") with DragonAscendingPower { val power = 9 }
+
+
+sealed abstract class UnspeakableOathPlan(val label : String) extends Plan {
+    val group = "Unspeakable Oath".hh
+}
+case object UnspeakableOathImmediately extends UnspeakableOathPlan("Queue Activation") with OneOfPlan {
+    override val unselected = "§".styled("pain") + " " + label + " " + "§".styled("pain")
+    override val selected = "§".styled("highlight") + " " + label.styled("kill") + " " + "§".styled("highlight")
+    override val info = selected
+}
+case object UnspeakableOathPrompt extends UnspeakableOathPlan("Always prompt") with DefaultPlan with OneOfPlan
+case object UnspeakableOathSkip extends UnspeakableOathPlan("Skip, unless...") with OneOfPlan { override val followers = $(UnspeakableOathThreatOfHPCapture, UnspeakableOathThreatOfAcolyteCapture, UnspeakableOathThreatOfAttack) }
+trait UnspeakableThreat extends UnspeakableOathPlan { override val requires = $($(UnspeakableOathSkip)) }
+case object UnspeakableOathThreatOfHPCapture extends UnspeakableOathPlan("...threat of High Priest capture") with UnspeakableThreat
+case object UnspeakableOathThreatOfAcolyteCapture extends UnspeakableOathPlan("...threat of Acolyte capture") with UnspeakableThreat
+case object UnspeakableOathThreatOfAttack extends UnspeakableOathPlan("...credible threat of High Priest being killed") with UnspeakableThreat
+case object UnspeakableOathOfAttackOnGate extends UnspeakableOathPlan("...credible threat to the controlled gate") with UnspeakableThreat
+case object UnspeakableOathOfAttackOnGOO extends UnspeakableOathPlan("...credible threat of battle against GOO") with UnspeakableThreat
+case object UnspeakableOathThreatOfThousandForms extends UnspeakableOathPlan("...threat of unopposed Thousand Forms") with UnspeakableThreat
 
 
 class Player(private val f : Faction)(implicit game : Game) {
@@ -483,10 +635,7 @@ class Player(private val f : Faction)(implicit game : Game) {
     var ignorePerGame : $[Spellbook] = $
     var ignorePerGameNew : $[Spellbook] = $
 
-    var ignoreOptions : $[IgnoreOption] = $
-    var ignoreOptionsNew : $[IgnoreOption] = $
-
-    var ignoreGateDiplomacy = false.not
+    def clings = options.has(GateDiplomacy).not || commands.has(GateDiplomacyCling)
 
     var unfulfilled : $[Requirement] = f.requirements(game.options)
 
@@ -506,16 +655,17 @@ class Player(private val f : Faction)(implicit game : Game) {
     var iceAge : |[Region] = None
     var unitGate : |[UnitFigure] = None
 
-    var ignoredSacrificeHighPriest = false
-
     var active = true
+
+    var plans : $[Plan] = $
+    var commands : $[Plan] = $
+
     def allGates = gates ++ unitGate./(_.region).$
     def needs(rq : Requirement) = unfulfilled.contains(rq)
     def has(sb : Spellbook) = f.abilities.contains(sb) || spellbooks.contains(sb) || upgrades.contains(sb) || borrowed.contains(sb)
     def used(sb : Spellbook) = oncePerGame.contains(sb) || oncePerTurn.contains(sb) || oncePerRound.contains(sb) || oncePerAction.contains(sb)
     def can(sb : Spellbook) = has(sb) && !used(sb)
     def ignored(sb : Spellbook) = ignorePerGame.contains(sb) || ignorePerTurn.contains(sb) || ignorePerInstant.contains(sb)
-    def option(io : IgnoreOption) = ignoreOptions.contains(io)
     def want(sb : Spellbook) = can(sb) && !ignored(sb)
     def hasAllSB = unfulfilled.none
     def unclaimedSB = f.library.num - spellbooks.num - unfulfilled.num
@@ -650,6 +800,8 @@ object NoIceAges extends IceAges($)
 
 sealed trait GameOption extends Record
 
+case object QuickGame extends GameOption
+
 case object GateDiplomacy extends GameOption
 case object AsyncActions extends GameOption
 
@@ -687,6 +839,9 @@ case class PlayerCount(n : Int) extends GameOption
 
 object GameOptions {
     val all = $(
+        QuickGame,
+        GateDiplomacy,
+        AsyncActions,
         HighPriests,
         NeutralSpellbooks,
         NeutralMonsters,
@@ -730,7 +885,7 @@ trait Expansion {
 
 case object StartAction extends ForcedAction
 case object SetupFactionsAction extends ForcedAction
-case class CheckSpellbooksAction(then : Action) extends ForcedAction
+case class CheckSpellbooksAction(then : ForcedAction) extends ForcedAction
 case object AfterPowerGatherAction extends ForcedAction
 case object FirstPlayerDeterminationAction extends ForcedAction
 case object PlayOrderAction extends ForcedAction
@@ -765,7 +920,7 @@ trait DoomQuestion extends FactionAction {
     override def safeQ(implicit game : Game) = "" + self + " doom phase"
 }
 
-case class SpellbookAction(self : Faction, sb : Spellbook, then : Action) extends BaseFactionAction(implicit g => (self.unclaimedSB == 1).?("Receive spellbook").|("Receive " + self.unclaimedSB + " spellbooks"), {
+case class SpellbookAction(self : Faction, sb : Spellbook, then : ForcedAction) extends BaseFactionAction(implicit g => (self.unclaimedSB == 1).?("Receive spellbook").|("Receive " + self.unclaimedSB + " spellbooks"), {
     val p = s""""${self.short}", "${sb.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;")
     val qm = Overlays.imageSource("question-mark")
     "<div class=sbdiv>" +
@@ -774,17 +929,18 @@ case class SpellbookAction(self : Faction, sb : Spellbook, then : Action) extend
     "</div>"
 })
 
-case class ElderSignAction(f : Faction, n : Int, value : Int, public : Boolean, then : Action) extends ForcedAction
-
-case object OutOfTurnDoneAction extends ForcedAction with OutOfTurnReturn
-case class OutOfTurnCancelAction(self : Faction) extends BaseFactionAction("&nbsp;", "Cancel") with Cancel with OutOfTurnReturn
+case class ElderSignAction(f : Faction, n : Int, value : Int, public : Boolean, then : ForcedAction) extends ForcedAction
 
 case class DoomAction(faction : Faction) extends ForcedAction
 case class DoomNextPlayerAction(faction : Faction) extends ForcedAction
 case class DoomDoneAction(self : Faction) extends BaseFactionAction(" ", "Done".styled("power")) with PowerNeutral
 
 case class PreMainAction(faction : Faction) extends ForcedAction
+case class PreActionPromptsAction(faction : Faction, l : $[Faction]) extends ForcedAction
+case class MainGatesAction(faction : Faction) extends ForcedAction
 case class MainAction(faction : Faction) extends ForcedAction
+
+case class OutOfTurnRefresh(action : Action) extends HiddenAction
 
 case class EndAction(self : Faction) extends ForcedAction
 case class AfterAction(self : Faction) extends ForcedAction
@@ -795,14 +951,16 @@ case class EndTurnAction(self : Faction) extends BaseFactionAction(" ", "Done".s
 case class NextPlayerAction(faction : Faction) extends ForcedAction
 
 case class AdjustGateControlAction(self : Faction, then : ForcedAction) extends OptionFactionAction("Control gates") with MainQuestion with Soft
-case class ControlGateAction(self : Faction, r : Region, u : UnitRef, then : ForcedAction) extends ForcedAction
-case class AbandonGateAction(self : Faction, r : Region, then : ForcedAction) extends ForcedAction
+case class ControlGateAction(self : Faction, r : Region, u : UnitRef, then : ForcedAction) extends ForcedAction with NoClear
+case class AbandonGateAction(self : Faction, r : Region, then : ForcedAction) extends ForcedAction with NoClear
 
 case class RitualAction(self : Faction, cost : Int, k : Int) extends OptionFactionAction(g => "Perform " + "Ritual of Annihilation".styled("doom") + " for " + cost.power) with DoomQuestion
 
 case class RevealESMainAction(self : Faction, then : ForcedAction) extends BaseFactionAction("", "View " + "Elder Signs".styled("es")) with Soft with PowerNeutral
 case class RevealESOutOfTurnAction(self : Faction) extends BaseFactionAction("Elder Signs", "View " + "Elder Signs".styled("es")) with Soft
+case class InfoESOutOfTurnAction(self : Faction) extends BaseFactionAction("Elder Signs", "View " + "Elder Signs".styled("es")) with Soft
 case class RevealESAction(self : Faction, es : $[ElderSign], power : Boolean, next : Action) extends BaseFactionAction(implicit g => "Elder Signs".styled("es") + " " + self.es./(_.short).mkString(" "), implicit g => (es.%(_.value > 0).num == 1).?("Reveal " + es(0).short).|("Reveal all for " + self.es./(_.value).sum.doom)) with OutOfTurn
+case class InfoESAction(self : Faction, es : $[ElderSign], power : Boolean, next : Action) extends BaseFactionAction(implicit g => "Elder Signs".styled("es") + " " + self.es./(_.short).mkString(" "), implicit g => (es.%(_.value > 0).num == 1).?("Reveal " + es(0).short).|("Reveal all for " + self.es./(_.value).sum.doom)) with Info
 
 case class PassAction(self : Faction) extends OptionFactionAction("Pass and lose remaining power") with MainQuestion
 
@@ -814,14 +972,14 @@ case class MovedAction(self : Faction, u : UnitRef, from : Region, to : Region) 
 case class MoveDoneAction(self : Faction) extends ForcedAction
 
 case class AttackMainAction(self : Faction, l : $[Region], effect : |[Spellbook]) extends OptionFactionAction("Battle") with MainQuestion with Soft
-case class AttackAction(self : Faction, r : Region, f : Faction, effect : |[Spellbook]) extends BaseFactionAction(implicit g => "Battle in " + r  + effect./(" with " + _).|("") + self.iced(r), f)
+case class AttackAction(self : Faction, r : Region, f : Faction, effect : |[Spellbook]) extends BaseFactionAction(implicit g => "Battle in " + r + effect./(" with " + _).|("") + self.iced(r), f)
 
 case class BuildGateMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Build Gate") with MainQuestion with Soft
 case class BuildGateAction(self : Faction, r : Region) extends BaseFactionAction(implicit g => "Build gate" + g.forNPowerWithTax(r, self, 3 - self.has(UmrAtTawil).??(1)) + " in", r)
 
 case class CaptureMainAction(self : Faction, l : $[Region], effect : |[Spellbook]) extends OptionFactionAction("Capture") with MainQuestion with Soft
-case class CaptureAction(self : Faction, r : Region, f : Faction, effect : |[Spellbook]) extends ForcedAction // BaseFactionAction(implicit g => "Capture" + g.for1PowerWithTax(r, self) + " in " + r + self.iced(r), implicit g => f.at(r).cultists./(_.uclass).single./(f.styled).|(f.styled(Cultist)))
-case class CaptureTargetAction(self : Faction, r : Region, f : Faction, ur : UnitRef, effect : |[Spellbook]) extends ForcedAction // BaseFactionAction(implicit g => "Capture" + g.for1PowerWithTax(r, self) + " in " + r + self.iced(r), implicit g => f.at(r).cultists./(_.uclass).single./(f.styled).|(f.styled(Cultist)))
+case class CaptureAction(self : Faction, r : Region, f : Faction, effect : |[Spellbook]) extends ForcedAction
+case class CaptureTargetAction(self : Faction, r : Region, f : Faction, ur : UnitRef, effect : |[Spellbook]) extends ForcedAction
 
 case class RecruitMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Recruit " + self.styled(uc)) with MainQuestion with Soft
 case class RecruitAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(implicit g => "Recruit " + self.styled(uc) + g.forNPowerWithTax(r, self, self.recruitCost(uc, r)) + " in", implicit g => r + self.iced(r))
@@ -837,37 +995,17 @@ case class AwakenedAction(self : Faction, uc : UnitClass, r : Region, cost : Int
 case class Offer(f : Faction, n : Int)
 
 case class SacrificeHighPriestDoomAction(self : Faction) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with DoomQuestion with Soft with PowerNeutral
-case class SacrificeHighPriestMainAction(self : Faction, then : Action) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with MainQuestion with Soft
-case class SacrificeHighPriestAction(self : Faction, r : Region, then : Action) extends BaseFactionAction("Sacrifice to gain " + 2.power, self.styled(HighPriest) + " in " + r)
-case class SacrificeHighPriestDoneAction(self : Faction, then : Action) extends BaseFactionAction(None, "Done".styled("power"))
+case class SacrificeHighPriestMainAction(self : Faction) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with MainQuestion with Soft
+case class SacrificeHighPriestPromptAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class SacrificeHighPriestAction(self : Faction, r : Region, then : ForcedAction) extends BaseFactionAction("Sacrifice to gain " + 2.power, self.styled(HighPriest) + " in " + r)
 
+case object SacrificeHighPriestAllowedAction extends HiddenAction
+case class SacrificeHighPriestOutOfTurnMainAction(self : Faction) extends BaseFactionAction("Unspeakable Oath".hl, "Sacrifice " + self.styled("High Priest")) with Soft
 
-case class ToggleUnlimitedBattleAction(self : Faction, value : UnlimitedBattleOption) extends BaseFactionAction("&nbsp;&nbsp;", "Unlimited Battle: " + value.label) with Cancel
-case class ToggleUnlimitedSummonAction(self : Faction, value : UnlimitedSummonOption) extends BaseFactionAction("&nbsp;&nbsp;", "Unlimited Summon: " + value.label) with Cancel
-case class ToggleOutOfTurnDevolveAction(self : Faction, value : OutOfTurnDevolveOption) extends BaseFactionAction("&nbsp;&nbsp;", "Out of turn " + self.styled("Devolve") + ": " + value.label) with Cancel
-case class ToggleOutOfTurnSacrificeHighPriestAction(self : Faction, value : OutOfTurnSacrificeHighPriestOption) extends BaseFactionAction("&nbsp;&nbsp;", "Out of turn sacrifice " + self.styled("High Priest") + ": " + value.label) with Cancel
-
-trait IgnoreOption
-
-sealed abstract class UnlimitedBattleOption(val label : String) extends IgnoreOption
-case object UnlimitedBattleOff extends UnlimitedBattleOption("Off")
-case object UnlimitedBattleOn extends UnlimitedBattleOption("On".hl)
-case object UnlimitedBattleOnlyWithGOO extends UnlimitedBattleOption("Only with " + "GOO".hl)
-
-sealed abstract class OutOfTurnDevolveOption(val label : String) extends IgnoreOption
-case object OutOfTurnDevolveOff extends OutOfTurnDevolveOption("Off")
-case object OutOfTurnDevolveOn extends OutOfTurnDevolveOption("On".hl)
-case object OutOfTurnDevolveAvoidCapture extends OutOfTurnDevolveOption("Avoid " + "Capture".hl)
-
-sealed abstract class OutOfTurnSacrificeHighPriestOption(val label : String) extends IgnoreOption
-case object OutOfTurnSacrificeHighPriestOff extends OutOfTurnSacrificeHighPriestOption("Off")
-case object OutOfTurnSacrificeHighPriestOn extends OutOfTurnSacrificeHighPriestOption("On".hl)
-case object OutOfTurnSacrificeHighPriestAvoidCapture extends OutOfTurnSacrificeHighPriestOption("Avoid " + "Capture".hl)
-
-sealed abstract class UnlimitedSummonOption(val label : String) extends IgnoreOption
-case object UnlimitedSummonOff extends UnlimitedSummonOption("Off")
-case object UnlimitedSummonOn extends UnlimitedSummonOption("On".hl)
-case object UnlimitedSummonEnemyGOO extends UnlimitedSummonOption("Enemy " + "GOO".hl)
+case class CommandsMainAction(self : Faction) extends BaseFactionAction("  ", "Commands".styled(self)) with OutOfTurn with Soft
+case class CommandsAddAction(self : Faction, plan : Plan) extends BaseFactionAction(plan.group, plan.unselected) with OutOfTurn with NoClear
+case class CommandsRemoveAction(self : Faction, plan : Plan) extends BaseFactionAction(plan.group, plan.selected) with OutOfTurn with NoClear
+case class CommandsInfoAction(self : Faction, plan : Plan) extends BaseFactionAction(plan.group, plan.unselected) with Info
 
 
 class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], val logging : Boolean, val providedOptions : $[GameOption]) extends Expansion {
@@ -896,7 +1034,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     val noPlayer = new Player(NoFaction)
 
     var neutrals : Map[NeutralFaction, Player] = Map()
-    def nfactions = setup ++ neutrals.keys
+    def factionlike = setup ++ neutrals.keys
 
     var starting = Map[Faction, Region]()
     var turn = 1
@@ -924,64 +1062,6 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
     def unit(ur : UnitRef) = ur.faction.units.%(u => u.uclass == ur.uclass && u.index == ur.index).only
 
-    /*
-    def clone(logging : Boolean) = {
-        val g = new Game(board, ritualTrack, factions, logging, options)
-        g.starting = starting
-        g.turn = turn
-        g.round = round
-        g.order = order
-        g.first = first
-        g.gates = gates
-        g.cathedrals = cathedrals
-        g.desecrated = desecrated
-        g.battled = battled
-        g.acted = acted
-        g.reveal = reveal
-        g.ritualMarker = ritualMarker
-        g.battle = battle // TODO clone
-        g.nexus = nexus
-        g.nexusExtra = nexusExtra
-        g.anyIceAge = anyIceAge
-        g.neutralSpellbooks = neutralSpellbooks
-        g.loyaltyCards = loyaltyCards
-
-        (factions ++ neutrals.keys).foreach { f =>
-            val o = f.as[NeutralFaction]./(f => neutrals(f)).|(players(f))
-
-            val p = f.as[NeutralFaction]./ { f =>
-                val state = new Player(f)(options)
-                g.neutrals += f -> state
-                state
-            }.|(g.players(f))
-
-            p.gates = o.gates
-            p.spellbooks = o.spellbooks
-            p.borrowed = o.borrowed
-            p.oncePerAction = o.oncePerAction
-            p.oncePerRound = o.oncePerRound
-            p.oncePerTurn = o.oncePerTurn
-            p.oncePerGame = o.oncePerGame
-            p.ignorePerInstant = o.ignorePerInstant
-            p.ignorePerTurn = o.ignorePerTurn
-            p.ignorePerGame = o.ignorePerGame
-            p.unfulfilled = o.unfulfilled
-            p.power = o.power
-            p.doom = o.doom
-            p.es = o.es
-            p.revealed = o.revealed
-            p.units = o.units.map(u => new UnitFigure(u.faction, u.uclass, u.index, u.region, u.state, u.health))
-            p.hibernating = o.hibernating
-            p.iceAge = o.iceAge
-            p.unitGate = o.unitGate
-            p.loyaltyCards = o.loyaltyCards
-            p.hired = o.hired
-        }
-
-        g
-    }
-    */
-
     def desc(x : Any) : String = x @@ {
         case s : String => s
         case r : Region => r.toString
@@ -991,7 +1071,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case u : UnitFigure => u.short
         case ur : UnitRef => unit(ur).short
         case ur : UnitRefShort => unit(ur.r).short
-        case ur : UnitRefFull => unit(ur.r).toString
+        case ur : UnitRefFull => unit(ur.r).full
         case x => x.toString
     }
 
@@ -1007,6 +1087,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     def abandonedGates = gates.%(g => factions.exists(_.gates.has(g)).not)
 
     def eliminate(u : UnitFigure) {
+        val f = u.faction
+
         u.add(Eliminated)
 
         expansions.foreach(_.eliminate(u))
@@ -1016,6 +1098,14 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             u.onGate = false
             u.state = $
             u.health = Alive
+
+            if (u.uclass == HighPriest && f.all(HighPriest).none) {
+                f.plans = f.plans.notOf[UnspeakableOathPlan]
+                f.commands = f.commands.notOf[UnspeakableOathPlan]
+
+                f.plans = f.plans.notOf[HighPriestGatesPlan]
+                // !! // f.commands = f.commands.notOf[HighPriestGatesPlan]
+            }
         }
     }
 
@@ -1059,12 +1149,12 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         val (ax, ay) = board.gateXYO(from)
         val (bx, by) = board.gateXYO(to)
 
-        val (cx, cy) = $((bx - board.width, by), (bx, by), (bx + board.width, by)).minBy { case (x, y) => (ax - x) * (ax - x) + (ay - y) * (ay - y) }
+        val shift = board.width * 13 / 11
+
+        val (cx, cy) = ($(bx - shift, bx, bx + shift).minBy(x => (ax - x).abs), by)
 
         (((180 - math.atan2(cx - ax, 2*(cy - ay)) / math.Pi * 180) / 15).round * 15).toInt % 360
     }
-
-    // def targetDragonAscending(f : Faction) = (f.power > f.enemies./(_.power).max).??(f.enemies.%(_.want(DragonAscending)).of[OW])
 
     def showROAT() {
         def vv(v : Int) = (v == 999).?("Instant Death").|(v)
@@ -1112,17 +1202,20 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         triggers()
     }
 
-    def outOfTurn(f : Faction) : $[Action] = {
-        $ ++
-        f.es.any.$(RevealESOutOfTurnAction(f))
+    def extraActions(f : Faction, outOfTurn : Boolean, highPriests : Boolean) : $[Action] = {
+        (f.can(DragonAscending) && f.power < f.enemies./(_.power).max && (outOfTurn.not || options.has(AsyncActions))).$(DragonAscendingOutOfTurnAction(f.sure[OW])) ++
+        f.es.exists(_.value > 0).$((outOfTurn && options.has(AsyncActions).not).?(InfoESOutOfTurnAction(f)).|(RevealESOutOfTurnAction(f))) ++
+        (options.has(AsyncActions) || outOfTurn.not).??(
+            (highPriests && f.all(HighPriest).any).$(SacrificeHighPriestOutOfTurnMainAction(f)) ++
+            f.plans.%(f.commands.has)./(p => Info(p.info)(p.group)) ++
+            f.plans.any.$(CommandsMainAction(f))
+        )
     }
 
     var continue : Continue = StartContinue
 
     def perform(action : Action) : ($[String], Continue) = {
         val c = performContinue(action)
-
-        // println(" <<< " + c)
 
         val l = mlog.reverse
 
@@ -1135,11 +1228,17 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         if (action == CancelAction)
             return continue
 
+        if (action == OutOfTurnDone)
+            return continue match {
+                case MultiAsk(aa) if aa.exists(_.actions.of[OutOfTurnRefresh].any) => internalPerform(aa./~(_.actions.of[OutOfTurnRefresh]).distinct.only.action, NoVoid)
+                case Ask(f, l) if l.of[OutOfTurnRefresh].any => internalPerform(l.of[OutOfTurnRefresh].only.action, NoVoid)
+                case c => c
+            }
+
         internalPerform(action, NoVoid) match {
-            case Force(a : OutOfTurnReturn) => continue
             case Force(a) => internalPerform(a, NoVoid)
             case c =>
-                if (action.isRecorded)
+                if (action.isRecorded && action.is[OutOfTurn].not)
                     continue = c
 
                 c
@@ -1147,12 +1246,17 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def internalPerform(action : Action, soft : VoidGuard) : Continue = {
-        // println(" > " + action)
+        if (action == OutOfTurnReturn)
+            return continue match {
+                case MultiAsk(aa) if aa.exists(_.actions.of[OutOfTurnRefresh].any) => internalPerform(aa./~(_.actions.of[OutOfTurnRefresh]).distinct.only.action, NoVoid)
+                case Ask(f, l) if l.of[OutOfTurnRefresh].any => internalPerform(l.of[OutOfTurnRefresh].only.action, NoVoid)
+                case c => c
+            }
 
         expansions.foreach { e =>
             e.perform(action, soft) @@ {
                 case UnknownContinue =>
-                case Force(a : OutOfTurnReturn) => return continue
+                case Force(OutOfTurnReturn) => return Force(OutOfTurnReturn)
                 case Force(another) =>
                     if (action.isSoft.not && another.isSoft)
                         soft()
@@ -1168,8 +1272,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
     def controls(f : Faction)(implicit w : AskWrapper) {
         if (gates.nex.exists(r => factions.%(_.gates.has(r)).none && f.at(r).exists(_.canControlGate))
-            || f.gates.exists(r => f.at(r).%(_.canControlGate)./(_.uclass).distinct.num  > 1)
-            || (f.ignoreGateDiplomacy.not && f.gates.any)
+            || f.gates.nex.exists(r => f.at(r).%(_.canControlGate)./(_.uclass).distinct.diff(f.commands.has(HighPriestGatesSkip).$(HighPriest)).num > 1)
+            || (f.commands.has(GateDiplomacyPrompt) && f.gates.nex.any)
         )
             + AdjustGateControlAction(f, MainAction(f))
     }
@@ -1177,7 +1281,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     def battles(f : Faction)(implicit w : AskWrapper) {
         val enough = nexed.any.?(queue.%(_.attacker == f).%(_.effect.has(EnergyNexus))./(_.arena)).|(f.battled)
 
-        areas.nex.%(f.affords(1)).diff(enough).%(r => f.enemies.exists(f.canAttack(r))).some.foreach { r =>
+        areas.nex.%(f.affords(1)).diff(enough).%(r => factionlike.but(f).exists(f.canAttack(r))).some.foreach { r =>
             + AttackMainAction(f, r, nexed.any.?(EnergyNexus))
         }
     }
@@ -1188,14 +1292,14 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def captures(f : Faction)(implicit w : AskWrapper) {
-        areas.nex.%(f.affords(1)).%(r => f.enemies.%(f.canCapture(r)).any).some.foreach { l =>
+        areas.nex.%(f.affords(1)).%(r => factionlike.but(f).%(f.canCapture(r)).any).some.foreach { l =>
             + CaptureMainAction(f, l, None)
         }
     }
 
     def recruits(f : Faction)(implicit w : AskWrapper) {
         f.pool.cultists./(_.uclass).distinct.reverse.foreach { uc =>
-            areas.%(f.at(_).any).some.|(areas).nex.%(r => f.affords(f.recruitCost(uc, r))(r)).some.foreach { l =>
+            areas.%(f.present).some.|(areas).nex.%(r => f.affords(f.recruitCost(uc, r))(r)).some.foreach { l =>
                 + RecruitMainAction(f, uc, l)
             }
         }
@@ -1230,7 +1334,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def independents(f : Faction)(implicit w : AskWrapper) {
-        loyaltyCards.%(_.doom == 0).%(_.power <= f.power).foreach { igoo =>
+        loyaltyCards.of[IGOOLoyaltyCard].%(_.power <= f.power).foreach { igoo =>
             areas.nex.%(f.canAwakenIGOO).%(f.affords(igoo.power)).some.foreach { gates =>
                 + IndependentGOOMainAction(f, igoo, gates)
             }
@@ -1244,7 +1348,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         if (f.has(GodOfForgetfulness) && f.has(Byatis)) {
             $(f.goo(Byatis).region).nex.%(f.affords(1)).foreach { br =>
-                board.connected(br).%(r => f.enemies.exists(_.at(r).cultists.any)).some.foreach { l =>
+                board.connected(br).%(r => factionlike.but(f).exists(_.at(r).cultists.any)).some.foreach { l =>
                     + GodOfForgetfulnessMainAction(f, br, l)
                 }
             }
@@ -1261,7 +1365,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
     def highPriests(f : Faction)(implicit w : AskWrapper) {
         if (f.all(HighPriest).any)
-            + SacrificeHighPriestMainAction(f, doomPhase.?(DoomAction(f)).|(PreMainAction(f)))
+            if (doomPhase)
+                + SacrificeHighPriestDoomAction(f)
+            else
+                + SacrificeHighPriestMainAction(f)
     }
 
     def reveals(f : Faction)(implicit w : AskWrapper) {
@@ -1269,11 +1376,26 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             + RevealESMainAction(f, doomPhase.?(DoomAction(f)).|(PreMainAction(f)))
     }
 
+    def endTurn(f : Faction)(end : Boolean)(implicit w : AskWrapper) {
+        if (end)
+            + EndTurnAction(f)
+        else
+            + PassAction(f)
+
+        + SacrificeHighPriestAllowedAction
+
+        + OutOfTurnRefresh(PreMainAction(f))
+    }
+
     def rituals(f : Faction)(implicit w : AskWrapper) {
         val cost = f.has(Herald).?(5).|(ritualCost)
 
         if (f.power >= cost && f.acted.not)
             + RitualAction(f, cost, 1)
+
+        + SacrificeHighPriestAllowedAction
+
+        + OutOfTurnRefresh(DoomAction(f))
     }
 
     def hires(f : Faction)(implicit w : AskWrapper) {
@@ -1281,33 +1403,32 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             + LoyaltyCardDoomAction(f)
     }
 
-    def toggles(f : Faction)(implicit w : AskWrapper) {
-        if (w.ask.actions.num > 1) {
-            if (f.hasAllSB)
-                + ToggleUnlimitedBattleAction(f, $(UnlimitedBattleOn, UnlimitedBattleOff, UnlimitedBattleOnlyWithGOO).intersect(f.ignoreOptionsNew).single.|(UnlimitedBattleOn))
-
-            if (f.has(Fertility))
-                + ToggleUnlimitedSummonAction(f, $(UnlimitedSummonOn, UnlimitedSummonOff, UnlimitedSummonEnemyGOO).intersect(f.ignoreOptionsNew).single.|(UnlimitedSummonOn))
-
-            if (f.has(Devolve))
-                + ToggleOutOfTurnDevolveAction(f, $(OutOfTurnDevolveOn, OutOfTurnDevolveOff, OutOfTurnDevolveAvoidCapture).intersect(f.ignoreOptionsNew).single.|(OutOfTurnDevolveOn))
-
-            if (f.all(HighPriest).any)
-                + ToggleOutOfTurnSacrificeHighPriestAction(f, $(OutOfTurnSacrificeHighPriestOn, OutOfTurnSacrificeHighPriestOff, OutOfTurnSacrificeHighPriestAvoidCapture).intersect(f.ignoreOptionsNew).single.|(OutOfTurnSacrificeHighPriestOn))
-        }
-    }
-
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) : Continue = action @@ {
         // INIT
         case StartAction =>
+            log("Options", options./(_.toString.hh).mkString(" "))
+
+            if (options.has(GateDiplomacy)) {
+                setup.foreach { f =>
+                    f.plans ++= $(
+                        GateDiplomacyPrompt,
+                        GateDiplomacySkipAbandon,
+                        GateDiplomacyCling,
+                    )
+
+                    if (options.has(QuickGame))
+                        f.commands :+= GateDiplomacyCling
+                    else
+                        f.commands :+= GateDiplomacyPrompt
+                }
+            }
+
             if (options.has(HighPriests)) {
-                factions.foreach { f =>
+                setup.foreach { f =>
                     f.loyaltyCards = f.loyaltyCards :+ HighPriestCard
 
                     f.units :+= new UnitFigure(f, HighPriest, 1, f.reserve)
                 }
-
-                loyaltyCards = loyaltyCards.but(HighPriestCard)
             }
 
             SetupFactionsAction
@@ -1466,7 +1587,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
                 if (f.has(Byatis)) {
                     val r = f.goo(Byatis).region
-                    if (f.enemies.exists(_.present(r)).not) {
+                    if (factionlike.but(f).exists(_.present(r)).not) {
                         f.log("gained", 1.es, "from", f.styled(Byatis), "and", ToadOfBerkeley)
                         f.takeES(1)
                     }
@@ -1490,7 +1611,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             round = 0
 
-            CheckSpellbooksAction(MainAction(game.first))
+            CheckSpellbooksAction(MainGatesAction(game.first))
 
         case GameOverPhaseAction =>
             factions.%(_.needs(AnytimeGainElderSigns)).foreach { f =>
@@ -1499,8 +1620,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             }
 
             factions.%(_.es.any).foreach { f =>
-                f.log("revealed", f.es.num.es, "for", f.es./(_.value).sum.doom)
-                f.doom += f.es./(_.value).sum
+                val sum = f.es./(_.value).sum
+                f.log("revealed", f.es./(_.short).mkString(" "), "for", sum.doom)
+                f.doom += sum
                 f.revealed ++= f.es
                 f.es = $
             }
@@ -1626,7 +1748,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             Ask(f).each(f.es.%(_.value > 0).any.$($()) ++ f.es.%(_.value > 0)./(e => $(e)))(RevealESAction(f, _ , doomPhase && f.has(StarsAreRight), then)).cancel
 
         case RevealESOutOfTurnAction(f) =>
-            Ask(f).each(f.es.%(_.value > 0).any.$($()) ++ f.es.%(_.value > 0)./(e => $(e)))(RevealESAction(f, _ , doomPhase && f.has(StarsAreRight), OutOfTurnDoneAction)).cancel
+            Ask(f).each(f.es.%(_.value > 0).any.$($()) ++ f.es.%(_.value > 0)./(e => $(e)))(RevealESAction(f, _ , doomPhase && f.has(StarsAreRight), OutOfTurnReturn)).cancel
+
+        case InfoESOutOfTurnAction(f) =>
+            Ask(f).each(f.es.%(_.value > 0).any.$($()) ++ f.es.%(_.value > 0)./(e => $(e)))(InfoESAction(f, _ , doomPhase && f.has(StarsAreRight), OutOfTurnReturn)).add(NeedOk).cancel
 
         case RevealESAction(f, Nil, power, next) =>
             Force(RevealESAction(f, f.es.%(_.value > 0), power, next))
@@ -1713,46 +1838,116 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case PreMainAction(f) if factions.exists(f => f.unfulfilled.num + f.spellbooks.num < f.spellbooks.num) =>
             CheckSpellbooksAction(PreMainAction(f))
 
-        case PreMainAction(f) if f.active =>
-            f.enemies.of[GC].%(_.can(Devolve)).%(_.pool(DeepOne).any).foreach { e =>
-                areas.%(e.at(_, Acolyte).any).foreach { r =>
-                    if (f.acted.not)
-                        if (f.canCapture(r)(e))
-                            if (!e.option(OutOfTurnDevolveOff))
-                                return Force(DevolveMainAction(e, DevolveDoneAction(e, PreMainAction(f))))
+        case PreMainAction(f) if f.active && f.power > 0 =>
+            PreActionPromptsAction(f, f.enemies)
 
-                    if (e.ignored(Devolve).not)
-                        if (f.acted || (f.hasAllSB && f.battled.has(r).not))
-                            if (f.canAttack(r)(e))
-                                if (!e.option(OutOfTurnDevolveOff) && !e.option(OutOfTurnDevolveAvoidCapture))
-                                    return Force(DevolveMainAction(e, DevolveDoneAction(e, PreMainAction(f))))
+        case PreActionPromptsAction(e, l) =>
+            val canAct = e.acted.not
+            val canBattle = canAct || e.hasAllSB
+            def canBattleIn(r : Region) = canBattle && e.battled.has(r).not
+
+            val asks = l./~{ f =>
+                implicit val asking = Asking(f)
+
+                + GroupAction("Before " + e + " action triggers")
+
+                if (f.all(HighPriest).any) {
+                    var reasons = f.commands.has(UnspeakableOathPrompt).$("always prompted")
+
+                    if (f.commands.has(UnspeakableOathThreatOfHPCapture) && canAct)
+                        f.all(HighPriest)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
+                            reasons :+= "threat of High Priest capture in " + l.mkString(", ")
+                        }
+
+                    if (f.active.not) {
+                        if (f.commands.has(UnspeakableOathThreatOfAcolyteCapture) && canAct)
+                            f.all(Acolyte)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
+                                reasons :+= "threat of Acolyte capture in " + l.mkString(", ")
+                            }
+
+                        if (f.commands.has(UnspeakableOathThreatOfAttack) && canBattle)
+                            f.all(HighPriest)./(_.region).distinct.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                                reasons :+= "threat of High Priest being killed in " + l.mkString(", ")
+                            }
+
+                        if (f.commands.has(UnspeakableOathOfAttackOnGate) && canBattle)
+                            f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                                reasons :+= "threat of gate being taken in " + l.mkString(", ")
+                            }
+
+                        if (f == GC && canAct)
+                            if (e == SL && e.has(CursedSlumber) && e.gates.has(game.starting(f)))
+                                reasons :+= "threat to the awakening gate in " + game.starting(f)
+
+                        if (f == GC && canAct)
+                            if (e == OW && e.at(game.starting(f)).%(_.uclass.cost >= 3).any)
+                                reasons :+= "threat to the awakening gate in " + game.starting(f)
+
+                        if (f.commands.has(UnspeakableOathOfAttackOnGOO) && canBattle)
+                            f.goos./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && (e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num || e.at(r).got(Hastur))).some./{ l =>
+                                reasons :+= "GOO might be in danger in " + l.mkString(", ")
+                            }
+                    }
+
+                    if (f.commands.has(UnspeakableOathThreatOfThousandForms) && canAct)
+                        if (e == CC && e.has(Nyarlathotep) && e.can(ThousandForms) && f.power < 6)
+                            reasons :+= "" + e + " can roll for " + ThousandForms
+
+                    if (reasons.any)
+                        + SacrificeHighPriestPromptAction(f, PreMainAction(e)).as("Sacrifice", HighPriest.styled(f))("Unspeakable Oath".hl, reasons./("<br/>(" + _ + ")").mkString(""))
                 }
+
+                if (f.has(Devolve) && f.all(Acolyte).any && f.pool(DeepOne).any) {
+                    var reasons = f.commands.has(DevolvePrompt).$("always prompted")
+
+                    if (f.commands.has(DevolveThreatOfCapture) && canAct)
+                        f.all(Acolyte)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
+                            reasons :+= "threat of Acolyte capture in " + l.mkString(", ")
+                            }
+
+                    if (f.commands.has(DevolveThreatOfZingaya) && canAct)
+                        if (e == YS && e.has(Zingaya) && e.pool(Undead).any)
+                            f.all(Acolyte)./(_.region).distinct.%(r => e.at(r).got(Undead)).some./{ l =>
+                                reasons :+= "threat of Zingaya in " + l.mkString(", ")
+                            }
+
+                    if (f.commands.has(DevolveThreatOfBeyondOne) && canBattle)
+                        f.gates.%(r => f.at(r).goos.none && e.at(r).%(_.uclass.cost >= 3).any).some./{ l =>
+                            reasons :+= "threat of Beyond One in " + l.mkString(", ")
+                        }
+
+                    if (f.commands.has(DevolveThreatOfAttackOnGate) && canBattle)
+                        f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                            reasons :+= "threat of gate being taken in " + l.mkString(", ")
+                        }
+
+                    if (f.commands.has(DevolveThreatOfAttackOnGOO) && canBattle)
+                        f.goos./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && (e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num || e.at(r).got(Hastur))).some./{ l =>
+                            reasons :+= "GOO might be in danger in " + l.mkString(", ")
+                        }
+
+                    if (reasons.any)
+                        + DevolvePromptAction(f.sure[GC], PreMainAction(e)).as("Acolytes".styled(f), "to", "Deep Ones".styled(f))(Devolve, reasons./("<br/>(" + _ + ")").mkString(""))
+                }
+
+                if (f.can(DragonAscending) && f.enemies.exists(_.power > f.power))
+                    if (factions./(_.power).max - f.power >= f.commands.of[DragonAscendingPower].single./(_.power).|(1))
+                        + DragonAscendingPromptAction(f.sure[OW], e, PreMainAction(e)).as("Rise to", factions./(_.power).max.power)(DragonAscending)
+
+                |(asking.ask).%(_.actions.%!(_.isInfo).any)./(_.add(NeedOk).add(OutOfTurnRefresh(PreMainAction(e))).add(SacrificeHighPriestAllowedAction).group(" ").skip(PreActionPromptsAction(e, l.but(f))))
             }
 
-            f.enemies.%(_.all(HighPriest).any).foreach { e =>
-                areas.%(e.at(_, HighPriest).any).foreach { r =>
-                    if (!e.ignoredSacrificeHighPriest) {
-                        if (f.acted.not)
-                            if (f.canCapture(r)(e))
-                                if (!e.option(OutOfTurnSacrificeHighPriestOff))
-                                    return Force(SacrificeHighPriestMainAction(e, SacrificeHighPriestDoneAction(e, PreMainAction(f))))
+            if (asks.any)
+                MultiAsk(asks)
+            else
+                Then(MainGatesAction(e))
 
-                        if (f.acted.not || (f.hasAllSB && f.battled.has(r).not))
-                            if (f.canAttack(r)(e))
-                                if (!e.option(OutOfTurnSacrificeHighPriestOff) && !e.option(OutOfTurnSacrificeHighPriestAvoidCapture))
-                                    return Force(SacrificeHighPriestMainAction(e, SacrificeHighPriestDoneAction(e, PreMainAction(f))))
-                    }
-                    else {
-                        e.ignoredSacrificeHighPriest = false
-                    }
-                }
-            }
+        case PreMainAction(f) if f.active.not || f.power == 0 =>
+            MainGatesAction(f)
 
+        case MainGatesAction(f) =>
             checkGatesGained(f)
 
-            MainAction(f)
-
-        case PreMainAction(f) if f.active.not =>
             MainAction(f)
 
         case MainAction(f) if f.active.not =>
@@ -1776,7 +1971,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             if (f.doom + f.es./(_.value).sum >= 30)
                 game.reveals(f)
 
-            + EndTurnAction(f)
+            game.endTurn(f)(true)
 
             asking
 
@@ -1802,8 +1997,6 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             expansions.foreach(_.afterAction())
 
             factions.foreach(_.oncePerAction = $)
-
-            self.ignoreOptions = self.ignoreOptionsNew
 
             CheckSpellbooksAction(PreMainAction(self))
 
@@ -1834,15 +2027,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
                 val next = factions.first
 
-                // val end = factions.%(_.doom >= 30).any || ritualTrack(ritualMarker) == 999
-
-                // if (end.not && next.is[PreMainAction])
-                //     log(CthulhuWarsSolo.DottedLine)
-
                 if (next.active)
                     log(CthulhuWarsSolo.DottedLine)
 
-                CheckSpellbooksAction(DragonAscendingInstantAction(DragonAscendingDownAction(next, "action", PreMainAction(next))))
+                CheckSpellbooksAction(PreMainAction(next))
             }
             else
                 CheckSpellbooksAction(DragonAscendingInstantAction(DragonAscendingUpAction("power gather", PowerGatherAction(prev))))
@@ -1861,9 +2049,21 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case AdjustGateControlAction(f, then) =>
             Ask(f)
                 .some(areas.%(r => f.gates.has(r) || abandonedGates.has(r))) { r =>
-                    f.at(r).%(_.canControlGate)./(u => ControlGateAction(f, r, u, then).as(u.full)(f.gates.has(r).not.?("Abandoned gate").|("Gate"), "in", r)) ++
-                    f.gates.has(r).$(AbandonGateAction(f, r, then).as("Abandon")(""))
+                    val l = f.at(r).%(_.canControlGate).sortBy(_.onGate.not).distinctBy(_.uclass)
+                    val g = $(f.gates.has(r).not.?("Abandoned gate").|("Gate"), "in", r)
+
+                    l./(u =>
+                        if (l.%(_.onGate).single./(_.uclass).has(u.uclass))
+                            Info(u.full)(g : _*)
+                        else
+                        if (l.%(_.onGate).single./(_.uclass).has(Acolyte) && u.uclass == HighPriest && f.commands.has(HighPriestGatesSkip))
+                            Info(u.full)(g : _*)
+                        else
+                            ControlGateAction(f, r, u, then).as(u.full)(g : _*)
+                    ) ++
+                    (f.gates.has(r) && f.clings.not && f.commands.has(GateDiplomacySkipAbandon).not).$(AbandonGateAction(f, r, then).as("Abandon")(""))
                 }
+                .add(OutOfTurnRefresh(AdjustGateControlAction(f, then)))
                 .done(then)
 
         case ControlGateAction(f, r, u, then) if u.onGate =>
@@ -1936,7 +2136,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             Ask(self)
                 .each(l2.%(self.affords(cost)))(to => MoveAction(self, u, from, to, cost).as
-                    (to, s"""<img class=direction src="${Overlays.imageSource("move-deg-" + direction(from, to))}" />""", self.iced(to))
+                    (to, self.iced(to), s"""<img class=direction src="${Overlays.imageSource("move-deg-" + direction(from, to))}" />""")
                     ("Move", u, (cost == 0).??("for free"), "from", from, "to")
                 )
                 .cancelIf(cost > 0)
@@ -1979,7 +2179,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         // ATTACK
         case AttackMainAction(f, l, effect) =>
-            val ee = f.enemies ++ neutrals.keys
+            val ee = factionlike.but(f)
             val ll = l.sortBy(r => ee.%(_.present(r))./(e => f.strength(f.at(r), e)).maxOr(0)).reverse
 
             val variants = ll./~(r => ee.%(_.present(r)).%(f.canAttack(r)).sortBy(e => -e.strength(e.at(r), f))./(e => r -> e))
@@ -2010,8 +2210,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             ProceedBattlesAction
 
         case ProceedBattlesAction =>
-            factions.%(f => f.has(EnergyNexus) && queue.exists(b => f.at(b.arena)(Wizard).any) && f.acted.not).foreach { f =>
-                game.nexed = queue.%(_.attacker == queue.first.attacker)./(_.arena).%(f.at(_)(Wizard).any)
+            factions.%(f => game.nexed.none && f.has(EnergyNexus) && queue.exists(b => f.at(b.arena)(Wizard).any) && f.acted.not).foreach { f =>
+                game.nexed = queue.%(_.attacker == queue.first.attacker)./(_.arena).%(r => f.at(r)(Wizard).any)
                 f.log("interrupted battle", queue.exists(_.effect.has(EnergyNexus)).??("again"), "with", EnergyNexus.full)
                 return Force(PreMainAction(f))
             }
@@ -2050,7 +2250,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 self.payTax(r)
 
             val l = f.at(r).cultists.sortBy(u => u.uclass.cost * 10 + u.onGate.??(5))
-            val ll = f.ignoreGateDiplomacy.?(l.take(1)).|(l)
+            val ll = f.clings.?(l.take(1)).|(l)
 
             Ask(f).each(ll)(u => CaptureTargetAction(f, r, self, u, effect).as(u.full)(self, "captures in", r))
 
@@ -2091,6 +2291,33 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             self.payTax(r)
             self.place(uc, r)
             self.log("recruited", self.styled(uc), "in", r)
+
+            if (uc === HighPriest) {
+                self.plans ++= $(
+                    // UnspeakableOathImmediately,
+                    UnspeakableOathPrompt,
+                    UnspeakableOathSkip,
+                    UnspeakableOathThreatOfHPCapture,
+                    UnspeakableOathThreatOfAcolyteCapture,
+                    UnspeakableOathThreatOfAttack,
+                    UnspeakableOathOfAttackOnGate,
+                ) ++
+                (self != AN).$(UnspeakableOathOfAttackOnGOO) ++
+                self.enemies.has(CC).$(UnspeakableOathThreatOfThousandForms)
+
+                self.commands :+= UnspeakableOathPrompt
+
+                self.plans ++= $(
+                    HighPriestGatesPrompt,
+                    HighPriestGatesSkip,
+                )
+
+                if (options.has(QuickGame))
+                    self.commands :+= HighPriestGatesSkip
+                else
+                    self.commands :+= HighPriestGatesPrompt
+            }
+
             EndAction(self)
 
         // SUMMON
@@ -2107,50 +2334,6 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         case SummonedAction(self, uc, r, l) =>
             EndAction(self)
-
-        case ToggleUnlimitedBattleAction(self, value) =>
-            self.ignoreOptionsNew :-= value
-
-            self.ignoreOptionsNew :+= (value match {
-                case UnlimitedBattleOn => UnlimitedBattleOnlyWithGOO
-                case UnlimitedBattleOnlyWithGOO => UnlimitedBattleOff
-                case UnlimitedBattleOff => UnlimitedBattleOn
-            })
-
-            MainAction(self)
-
-        case ToggleUnlimitedSummonAction(self, value) =>
-            self.ignoreOptionsNew :-= value
-
-            self.ignoreOptionsNew :+= (value match {
-                case UnlimitedSummonOn => UnlimitedSummonEnemyGOO
-                case UnlimitedSummonEnemyGOO => UnlimitedSummonOff
-                case UnlimitedSummonOff => UnlimitedSummonOn
-            })
-
-            MainAction(self)
-
-        case ToggleOutOfTurnDevolveAction(self, value) =>
-            self.ignoreOptionsNew :-= value
-
-            self.ignoreOptionsNew :+= (value match {
-                case OutOfTurnDevolveOn => OutOfTurnDevolveAvoidCapture
-                case OutOfTurnDevolveAvoidCapture => OutOfTurnDevolveOff
-                case OutOfTurnDevolveOff => OutOfTurnDevolveOn
-            })
-
-            MainAction(self)
-
-        case ToggleOutOfTurnSacrificeHighPriestAction(self, value) =>
-            self.ignoreOptionsNew :-= value
-
-            self.ignoreOptionsNew :+= (value match {
-                case OutOfTurnSacrificeHighPriestOn => OutOfTurnSacrificeHighPriestAvoidCapture
-                case OutOfTurnSacrificeHighPriestAvoidCapture => OutOfTurnSacrificeHighPriestOff
-                case OutOfTurnSacrificeHighPriestOff => OutOfTurnSacrificeHighPriestOn
-            })
-
-            MainAction(self)
 
         // AWAKEN
         case AwakenMainAction(self, uc, locations) =>
@@ -2170,15 +2353,14 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case SacrificeHighPriestDoomAction(self) =>
             Ask(self).each(areas./~(r => self.at(r, HighPriest)))(c => SacrificeHighPriestAction(self, c.region, DoomAction(self))).cancel
 
-        case SacrificeHighPriestMainAction(self, then) =>
-            if (self.all(HighPriest).any) {
-                if (self.at(SL.slumber, HighPriest).any)
-                    Ask(self, $(SL.slumber)./~(r => self.at(r, HighPriest))./(c => SacrificeHighPriestAction(self, c.region, then)) :+ then)
-                else
-                    Ask(self, areas./~(r => self.at(r, HighPriest))./(c => SacrificeHighPriestAction(self, c.region, then)) :+ then)
-            }
-            else
-                Force(then)
+        case SacrificeHighPriestMainAction(self) =>
+            Ask(self).each(areas./~(r => self.at(r, HighPriest)))(c => SacrificeHighPriestAction(self, c.region, PreMainAction(self))).cancel
+
+        case SacrificeHighPriestPromptAction(self, then) =>
+            Ask(self).each(areas./~(r => self.at(r, HighPriest)))(c => SacrificeHighPriestAction(self, c.region, then)).cancel
+
+        case SacrificeHighPriestOutOfTurnMainAction(self) =>
+            Ask(self).each(areas./~(r => self.at(r, HighPriest)))(c => SacrificeHighPriestAction(self, c.region, OutOfTurnReturn)).cancel
 
         case SacrificeHighPriestAction(self, r, then) =>
             val c = self.at(r).one(HighPriest)
@@ -2193,16 +2375,64 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             checkGatesLost()
 
-            if (then.isCancel)
-                CheckSpellbooksAction(then)
+            if (then == OutOfTurnReturn)
+                then
             else
-                CheckSpellbooksAction(SacrificeHighPriestMainAction(self, then))
+                CheckSpellbooksAction(then)
 
-        case SacrificeHighPriestDoneAction(self, then) =>
-            self.ignoredSacrificeHighPriest = true
-            Force(then)
+        // COMMANDS
+        case CommandsMainAction(f) =>
+            Ask(f)
+                .each(f.plans) { p =>
+                    if (f.commands.has(p))
+                        CommandsRemoveAction(f, p)
+                    else
+                    if (p.requires.exists(_.forall(f.commands.has)))
+                        CommandsAddAction(f, p)
+                    else
+                        CommandsInfoAction(f, p)
+                }
+                .group(" ")
+                .cancel
 
-        // OW DA defaults
+        case CommandsAddAction(f, plan) =>
+            plan.as[OneOfPlan]./(p => f.commands = f.commands.%!(_.as[OneOfPlan].?(_.group == p.group)))
+
+            f.commands = f.commands.diff(plan.unfollowers)
+
+            f.commands :+= plan
+
+            def on() = plan.followers.intersect(f.plans).diff(f.commands).%(_.requires.exists(_.forall(f.commands.has)))
+
+            while (on().any)
+                f.commands ++= on()
+
+            def off() = f.commands.%(_.requires.exists(_.forall(f.commands.has)).not)
+
+            while (off().any)
+                f.commands = f.commands.diff(off())
+
+            // f.log("plan added", plan.selected)
+            // if (plan.followers.any)
+            //     f.log("plan added extra", plan.followers.mkString(" "))
+
+            Then(OutOfTurnRepeat(f, CommandsMainAction(f)))
+
+        case CommandsRemoveAction(f, plan) =>
+            if (plan.is[OnlyOnPlan].not) {
+                f.commands :-= plan
+
+                def off() = f.commands.%(_.requires.exists(_.forall(f.commands.has)).not)
+
+                while (off().any)
+                    f.commands = f.commands.diff(off())
+            }
+
+            // f.log("plan removed", plan.unselected)
+
+            Then(OutOfTurnRepeat(f, CommandsMainAction(f)))
+
+        // OW Dragon Ascending defaults
         case DragonAscendingInstantAction(then) =>
             then
 

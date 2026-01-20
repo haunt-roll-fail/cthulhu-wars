@@ -75,7 +75,7 @@ case class ArcticWindAction(self : WW, o : Region, u : UnitRef, r : Region) exte
 
 case class AnytimeGainElderSignsMainAction(self : WW) extends OptionFactionAction(self.styled("Anytime Spellbook")) with MainQuestion with Soft with PowerNeutral
 case class AnytimeGainElderSignsDoomAction(self : WW) extends OptionFactionAction(self.styled("Anytime Spellbook")) with DoomQuestion with Soft with PowerNeutral
-case class AnytimeGainElderSignsAction(self : WW, n : Int, next : Action) extends BaseFactionAction(self.styled("Anytime Spellbook"), "Get spellbook and " + n.es)
+case class AnytimeGainElderSignsAction(self : WW, n : Int, next : ForcedAction) extends BaseFactionAction(self.styled("Anytime Spellbook"), "Get spellbook and " + n.es)
 
 
 object WWExpansion extends Expansion {
@@ -155,12 +155,7 @@ object WWExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any)
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any)
 
             asking
 

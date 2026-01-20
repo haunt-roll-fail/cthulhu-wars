@@ -64,10 +64,11 @@ case object GC extends Faction { f =>
         neutralStrength(units, opponent)
 }
 
+case class DevolveCommandsAction(self : GC, then : ForcedAction) extends ForcedAction
 
-case class DevolveMainAction(self : GC, then : Action) extends OptionFactionAction(self.styled(Devolve)) with MainQuestion with Soft
-case class DevolveAction(self : GC, r : Region, then : Action) extends BaseFactionAction(self.styled(Devolve), self.styled(Acolyte) + " in " + r)
-case class DevolveDoneAction(self : GC, then : Action) extends BaseFactionAction(None, "Done".styled("power"))
+case class DevolvePromptAction(self : GC, then : ForcedAction) extends ForcedAction with Soft
+case class DevolveMainAction(self : GC, then : ForcedAction) extends OptionFactionAction(Devolve) with MainQuestion with Soft
+case class DevolveAction(self : GC, r : Region, then : ForcedAction) extends BaseFactionAction(Devolve, Acolyte.styled(self) + " in " + r)
 
 case class DreamsMainAction(self : GC, l : $[Region]) extends OptionFactionAction(self.styled(Dreams)) with MainQuestion with Soft
 case class DreamsAction(self : GC, r : Region, f : Faction) extends BaseFactionAction(self.styled(Dreams), implicit g => f.styled(Acolyte) + " in " + r + self.iced(r))
@@ -100,12 +101,11 @@ object GCExpansion extends Expansion {
                 game.battles(f)
 
             if (f.has(Devolve) && f.all(Acolyte).any && f.pool(DeepOne).any)
-                if (f.option(OutOfTurnDevolveOff).not && f.option(OutOfTurnDevolveAvoidCapture).not)
-                    + DevolveMainAction(f, MainAction(f))
+                + DevolveMainAction(f, MainAction(f))
 
             game.reveals(f)
 
-            + EndTurnAction(f)
+            game.endTurn(f)(true)
 
             asking
 
@@ -152,12 +152,7 @@ object GCExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any)
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any)
 
             asking
 
@@ -173,11 +168,11 @@ object GCExpansion extends Expansion {
             EndAction(self)
 
         // DEVOLVE
+        case DevolvePromptAction(f, then) =>
+            Force(DevolveMainAction(f, then))
+
         case DevolveMainAction(f, then) =>
-            if (f.pool(DeepOne).any)
-                Ask(f, areas./~(r => f.at(r, Acolyte))./(c => DevolveAction(f, c.region, then)) :+ then)
-            else
-                Force(then)
+            Ask(f).some(areas)(r => f.at(r, Acolyte)./(c => DevolveAction(f, c.region, then))).cancel
 
         case DevolveAction(f, r, then) =>
             if (f.at(r, Monster, GOO).none)
@@ -191,14 +186,33 @@ object GCExpansion extends Expansion {
 
             game.checkGatesLost()
 
-            if (then.isCancel)
-                Force(then)
-            else
-                Force(DevolveMainAction(f, then))
+            then
 
-        case DevolveDoneAction(f, then) =>
-            f.oncePerAction :+= Devolve
-            Force(then)
+        case SpellbookAction(_, _, DevolveCommandsAction(_, _)) =>
+            UnknownContinue
+
+        case SpellbookAction(GC, Devolve, then) =>
+            Force(SpellbookAction(GC, Devolve, DevolveCommandsAction(GC, then)))
+
+        case DevolveCommandsAction(f, then) =>
+            f.plans ++= $(
+                DevolvePrompt,
+                DevolveSkip,
+                DevolveThreatOfCapture,
+            ) ++
+            game.setup.has(YS).$(DevolveThreatOfZingaya) ++
+            game.setup.has(OW).$(DevolveThreatOfBeyondOne) ++
+            $(DevolveThreatOfAttackOnGate) ++
+            $(DevolveThreatOfAttackOnGOO)
+
+            if (options.has(QuickGame)) {
+                f.commands :+= DevolveSkip
+                f.commands :+= DevolveThreatOfCapture
+            }
+            else
+                f.commands :+= DevolvePrompt
+
+            then
 
         // DREAMS
         case DreamsMainAction(f, l) =>

@@ -14,8 +14,8 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
 
         val impunity = others.active.none || (self.goos.any && others.active.%(_.goos.any).none && others.%(_.power > power).none)
 
-        def canStrikeCC(r : Region) = (r.foes.has(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
-        def canStrikeGC(r : Region) = (r.foes.has(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
+        def canStrikeCC(r : Region) = (r.foes.got(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
+        def canStrikeGC(r : Region) = (r.foes.got(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
 
         def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val enemyStr = f.strength(foes, self)
@@ -27,10 +27,10 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
             var mu = allies(Mutant).num
             var ab = allies(Abomination).num
             var sp = allies(SpawnOW).num
-            val ygs = allies.has(YogSothoth)
+            val ygs = allies.got(YogSothoth)
 
-            var eby = foes.has(Byatis)
-            var eab = foes.has(Abhoth)
+            var eby = foes.got(Byatis)
+            var eab = foes.got(Abhoth)
             var eny = foes(Nyogtha).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
@@ -43,7 +43,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
                     var shield = ac + mu + ab - 1
@@ -64,7 +64,7 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
                     var ng = foes(Nightgaunt).num
                     var fp = foes(FlyingPolyp).num
                     var hh = foes(HuntingHorror).num
-                    var nya = foes.has(Nyarlathotep)
+                    var nya = foes.got(Nyarlathotep)
 
                     var abd = f.has(Abduct).??(ng)
 
@@ -478,9 +478,6 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
 
             case DragonAscendingCancelAction(_, _) =>
                 true |=> 1000 -> "not now"
-
-            case DragonAscendingNotThisTurnAction(_, _) =>
-                true |=> -1000 -> "never"
 
             case AvatarReplacementAction(_, _, r, o, u) =>
                 u.cultist && o.capturers.%(_.power > 0).any |=> -100 -> "don't send cultist to be captured"

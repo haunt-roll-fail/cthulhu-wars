@@ -110,7 +110,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def ownGate = self.gates.contains(r)
         def enemyGate = others.%(_.gates.contains(r)).any
         def freeGate = gate && !ownGate && !enemyGate
-        def controllers = (ownGate || enemyGate).?(owner.at(r).%(_.canControlGate)).|(Nil)
+        def controllers = (ownGate || enemyGate).??(owner.at(r).%(_.canControlGate))
         def gateOf(f : Faction) = f.gates.contains(r)
         def owner = game.factions.%(_.gates.contains(r)).single.get
         def capturers = allies.goos.none.??(others.%(f => f.at(r).goos.any || (allies.monsterly.none && f.at(r).monsterly.%(_.canCapture).any)))
@@ -129,7 +129,6 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
 
     implicit class UnitListClassify(val us : $[UnitFigure]) {
         def active = us.%(_.active)
-        def has(uc : UnitClass) = us.%(_.uclass == uc).any
     }
 
     implicit class UnitClassify(val u : UnitFigure) {
@@ -211,8 +210,6 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
 
         if (current == f)
             return !f.allSB
-
-        // val factions = (game.order ++ game.order).dropWhile(_ != current)
 
         return factions.indexOf(f) > factions.indexOf(self)
     }

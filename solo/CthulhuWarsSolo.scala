@@ -49,13 +49,13 @@ class Setup(factions : $[Faction], diff : Difficulty) {
     })
 
     def toggle(go : GameOption) {
-        options = if (options.contains(go))
+        options = if (options.has(go))
             options.but(go)
         else
             go +: options
     }
 
-    def get(go : GameOption) = options.contains(go)
+    def get(go : GameOption) = options.has(go)
 
     var difficulty : Map[Faction, Difficulty] = seating.map(_ -> diff).toMap
 
@@ -82,7 +82,7 @@ class CachedBitmap(val node : dom.Element) {
     }
 }
 
-case class GameOverAction(winners : $[Faction], msg : String) extends Action with Soft {
+case class GameOverAction(winners : $[Faction], msg : String) extends Action with NoClear with Soft {
     def question(implicit game : Game) = winners.none.?("Winner is Humanity").|((winners.num == 1).?("Winner is " + winners.head).|("Winners are " + winners.mkString(", ")))
     def option(implicit game : Game) = msg
 }
@@ -227,16 +227,13 @@ object CthulhuWarsSolo {
                     ("", false)
         }
 
-        val origin = dom.window.location.origin + "/" // dom.window.location.href.take(dom.window.location.href.length - dom.window.location.hash.length)
+        val origin = dom.window.location.origin + "/"
         val cwsOptions = Option(getElem("cws-options"))
         val delay = cwsOptions./~(_.getAttribute("data-delay").?)./~(_.toIntOption).|(30)
         val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(5)
-        //val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // Temp for test (comment out before deploying)
+        // val menu = cwsOptions./~(_.getAttribute("data-menu").?)./~(_.toIntOption).|(6) // Temp for test (comment out before deploying)
         val scroll = cwsOptions./~(_.getAttribute("data-scroll").?)./(_ == "true").|(false)
         val server = cwsOptions./~(_.getAttribute("data-server").?).|("###SERVER-URL###")
-        // val server = cwsOptions./~(_.getAttribute("data-server").?).|("http://localhost:999/")
-        println(origin)
-        println(server)
         val redirect = origin != server
         // val redirect = false // making online games work with AN, as per hauntrollfail's advice
         val localReplay = false
@@ -267,17 +264,13 @@ object CthulhuWarsSolo {
         val actionDiv = getElem("action")
         val undoDiv = getElem("undo")
 
-        def askTop() {
-            actionDiv.scrollTop = 0
-        }
-
         def ask(question : String, options : $[String], onResult : Int => Unit, style : Option[String] = None) : None.type = {
             clear(actionDiv)
 
             actionDiv.appendChild(newDiv("", question))
 
             options.zipWithIndex.foreach { case(o, n) =>
-                actionDiv.appendChild(newDiv("option" + style./(" " + _).|(""), o, () => if (!o.contains("<a ")) { clear(actionDiv); onResult(n) }))
+                actionDiv.appendChild(newDiv("option" + style./(" " + _).|(""), o, () => if (o.contains("<a ").not) { clear(actionDiv); onResult(n) }))
             }
 
             None
@@ -285,13 +278,16 @@ object CthulhuWarsSolo {
 
         var scrollTop = 0.0
 
-        def askM(headers : $[String], qos : $[(String, String)], onResult : Int => Unit, style : |[String] = None) : None.type = {
+        def askTop() {
+            actionDiv.scrollTop = 0
+        }
+
+        def askM(headers : $[String], qos : $[(String, String)], onResult : Int => Unit, style : |[String] = None, extra : Int => |[String] = _ => None) : None.type = {
             clear(actionDiv)
 
             headers.foreach(h => actionDiv.appendChild(newDiv("", h)))
 
             var prev : |[String] = None
-            var s = style
 
             qos.zipWithIndex.foreach { case((qq, oo), n) =>
                 val q = |(qq).but("")
@@ -307,10 +303,63 @@ object CthulhuWarsSolo {
                 }
 
                 if (o.any)
-                    actionDiv.appendChild(newDiv("option" + s./(" " + _).|(""), o.get, () => { scrollTop = actionDiv.scrollTop; clear(actionDiv); onResult(n) }))
+                    actionDiv.appendChild(newDiv("option" + style./(" " + _).|("") + extra(n)./(" " + _).|(""), o.get, () => {
+                        if (extra(n).none) {
+                            scrollTop = actionDiv.scrollTop
+                            clear(actionDiv)
+                            onResult(n)
+                        }
+                    }))
             }
 
             actionDiv.scrollTop = scrollTop
+
+            None
+        }
+
+        var lastScrollTop : |[Double] = None
+
+        case class AskLine(group : String, option : String, styles : $[String], clear : Boolean, onClick : () => Unit = () => ())
+
+        def askN(headers : $[String], lines : $[AskLine]) : None.type = {
+            clear(actionDiv)
+
+            headers.foreach(h => actionDiv.appendChild(newDiv("", h)))
+
+            var prev : |[String] = None
+
+            lines.foreach { line =>
+                val q = |(line.group).but("")
+                val o = |(line.option).but("")
+
+                if (q.any && q != prev) {
+                    if (prev.any)
+                        actionDiv.appendChild(newDiv("", "&nbsp;"))
+
+                    actionDiv.appendChild(newDiv("", q.get))
+
+                    prev = q
+                }
+
+                if (o.any)
+                    actionDiv.appendChild(newDiv("option" + line.styles./(" " + _).join(""), o.get, () => {
+                        if (line.onClick != null) {
+                            scrollTop = actionDiv.scrollTop
+
+                            if (line.clear) {
+                                clear(actionDiv)
+                                lastScrollTop = None
+                            }
+                            else {
+                                lastScrollTop = |(actionDiv.scrollTop)
+                            }
+
+                            line.onClick()
+                        }
+                    }))
+            }
+
+            actionDiv.scrollTop = lastScrollTop.|(0.0)
 
             None
         }
@@ -428,10 +477,9 @@ object CthulhuWarsSolo {
             }
         }
 
-        def startGame(setup : Setup, recorded : $[String] = $, selfFaction : |[Faction] = None) {
+        def startGame(setup : Setup, recorded : $[String] = $, self : |[Faction] = None) {
+            setup.options = GameOptions.all.intersect(setup.options)
             val seating = setup.seating.%(f => setup.difficulty(f) != Off)
-
-            val self = setup.difficulty.keys.$.%(k => setup.difficulty(k) == Human).single
 
             if (seating.num == 5)
                 statuses = statuses.take(3) ++ statuses.drop(4).take(1) ++ statuses.drop(3).take(1)
@@ -478,13 +526,13 @@ object CthulhuWarsSolo {
             val serializer = new Serialize(game)
 
             def askFaction(c : Continue)(implicit game : Game) : UIAction = {
-                def dontAttack(factions : $[Faction])(a : Action) = factions.map(f => !Explode.isOffense(f)(a)(game)).reduce(_ && _)
+                def dontAttack(factions : $[Faction])(a : Action) = factions.map(f => Explode.isOffense(f)(a)(game).not).reduce(_ && _)
 
                 def filterAttack(actions : $[Action], factions : $[Faction]) = actions.%(dontAttack(factions)).some.|(actions)
 
                 c match {
-                    // case Force(action) =>
-                    //     UIPerform(game, action)
+                    case Force(action) =>
+                        throw new Error("force escaped " + action)
 
                     case Then(action) =>
                         UIPerform(game, action)
@@ -519,6 +567,22 @@ object CthulhuWarsSolo {
                     case GameOver(winners) =>
                         UIQuestion(self.||(winners.starting).|(game.setup.first), game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
 
+                    case MultiAsk(asks) =>
+                        val a = asks.sortBy(ask =>
+                            if (self.has(ask.faction))
+                                0
+                            else
+                                setup.difficulty(ask.faction) match {
+                                    case Debug => 100 + random(10)
+                                    case Human | Recorded => 200 + random(10)
+                                    case Easy => 300 + random(10)
+                                    case Normal => 400 + random(10)
+                                    case AllVsHuman => 500 + random(10)
+                                }
+                        ).first
+
+                        askFaction(a)
+
                     case Ask(faction, actions) =>
                         if (actions(0).isInstanceOf[PlayDirectionAction] || actions(0).isInstanceOf[StartingRegionAction]) {
                             hide(cw)
@@ -537,10 +601,13 @@ object CthulhuWarsSolo {
 
                         val confirm = setup.confirm && setup.difficulty(faction) == Human
 
-                        if (!confirm && actions.size == 1)
+                        if (confirm.not && actions.num == 1)
                             UIPerform(game, actions(0))
                         else
-                        if (!confirm && actions(0).isInstanceOf[SpellbookAction] && actions.num == faction.unclaimedSB)
+                        if (confirm.not && actions.%!(_.isInfo).num == 1 && actions.has(NeedOk).not)
+                            UIPerform(game, actions.%!(_.isInfo).only)
+                        else
+                        if (confirm.not && actions(0).isInstanceOf[SpellbookAction] && actions.num == faction.unclaimedSB)
                             UIPerform(game, actions(0))
                         else {
                             setup.difficulty(faction) match {
@@ -624,9 +691,9 @@ object CthulhuWarsSolo {
             case object Gate extends UnitClass("Gate", Token, 3)
             case object FactionGlyph extends UnitClass("Faction Glyph", Token, 0)
 
-            case class DrawRect(key : String, tint : |[Processing], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0)
+            case class DrawRect(key : String, tint : |[Processing], x : Int, y : Int, width : Int, height : Int, cx : Int = 0, cy : Int = 0, alpha : Double = 1.0)
 
-            case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, x : Int, y : Int) {
+            case class DrawItem(region : Region, faction : Faction, unit : UnitClass, health : UnitHealth, tags : $[UnitState], x : Int, y : Int) {
                 val defaultProcessing = Processing(None, None, None)
 
                 val tint = faction @@ {
@@ -641,8 +708,8 @@ object CthulhuWarsSolo {
                     case _  => defaultProcessing
                 }
 
-                val rect : DrawRect = unit match {
-                    case Gate => { DrawRect("gate", None, x - 38, y - 38, 76, 76) }
+                def proto : DrawRect = unit match {
+                    case Gate => DrawRect("gate", None, x - 38, y - 38, 76, 76)
 
                     case Acolyte => faction match {
                         case BG => DrawRect("bg-acolyte", None, x - 17, y - 54, 39, 60)
@@ -746,6 +813,13 @@ object CthulhuWarsSolo {
                     case _ => null
                 }
 
+                def rect = proto
+                    .useIf(tags.has(Hidden))(_.copy(alpha = 0.5))
+                    .useIf(tags.has(Absorbed)) { r =>
+                        val k = math.sqrt(1 + tags.count(Absorbed))
+                        r.copy(x = r.x + (r.width * 0.5 + r.cx) * (1 - k) ~, y = r.y + (r.height * 0.5 + r.cy) * (1 - k) ~, width = r.width * k ~, height = r.height * k ~, cx = r.cx * k ~, cy = r.cy * k ~)
+                    }
+
                 def icon =
                     if (health == Killed)
                         |(DrawRect("kill", None, x + rect.cx - 30, (rect.y + y) / 2 + rect.cy - 30, 60, 60))
@@ -845,10 +919,9 @@ object CthulhuWarsSolo {
 
                 areas.foreach { r =>
                     val (px, py) = gateXY(r)
-                    val gated = game.gates.contains(r)
+                    val gated = game.gates.has(r)
 
                     val controler = game.setup.%(_.gates.has(r)).single
-                    // val keeper = controler.flatMap(f => f.at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).headOption)
                     val keeper = controler./~(_.at(r).%(_.onGate).%(_.health == Alive).starting)
 
                     var fixed : $[DrawItem] = $
@@ -857,45 +930,51 @@ object CthulhuWarsSolo {
                     var free : $[DrawItem] = $
 
                     if (gated)
-                        fixed +:= DrawItem(r, null, Gate, Alive, px, py)
+                        fixed +:= DrawItem(r, null, Gate, Alive, $, px, py)
 
                     keeper match {
-                        case Some(u) => fixed +:= DrawItem(r, u.faction, u.uclass, u.health, px, py)
+                        case Some(u) => fixed +:= DrawItem(r, u.faction, u.uclass, u.health, u.state, px, py)
                         case _ =>
                     }
 
-                    (game.factions ++ game.neutrals.keys).foreach { f =>
+                    factionlike.foreach { f =>
                         f.at(r).diff(keeper.$).foreach { u =>
-                            all +:= DrawItem(r, f, u.uclass, u.health, 0, 0)
+                            all +:= DrawItem(r, f, u.uclass, u.health, u.state, 0, 0)
                         }
                     }
 
-                    if (game.desecrated.contains(r))
-                        all +:= DrawItem(r, null, DesecrationToken, Alive, 0, 0)
+                    if (game.desecrated.has(r))
+                        all +:= DrawItem(r, null, DesecrationToken, Alive, $, 0, 0)
 
-                    if (game.cathedrals.contains(r))
-                        all +:= DrawItem(r, null, Cathedral, Alive, 0, 0)
+                    if (game.cathedrals.has(r))
+                        all +:= DrawItem(r, null, Cathedral, Alive, $, 0, 0)
 
                     if (game.factions.%(_.iceAge.?(_ == r)).any)
-                        all +:= DrawItem(r, null, IceAgeToken, Alive, 0, 0)
+                        all +:= DrawItem(r, null, IceAgeToken, Alive, $, 0, 0)
 
                     all.foreach { d =>
-                        saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit && d.health == o.health) match {
+                        saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit && d.tags == o.tags && d.health == o.health) match {
                             case Some(o) =>
-                                sticking +:= o.copy(health = d.health)
+                                sticking +:= o
                                 saved :-= o
                             case None =>
-                            saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit) match {
-                                case Some(o) =>
-                                    sticking +:= o.copy(health = d.health)
-                                    saved :-= o
-                                case None =>
-                                    free +:= d
-                            }
+                                saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit && d.tags == o.tags) match {
+                                    case Some(o) =>
+                                        sticking +:= o.copy(health = d.health)
+                                        saved :-= o
+                                    case None =>
+                                        saved.find(o => d.region == o.region && d.faction == o.faction && d.unit == o.unit) match {
+                                            case Some(o) =>
+                                                sticking +:= o.copy(tags = d.tags, health = d.health)
+                                                saved :-= o
+                                            case None =>
+                                                free +:= d
+                                        }
+                                }
                         }
                     }
 
-                    if (free.num > sticking.num * 0 + 3 || free.%(_.unit.utype == GOO).any || (!oldGates.contains(r) && game.gates.contains(r))) {
+                    if (free.num > sticking.num * 0 + 3 || free.%(_.unit.utype == GOO).any || (oldGates.has(r).not && game.gates.has(r))) {
                         free = free ++ sticking
                         sticking = $
                     }
@@ -909,7 +988,7 @@ object CthulhuWarsSolo {
                     }
 
                     free.sortBy(d => -rank(d)).foreach { d =>
-                        sticking +:= Array.tabulate(40)(n => find(px, py)).sortBy { case (x, y) => ((x - px).abs * 5 + (y - py).abs) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, x, y) }.minBy { dd =>
+                        sticking +:= Array.tabulate(40)(n => find(px, py)).sortBy { case (x, y) => ((x - px).abs * 5 + (y - py).abs) }.map { case (x, y) => DrawItem(d.region, d.faction, d.unit, d.health, d.tags, x, y) }.minBy { dd =>
                             (draws ++ fixed ++ sticking).map { oo =>
                                 val d = dd.rect
                                 val o = oo.rect
@@ -930,7 +1009,9 @@ object CthulhuWarsSolo {
                 oldGates = game.gates
 
                 draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0))./(_.rect).foreach { d =>
-                    g.drawImage(d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key)), d.x, d.y)
+                    g.globalAlpha = d.alpha
+                    g.drawImage(d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key)), d.x, d.y, d.width, d.height)
+                    g.globalAlpha = 1.0
                 }
 
                 draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0)).foreach { d =>
@@ -960,11 +1041,13 @@ object CthulhuWarsSolo {
             val statusBitmaps = statuses.take(seating.num)./(s => new CachedBitmap(s))
 
             def factionStatus(f : Faction, b : CachedBitmap)(implicit game : Game) {
-                if (!game.setup.contains(f))
+                if (!game.setup.has(f))
                     return
 
                 def div(styles : String*)(content : String) = if (styles.none) "<div>" + content + "</div>" else "<div class=\"" + styles.mkString(" ") + "\">" + content + "</div>"
                 def r(content : String) = div("right")(content)
+
+                val current = game.factions.starting.has(f)
 
                 val name = div("name")("" + f + "")
                 val nameS = div("name")(f.styled(f.short) + "")
@@ -977,13 +1060,21 @@ object CthulhuWarsSolo {
                 val sb = f.spellbooks./{ sb =>
                     val full = sb.full
                     val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
-                    val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${full}</div>"""
+                    val d = s"""<div class='spellbook'
+                        onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")'
+                        onpointerover='event.stopPropagation(); onExternalOver("${f.short}", "${s}")'
+                        onpointerout='event.stopPropagation(); onExternalOut("${f.short}", "${s}")'
+                        >${full}</div>"""
                     f.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
                 (1.to(6 - f.spellbooks.num - f.unfulfilled.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
                 f.unfulfilled./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
-                    val d = s"""<div class='spellbook' onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")' onpointerover='onExternalOver("${f.short}", "${s}")' onpointerout='onExternalOut("${f.short}", "${s}")' >${r.text}</div>"""
+                    val d = s"""<div class='spellbook'
+                        onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")'
+                        onpointerover='event.stopPropagation(); onExternalOver("${f.short}", "${s}")'
+                        onpointerout='event.stopPropagation(); onExternalOut("${f.short}", "${s}")'
+                        >${r.text}</div>"""
                     d
                 }.mkString("")
 
@@ -1005,7 +1096,7 @@ object CthulhuWarsSolo {
                         case None => ""
                     }
 
-                    val d = DrawItem(null, f, lc.icon, Alive, 0, 0)
+                    val d = DrawItem(null, f, lc.icon, Alive, $, 0, 0)
                     val unitName = lc.name.replace("\\", "\\\\").replace("\"", "&quot;")
                     val factionShort = f.short.replace("\"", "&quot;")
 
@@ -1015,8 +1106,8 @@ object CthulhuWarsSolo {
                         src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace(" ", "-"))}'
                         style='right:${right}px;'
                         onclick='event.stopPropagation(); onExternalClick("${unitName}"${sb})'
-                        onpointerover='onExternalOver("${unitName}"${sb})'
-                        onpointerout='onExternalOut("${unitName}"${sb})' />"""
+                        onpointerover='event.stopPropagation(); onExternalOver("${unitName}"${sb})'
+                        onpointerout='event.stopPropagation(); onExternalOut("${unitName}"${sb})' />"""
                 }.mkString("")
 
                 val h = 450
@@ -1035,9 +1126,11 @@ object CthulhuWarsSolo {
                 else
                     r(nameS) + r(powerS) + r(doomS)
 
-                b.node.innerHTML = "<div class='full-height' onclick=onExternalClick('" + f.short + "') onpointerover=onExternalOver('" + f.short + "') onpointerout=onExternalOut('" + f.short + "')>" +
-                    div("top")(s) + sb + lcis +
-                    "</div>"
+                b.node.innerHTML = s"""<div class='full-height'
+                    onclick='event.stopPropagation(); onExternalClick("${f.short}")'
+                    onpointerover='event.stopPropagation(); onExternalOver("${f.short}")'
+                    onpointerout='event.stopPropagation(); onExternalOut("${f.short}")'
+                    >${div("top")(s) + sb + lcis}</div>"""
 
                 val bitmap = b.get(w, h)
 
@@ -1054,27 +1147,27 @@ object CthulhuWarsSolo {
                     g.drawImage(img, d.x, d.y)
                 }
 
-                dd(DrawItem(null, f, FactionGlyph, Alive, 55, 55).rect)
+                dd(DrawItem(null, f, FactionGlyph, Alive, $, 55, 55).rect.copy(tint = |(Processing(None, game.factions.starting.has(f).?("#444444"), None))))
 
-                if (f == SL && game.gates.contains(SL.slumber)) {
-                    dd(DrawItem(null, f, Gate, Alive, w - 46, 56).rect)
+                if (f == SL && game.gates.has(SL.slumber)) {
+                    dd(DrawItem(null, f, Gate, Alive, $, w - 46, 56).rect)
                     val cultistOrHP = f.at(SL.slumber, Cultist) ++ f.at(SL.slumber, HighPriest)
                     if (cultistOrHP.any) {
                         val unit = cultistOrHP.head
-                        dd(DrawItem(null, unit.faction, unit.uclass, Alive, w - 46, 56).rect)
+                        dd(DrawItem(null, unit.faction, unit.uclass, Alive, $, w - 46, 56).rect)
                     }
                 }
 
                 var smx = 0
                 game.factions.%(_ != f).foreach { e =>
-                    if (e.borrowed.contains(f.abilities.head)) {
-                        dd(DrawItem(null, e, SerpentMan, Alive, w - 46 + smx, 86).rect)
+                    if (e.borrowed.has(f.abilities.head)) {
+                        dd(DrawItem(null, e, SerpentMan, Alive, $, w - 46 + smx, 86).rect)
                         smx -= 20
                     }
                 }
 
                 val deep = f.at(GC.deep).any.?? {
-                    var draws = $(DrawItem(null, f, Cthulhu, Alive, 64, h - 12 - 6))
+                    var draws = $(DrawItem(null, f, Cthulhu, Alive, $, 64, h - 12 - 6))
 
                     val sortedDeep = f.at(GC.deep).filterNot(_.uclass == Cthulhu).sortBy(_.uclass @@ {
                         case Cthulhu =>      0
@@ -1097,127 +1190,127 @@ object CthulhuWarsSolo {
                         val last = draws.last
                         val next = sortedDeep(draws.num - 1).uclass
                         draws :+= ((last.unit, next) match {
-                            case (Cthulhu, Abhoth) => DrawItem(null, f, Abhoth, Alive, 90 + last.x, 6 + last.y)
+                            case (Cthulhu, Abhoth) => DrawItem(null, f, Abhoth, Alive, $, 90 + last.x, 6 + last.y)
 
-                            case (Cthulhu, Daoloth) => DrawItem(null, f, Daoloth, Alive, 92 + last.x, 6 + last.y)
-                            case (Abhoth, Daoloth) => DrawItem(null, f, Daoloth, Alive, 88 + last.x, last.y)
+                            case (Cthulhu, Daoloth) => DrawItem(null, f, Daoloth, Alive, $, 92 + last.x, 6 + last.y)
+                            case (Abhoth, Daoloth) => DrawItem(null, f, Daoloth, Alive, $, 88 + last.x, last.y)
 
-                            case (Cthulhu, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 86 + last.x, 6 + last.y)
-                            case (Abhoth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 81 + last.x, last.y)
-                            case (Daoloth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 86 + last.x, last.y)
-                            case (Nyogtha, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, 80 + last.x, last.y)
+                            case (Cthulhu, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, $, 86 + last.x, 6 + last.y)
+                            case (Abhoth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, $, 81 + last.x, last.y)
+                            case (Daoloth, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, $, 86 + last.x, last.y)
+                            case (Nyogtha, Nyogtha) => DrawItem(null, f, Nyogtha, Alive, $, 80 + last.x, last.y)
 
-                            case (Cthulhu, Starspawn) => DrawItem(null, f, Starspawn, Alive, 75 + last.x, 6 + last.y)
-                            case (Abhoth, Starspawn) => DrawItem(null, f, Starspawn, Alive, 70 + last.x, last.y)
-                            case (Daoloth, Starspawn) => DrawItem(null, f, Starspawn, Alive, 82 + last.x, last.y)
-                            case (Nyogtha, Starspawn) => DrawItem(null, f, Starspawn, Alive, 77 + last.x, last.y)
-                            case (Starspawn, Starspawn) => DrawItem(null, f, Starspawn, Alive, 70 + last.x, last.y)
+                            case (Cthulhu, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 75 + last.x, 6 + last.y)
+                            case (Abhoth, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 70 + last.x, last.y)
+                            case (Daoloth, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 82 + last.x, last.y)
+                            case (Nyogtha, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 77 + last.x, last.y)
+                            case (Starspawn, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 70 + last.x, last.y)
 
-                            case (Cthulhu, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 76 + last.x, 6 + last.y)
-                            case (Abhoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 65 + last.x, last.y)
-                            case (Daoloth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 79 + last.x, last.y)
-                            case (Nyogtha, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 73 + last.x, last.y)
-                            case (Starspawn, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 66 + last.x, last.y)
-                            case (Shoggoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, 62 + last.x, last.y)
+                            case (Cthulhu, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 76 + last.x, 6 + last.y)
+                            case (Abhoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 65 + last.x, last.y)
+                            case (Daoloth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 79 + last.x, last.y)
+                            case (Nyogtha, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 73 + last.x, last.y)
+                            case (Starspawn, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 66 + last.x, last.y)
+                            case (Shoggoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 62 + last.x, last.y)
 
-                            case (Cthulhu, DeepOne) => DrawItem(null, f, DeepOne, Alive, 64 + last.x, 6 + last.y)
-                            case (Abhoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 60 + last.x, last.y)
-                            case (Daoloth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 74 + last.x, last.y)
-                            case (Nyogtha, DeepOne) => DrawItem(null, f, DeepOne, Alive, 62 + last.x, last.y)
-                            case (Starspawn, DeepOne) => DrawItem(null, f, DeepOne, Alive, 51 + last.x, last.y)
-                            case (Shoggoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, 48 + last.x, last.y)
-                            case (DeepOne, DeepOne) if last.health == Alive => DrawItem(null, f, DeepOne, Pained, last.x, last.y - 31)
-                            case (DeepOne, DeepOne) if last.health == Pained => DrawItem(null, f, DeepOne, Alive, 35 + last.x, last.y + 31)
+                            case (Cthulhu, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 64 + last.x, 6 + last.y)
+                            case (Abhoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 60 + last.x, last.y)
+                            case (Daoloth, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 74 + last.x, last.y)
+                            case (Nyogtha, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 62 + last.x, last.y)
+                            case (Starspawn, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 51 + last.x, last.y)
+                            case (Shoggoth, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 48 + last.x, last.y)
+                            case (DeepOne, DeepOne) if last.health == Alive => DrawItem(null, f, DeepOne, Pained, $, last.x, last.y - 31)
+                            case (DeepOne, DeepOne) if last.health == Pained => DrawItem(null, f, DeepOne, Alive, $, 35 + last.x, last.y + 31)
 
-                            case (Cthulhu, Acolyte) => DrawItem(null, f, Acolyte, Alive, 57 + last.x, 6 + last.y)
-                            case (Abhoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 54 + last.x, last.y)
-                            case (Daoloth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 68 + last.x, last.y)
-                            case (Nyogtha, Acolyte) => DrawItem(null, f, Acolyte, Alive, 60 + last.x, last.y)
-                            case (Starspawn, Acolyte) => DrawItem(null, f, Acolyte, Alive, 52 + last.x, last.y)
-                            case (Shoggoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, 48 + last.x, last.y)
-                            case (DeepOne, Acolyte) if last.health == Alive => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y)
-                            case (DeepOne, Acolyte) if last.health == Pained => DrawItem(null, f, Acolyte, Alive, 36 + last.x, last.y + 31)
-                            case (Acolyte, Acolyte) => DrawItem(null, f, Acolyte, Alive, 35 + last.x, last.y)
+                            case (Cthulhu, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 57 + last.x, 6 + last.y)
+                            case (Abhoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 54 + last.x, last.y)
+                            case (Daoloth, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 68 + last.x, last.y)
+                            case (Nyogtha, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 60 + last.x, last.y)
+                            case (Starspawn, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 52 + last.x, last.y)
+                            case (Shoggoth, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 48 + last.x, last.y)
+                            case (DeepOne, Acolyte) if last.health == Alive => DrawItem(null, f, Acolyte, Alive, $, 36 + last.x, last.y)
+                            case (DeepOne, Acolyte) if last.health == Pained => DrawItem(null, f, Acolyte, Alive, $, 36 + last.x, last.y + 31)
+                            case (Acolyte, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 35 + last.x, last.y)
 
-                            case (Cthulhu, HighPriest) => DrawItem(null, f, HighPriest, Alive, 75 + last.x, 6 + last.y)
-                            case (Abhoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 68 + last.x, last.y)
-                            case (Daoloth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 82 + last.x, last.y)
-                            case (Nyogtha, HighPriest) => DrawItem(null, f, HighPriest, Alive, 77 + last.x, last.y)
-                            case (Starspawn, HighPriest) => DrawItem(null, f, HighPriest, Alive, 70 + last.x, last.y)
-                            case (Shoggoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, 66 + last.x, last.y)
-                            case (DeepOne, HighPriest) if last.health == Alive => DrawItem(null, f, HighPriest, Alive, 54 + last.x, last.y)
-                            case (DeepOne, HighPriest) if last.health == Pained => DrawItem(null, f, HighPriest, Alive, 54 + last.x, last.y + 31)
-                            case (Acolyte, HighPriest) => DrawItem(null, f, HighPriest, Alive, 53 + last.x, last.y)
+                            case (Cthulhu, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 75 + last.x, 6 + last.y)
+                            case (Abhoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 68 + last.x, last.y)
+                            case (Daoloth, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 82 + last.x, last.y)
+                            case (Nyogtha, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 77 + last.x, last.y)
+                            case (Starspawn, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 70 + last.x, last.y)
+                            case (Shoggoth, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 66 + last.x, last.y)
+                            case (DeepOne, HighPriest) if last.health == Alive => DrawItem(null, f, HighPriest, Alive, $, 54 + last.x, last.y)
+                            case (DeepOne, HighPriest) if last.health == Pained => DrawItem(null, f, HighPriest, Alive, $, 54 + last.x, last.y + 31)
+                            case (Acolyte, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 53 + last.x, last.y)
 
-                            case (Cthulhu, Ghast) => DrawItem(null, f, Ghast, Alive, 62 + last.x, 6 + last.y)
-                            case (Abhoth, Ghast) => DrawItem(null, f, Ghast, Alive, 53 + last.x, last.y)
-                            case (Daoloth, Ghast) => DrawItem(null, f, Ghast, Alive, 67 + last.x, last.y)
-                            case (Nyogtha, Ghast) => DrawItem(null, f, Ghast, Alive, 61 + last.x, last.y)
-                            case (Starspawn, Ghast) => DrawItem(null, f, Ghast, Alive, 54 + last.x, last.y)
-                            case (Shoggoth, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
-                            case (DeepOne, Ghast) if last.health == Alive => DrawItem(null, f, Ghast, Alive, 39 + last.x, last.y)
-                            case (DeepOne, Ghast) if last.health == Pained => DrawItem(null, f, Ghast, Alive, 39 + last.x, last.y + 31)
-                            case (Acolyte, Ghast) => DrawItem(null, f, Ghast, Alive, 37 + last.x, last.y)
-                            case (HighPriest, Ghast) => DrawItem(null, f, Ghast, Alive, 52 + last.x, last.y)
-                            case (Ghast, Ghast) => DrawItem(null, f, Ghast, Alive, 35 + last.x, last.y)
+                            case (Cthulhu, Ghast) => DrawItem(null, f, Ghast, Alive, $, 62 + last.x, 6 + last.y)
+                            case (Abhoth, Ghast) => DrawItem(null, f, Ghast, Alive, $, 53 + last.x, last.y)
+                            case (Daoloth, Ghast) => DrawItem(null, f, Ghast, Alive, $, 67 + last.x, last.y)
+                            case (Nyogtha, Ghast) => DrawItem(null, f, Ghast, Alive, $, 61 + last.x, last.y)
+                            case (Starspawn, Ghast) => DrawItem(null, f, Ghast, Alive, $, 54 + last.x, last.y)
+                            case (Shoggoth, Ghast) => DrawItem(null, f, Ghast, Alive, $, 52 + last.x, last.y)
+                            case (DeepOne, Ghast) if last.health == Alive => DrawItem(null, f, Ghast, Alive, $, 39 + last.x, last.y)
+                            case (DeepOne, Ghast) if last.health == Pained => DrawItem(null, f, Ghast, Alive, $, 39 + last.x, last.y + 31)
+                            case (Acolyte, Ghast) => DrawItem(null, f, Ghast, Alive, $, 37 + last.x, last.y)
+                            case (HighPriest, Ghast) => DrawItem(null, f, Ghast, Alive, $, 52 + last.x, last.y)
+                            case (Ghast, Ghast) => DrawItem(null, f, Ghast, Alive, $, 35 + last.x, last.y)
 
-                            case (Cthulhu, Gug) => DrawItem(null, f, Gug, Alive, 78 + last.x, 6 + last.y)
-                            case (Abhoth, Gug) => DrawItem(null, f, Gug, Alive, 70 + last.x, last.y)
-                            case (Daoloth, Gug) => DrawItem(null, f, Gug, Alive, 87 + last.x, last.y)
-                            case (Nyogtha, Gug) => DrawItem(null, f, Gug, Alive, 77 + last.x, last.y)
-                            case (Starspawn, Gug) => DrawItem(null, f, Gug, Alive, 70 + last.x, last.y)
-                            case (Shoggoth, Gug) => DrawItem(null, f, Gug, Alive, 66 + last.x, last.y)
-                            case (DeepOne, Gug) if last.health == Alive => DrawItem(null, f, Gug, Alive, 56 + last.x, last.y)
-                            case (DeepOne, Gug) if last.health == Pained => DrawItem(null, f, Gug, Alive, 56 + last.x, last.y + 31)
-                            case (Acolyte, Gug) => DrawItem(null, f, Gug, Alive, 54 + last.x, last.y)
-                            case (HighPriest, Gug) => DrawItem(null, f, Gug, Alive, 68 + last.x, last.y)
-                            case (Ghast, Gug) => DrawItem(null, f, Gug, Alive, 55 + last.x, last.y)
-                            case (Gug, Gug) => DrawItem(null, f, Gug, Alive, 72 + last.x, last.y)
+                            case (Cthulhu, Gug) => DrawItem(null, f, Gug, Alive, $, 78 + last.x, 6 + last.y)
+                            case (Abhoth, Gug) => DrawItem(null, f, Gug, Alive, $, 70 + last.x, last.y)
+                            case (Daoloth, Gug) => DrawItem(null, f, Gug, Alive, $, 87 + last.x, last.y)
+                            case (Nyogtha, Gug) => DrawItem(null, f, Gug, Alive, $, 77 + last.x, last.y)
+                            case (Starspawn, Gug) => DrawItem(null, f, Gug, Alive, $, 70 + last.x, last.y)
+                            case (Shoggoth, Gug) => DrawItem(null, f, Gug, Alive, $, 66 + last.x, last.y)
+                            case (DeepOne, Gug) if last.health == Alive => DrawItem(null, f, Gug, Alive, $, 56 + last.x, last.y)
+                            case (DeepOne, Gug) if last.health == Pained => DrawItem(null, f, Gug, Alive, $, 56 + last.x, last.y + 31)
+                            case (Acolyte, Gug) => DrawItem(null, f, Gug, Alive, $, 54 + last.x, last.y)
+                            case (HighPriest, Gug) => DrawItem(null, f, Gug, Alive, $, 68 + last.x, last.y)
+                            case (Ghast, Gug) => DrawItem(null, f, Gug, Alive, $, 55 + last.x, last.y)
+                            case (Gug, Gug) => DrawItem(null, f, Gug, Alive, $, 72 + last.x, last.y)
 
-                            case (Cthulhu, Shantak) => DrawItem(null, f, Shantak, Alive, 83 + last.x, 6 + last.y)
-                            case (Abhoth, Shantak) => DrawItem(null, f, Shantak, Alive, 64 + last.x, last.y)
-                            case (Daoloth, Shantak) => DrawItem(null, f, Shantak, Alive, 90 + last.x, last.y)
-                            case (Nyogtha, Shantak) => DrawItem(null, f, Shantak, Alive, 70 + last.x, last.y)
-                            case (Starspawn, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
-                            case (Shoggoth, Shantak) => DrawItem(null, f, Shantak, Alive, 66 + last.x, last.y)
-                            case (DeepOne, Shantak) if last.health == Alive => DrawItem(null, f, Shantak, Alive, 49 + last.x, last.y)
-                            case (DeepOne, Shantak) if last.health == Pained => DrawItem(null, f, Shantak, Alive, 49 + last.x, last.y + 31)
-                            case (Acolyte, Shantak) => DrawItem(null, f, Shantak, Alive, 50 + last.x, last.y)
-                            case (HighPriest, Shantak) => DrawItem(null, f, Shantak, Alive, 61 + last.x, last.y)
-                            case (Ghast, Shantak) => DrawItem(null, f, Shantak, Alive, 48 + last.x, last.y)
-                            case (Gug, Shantak) => DrawItem(null, f, Shantak, Alive, 63 + last.x, last.y)
-                            case (Shantak, Shantak) => DrawItem(null, f, Shantak, Alive, 74 + last.x, last.y)
+                            case (Cthulhu, Shantak) => DrawItem(null, f, Shantak, Alive, $, 83 + last.x, 6 + last.y)
+                            case (Abhoth, Shantak) => DrawItem(null, f, Shantak, Alive, $, 64 + last.x, last.y)
+                            case (Daoloth, Shantak) => DrawItem(null, f, Shantak, Alive, $, 90 + last.x, last.y)
+                            case (Nyogtha, Shantak) => DrawItem(null, f, Shantak, Alive, $, 70 + last.x, last.y)
+                            case (Starspawn, Shantak) => DrawItem(null, f, Shantak, Alive, $, 66 + last.x, last.y)
+                            case (Shoggoth, Shantak) => DrawItem(null, f, Shantak, Alive, $, 66 + last.x, last.y)
+                            case (DeepOne, Shantak) if last.health == Alive => DrawItem(null, f, Shantak, Alive, $, 49 + last.x, last.y)
+                            case (DeepOne, Shantak) if last.health == Pained => DrawItem(null, f, Shantak, Alive, $, 49 + last.x, last.y + 31)
+                            case (Acolyte, Shantak) => DrawItem(null, f, Shantak, Alive, $, 50 + last.x, last.y)
+                            case (HighPriest, Shantak) => DrawItem(null, f, Shantak, Alive, $, 61 + last.x, last.y)
+                            case (Ghast, Shantak) => DrawItem(null, f, Shantak, Alive, $, 48 + last.x, last.y)
+                            case (Gug, Shantak) => DrawItem(null, f, Shantak, Alive, $, 63 + last.x, last.y)
+                            case (Shantak, Shantak) => DrawItem(null, f, Shantak, Alive, $, 74 + last.x, last.y)
 
-                            case (Cthulhu, StarVampire) => DrawItem(null, f, StarVampire, Alive, 79 + last.x, 6 + last.y)
-                            case (Abhoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 63 + last.x, last.y)
-                            case (Daoloth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 77 + last.x, last.y)
-                            case (Nyogtha, StarVampire) => DrawItem(null, f, StarVampire, Alive, 69 + last.x, last.y)
-                            case (Starspawn, StarVampire) => DrawItem(null, f, StarVampire, Alive, 61 + last.x, last.y)
-                            case (Shoggoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, 60 + last.x, last.y)
-                            case (DeepOne, StarVampire) if last.health == Alive => DrawItem(null, f, StarVampire, Alive, 50 + last.x, last.y)
-                            case (DeepOne, StarVampire) if last.health == Pained => DrawItem(null, f, StarVampire, Alive, 50 + last.x, last.y + 31)
-                            case (Acolyte, StarVampire) => DrawItem(null, f, StarVampire, Alive, 52 + last.x, last.y)
-                            case (HighPriest, StarVampire) => DrawItem(null, f, StarVampire, Alive, 59 + last.x, last.y)
-                            case (Ghast, StarVampire) => DrawItem(null, f, StarVampire, Alive, 53 + last.x, last.y)
-                            case (Gug, StarVampire) => DrawItem(null, f, StarVampire, Alive, 64 + last.x, last.y)
-                            case (Shantak, StarVampire) => DrawItem(null, f, StarVampire, Alive, 70 + last.x, last.y)
-                            case (StarVampire, StarVampire) => DrawItem(null, f, StarVampire, Alive, 65 + last.x, last.y)
+                            case (Cthulhu, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 79 + last.x, 6 + last.y)
+                            case (Abhoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 63 + last.x, last.y)
+                            case (Daoloth, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 77 + last.x, last.y)
+                            case (Nyogtha, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 69 + last.x, last.y)
+                            case (Starspawn, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 61 + last.x, last.y)
+                            case (Shoggoth, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 60 + last.x, last.y)
+                            case (DeepOne, StarVampire) if last.health == Alive => DrawItem(null, f, StarVampire, Alive, $, 50 + last.x, last.y)
+                            case (DeepOne, StarVampire) if last.health == Pained => DrawItem(null, f, StarVampire, Alive, $, 50 + last.x, last.y + 31)
+                            case (Acolyte, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 52 + last.x, last.y)
+                            case (HighPriest, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 59 + last.x, last.y)
+                            case (Ghast, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 53 + last.x, last.y)
+                            case (Gug, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 64 + last.x, last.y)
+                            case (Shantak, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 70 + last.x, last.y)
+                            case (StarVampire, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 65 + last.x, last.y)
 
-                            case (Cthulhu, Filth) => DrawItem(null, f, Filth, Alive, 62 + last.x, last.y - 10)
-                            case (Abhoth, Filth) => DrawItem(null, f, Filth, Alive, 50 + last.x, last.y - 15)
-                            case (Daoloth, Filth) => DrawItem(null, f, Filth, Alive, 70 + last.x, last.y - 15)
-                            case (Nyogtha, Filth) => DrawItem(null, f, Filth, Alive, 65 + last.x, last.y - 15)
-                            case (Starspawn, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
-                            case (Shoggoth, Filth) => DrawItem(null, f, Filth, Alive, 52 + last.x, last.y - 15)
-                            case (DeepOne, Filth) if last.health == Alive => DrawItem(null, f, Filth, Alive, 42 + last.x, last.y - 15)
-                            case (DeepOne, Filth) if last.health == Pained => DrawItem(null, f, Filth, Alive, 42 + last.x, last.y + 16)
-                            case (Acolyte, Filth) => DrawItem(null, f, Filth, Alive, 38 + last.x, last.y - 15)
-                            case (HighPriest, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
-                            case (Ghast, Filth) => DrawItem(null, f, Filth, Alive, 40 + last.x, last.y - 15)
-                            case (Gug, Filth) => DrawItem(null, f, Filth, Alive, 57 + last.x, last.y - 15)
-                            case (Shantak, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
-                            case (StarVampire, Filth) => DrawItem(null, f, Filth, Alive, 53 + last.x, last.y - 15)
-                            case (Filth, Filth) => DrawItem(null, f, Filth, Alive, 40 + last.x, last.y)
+                            case (Cthulhu, Filth) => DrawItem(null, f, Filth, Alive, $, 62 + last.x, last.y - 10)
+                            case (Abhoth, Filth) => DrawItem(null, f, Filth, Alive, $, 50 + last.x, last.y - 15)
+                            case (Daoloth, Filth) => DrawItem(null, f, Filth, Alive, $, 70 + last.x, last.y - 15)
+                            case (Nyogtha, Filth) => DrawItem(null, f, Filth, Alive, $, 65 + last.x, last.y - 15)
+                            case (Starspawn, Filth) => DrawItem(null, f, Filth, Alive, $, 53 + last.x, last.y - 15)
+                            case (Shoggoth, Filth) => DrawItem(null, f, Filth, Alive, $, 52 + last.x, last.y - 15)
+                            case (DeepOne, Filth) if last.health == Alive => DrawItem(null, f, Filth, Alive, $, 42 + last.x, last.y - 15)
+                            case (DeepOne, Filth) if last.health == Pained => DrawItem(null, f, Filth, Alive, $, 42 + last.x, last.y + 16)
+                            case (Acolyte, Filth) => DrawItem(null, f, Filth, Alive, $, 38 + last.x, last.y - 15)
+                            case (HighPriest, Filth) => DrawItem(null, f, Filth, Alive, $, 53 + last.x, last.y - 15)
+                            case (Ghast, Filth) => DrawItem(null, f, Filth, Alive, $, 40 + last.x, last.y - 15)
+                            case (Gug, Filth) => DrawItem(null, f, Filth, Alive, $, 57 + last.x, last.y - 15)
+                            case (Shantak, Filth) => DrawItem(null, f, Filth, Alive, $, 53 + last.x, last.y - 15)
+                            case (StarVampire, Filth) => DrawItem(null, f, Filth, Alive, $, 53 + last.x, last.y - 15)
+                            case (Filth, Filth) => DrawItem(null, f, Filth, Alive, $, 40 + last.x, last.y)
 
                             case (a, b) => throw new RuntimeException(s"GC DEEP missing draw case: $a -> $b")
                         })
@@ -1229,7 +1322,7 @@ object CthulhuWarsSolo {
                 val captured = {
                     var draws : $[DrawItem] = $
 
-                    game.factions.%(_ != f)./~(e => e.at(f.prison)).foreach { u =>
+                    game.setup.but(f)./~(_.at(f.prison)).foreach { u =>
                         val (prisonXOffset, prisonYOffset) = u.uclass match {
                             case Filth        => (8, -15)
                             case _            => (0, 0)
@@ -1238,7 +1331,7 @@ object CthulhuWarsSolo {
                         val x = draws./(_.rect.width).sum - 0 + prisonXOffset
                         val y = h - 12 + prisonYOffset
 
-                        draws :+= DrawItem(null, u.faction, u.uclass, Alive, x, y)
+                        draws :+= DrawItem(null, u.faction, u.uclass, Alive, $, x, y)
                     }
 
                     draws./(_.rect)
@@ -1273,7 +1366,7 @@ object CthulhuWarsSolo {
 
             var token : Double = 0.0
 
-            var savedUIAction : |[UIAction] = None
+            var savedUIAction : |[(Faction, $[Action])] = None
             var savedContinue : |[Continue] = None
 
             class BackgroundCheckToken(random : Double)
@@ -1446,7 +1539,7 @@ object CthulhuWarsSolo {
                                 val title = "Cthulhu Wars " + BuildInfo.version + " Replay"
                                 val filename = "cthulhu-wars-" + BuildInfo.version + "-replay-" + hrf.HRF.startAt.toISOString().take(16).replace("T", "-")
 
-                                hrf.quine.Quine.save(title, g.factions, g.options, resources, actions.reverse, new Serialize(g), filename, true, "", {
+                                hrf.quine.Quine.save(title, g.setup, g.options, resources, actions.reverse, new Serialize(g), filename, true, "", {
                                     val winners = a.winners
                                     queue :+= UIQuestion(null, game, GameOverAction(winners, "Hooray!") :: GameOverAction(winners, "Meh...") :: GameOverAction(winners, "Save replay"))
                                 })
@@ -1458,10 +1551,27 @@ object CthulhuWarsSolo {
 
                                 Some((false, 0))
                             }
-                            case UIPerform(g, a : OutOfTurnReturn) => {
-                                queue = savedUIAction.$ ++ queue
+                            case UIPerform(g, OutOfTurnReturn) => {
+                                savedUIAction.$./{ (f, l) =>
+                                    if (l.of[OutOfTurnRefresh].any)
+                                        queue = UIPerform(g, l.of[OutOfTurnRefresh].only.action) +: queue
+                                    else
+                                        queue = UIQuestion(f, g, l) +: queue
+                                }
                                 savedUIAction = None
-                                Some((false, 10))
+                                Some((false, 0))
+                            }
+                            case UIPerform(g, OutOfTurnRepeat(f, action)) => {
+                                val (l, c) = g.perform(action.unwrap)
+
+                                val cc = c match {
+                                    case Ask(f, l) => Ask(f, l./(a => a.useIf(_.unwrap == CancelAction)(_ => OutOfTurnDone.as("Done")(" "))))
+                                    case c => c
+                                 }
+
+                                queue :+= askFaction(cc)(game)
+
+                                Some((false, 0))
                             }
                             case UIPerform(g, a) if hash != "" && self == None && localReplay.not => {
                                 queue :+= UIRead(g)
@@ -1489,7 +1599,7 @@ object CthulhuWarsSolo {
                             case UIProcess(g, recorded) if recorded.none => {
                                 queue :+= UIRead(g)
 
-                                Some((false, 30))
+                                Some((false, 30*10))
                             }
                             case UIProcess(g, recorded) => {
                                 savedUIAction = None
@@ -1498,7 +1608,7 @@ object CthulhuWarsSolo {
 
                                 val initial = actions.none
 
-                                recorded./ { a =>
+                                recorded.indexed./ { (a, n) =>
                                     actions +:= a
 
                                     if (a.is[ReloadAction.type] && initial.not) {
@@ -1514,6 +1624,11 @@ object CthulhuWarsSolo {
 
                                         if (a.isOutOfTurn.not)
                                             cc = |(c)
+                                        else
+                                            c @@ {
+                                                case Then(OutOfTurnRepeat(f, action)) if self.has(f) => cc = |(Then(OutOfTurnRepeat(f, action)))
+                                                case c =>
+                                            }
                                     }
                                 }
 
@@ -1568,12 +1683,12 @@ object CthulhuWarsSolo {
                                 val osK = 0.to(n)./(_.times(Kill))./(x => x.any.?(x.mkString(" ")).|("None"))
                                 ask(q(g) + "<br/>" + "Number of " + "Kills".styled("kill"), osK, kills => {
                                     if (kills == n) {
-                                        perform(roll(List.fill(kills)(Kill)))
+                                        perform(roll(kills.times(Kill)))
                                     }
                                     else {
                                         val osP = 0.to(n - kills)./(_.times(Pain))./(x => x.any.?(x.mkString(" ")).|("None"))
                                         ask(q(g) + "<br/>" + "Number of " + "Pains".styled("pain"), osP, pains => {
-                                            perform(roll(List.fill(kills)(Kill) ++ pains.times(Pain) ++ (n - kills - pains).times(Miss)))
+                                            perform(roll(kills.times(Kill) ++ pains.times(Pain) ++ (n - kills - pains).times(Miss)))
                                         })
                                     }
                                 })
@@ -1582,35 +1697,69 @@ object CthulhuWarsSolo {
                                 val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%>(_ > 0)
                                 ask(q(g), options./((e, q) => "[" + e.styled("es") + "]" + " of " + q), n => perform(draw(options(n)._1, true)))
 
-                            case UIQuestion(f, g, actions) if f != null && hash != "" && self.has(f).not && localReplay.not => {
-                                val extra = self./~(g.outOfTurn)
+                            case UIQuestion(e, game, actions) if hash != "" && e != null && self.none && localReplay.not => {
+                                startBackgroundCheck()
 
-                                if (hash != "")
-                                    startBackgroundCheck()
+                                scrollTop = 0
 
-                                askM($(self.any.??("" + self.get + "<br/><br/>") + "Waiting for " + f + "<br/>“" + actions.first.safeQ(g) + "”<br/><br/>"), extra./(a => a.question(g) -> a.option(g)), n => { stopBackgroundCheck() ; savedUIAction = |(head) ; perform(extra(n)) }, self./(_.style + "-border"))
+                                askN($("Waiting for " + e + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"), $)
                             }
-                            case UIQuestion(f, g, aa) => {
+                            case UIQuestion(e, game, actions) if hash != "" && e != null && self.any && self.has(e).not && localReplay.not => {
+                                val extra = self./~(f => game.extraActions(f, true, actions.has(SacrificeHighPriestAllowedAction)))
+                                val f = self.get
+
+                                startBackgroundCheck()
+
+                                scrollTop = 0
+
+                                askN($("Waiting for " + e + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"),
+                                    extra./(a => AskLine(a.question(game), a.option(game), false.$(f.style + "-border") ++ a.isInfo.$("thin"), a.isNoClear.not, a.isInfo.not.??(() => {
+                                        stopBackgroundCheck()
+
+                                        savedUIAction = |((e, actions))
+
+                                        perform(a)
+                                    })))
+                                )
+                            }
+                            case UIQuestion(f, game, actions) => {
                                 cancelUndo()
 
                                 if (hash != "")
                                     startBackgroundCheck()
 
-                                val extra = g.outOfTurn(f)
+                                val extra = actions.unwrap.use(l => game.extraActions(f, false, actions.has(SacrificeHighPriestAllowedAction)).%{
+                                    case _ if l.has(CancelAction) => false
+                                    case _ if l.has(OutOfTurnDone) => false
+                                    case _ : DragonAscendingOutOfTurnAction if l.of[DragonAscendingPromptAction].any => false
+                                    case _ : SacrificeHighPriestOutOfTurnMainAction if l.of[SacrificeHighPriestPromptAction].any => false
+                                    case _ => true
+                                })
 
-                                println(extra)
+                                scrollTop = 0
 
-                                askM($, (aa ++ extra)./(a => a.question(g) -> a.option(g)), n => {
-                                    stopBackgroundCheck()
+                                val aa = actions.useIf(game.options.has(AsyncActions))(_
+                                    .%!(_.unwrap.is[RevealESMainAction])
+                                    .%!(_.unwrap.is[SacrificeHighPriestDoomAction])
+                                    .%!(_.unwrap.is[SacrificeHighPriestMainAction])
+                                    .%!(_.unwrap.is[DragonAscendingMainAction])
+                                    .%!(_.unwrap.is[DragonAscendingDoomAction])
+                                )
 
-                                    if (n < aa.num)
-                                        perform(aa(n))
-                                    else {
-                                        savedUIAction = |(head)
+                                askN($,
+                                    aa./(a => AskLine(a.question(game), a.option(game), $(f.style + "-border") ++ a.isInfo.$("thin"), a.isNoClear.not, a.isInfo.not.??(() => {
+                                        stopBackgroundCheck()
 
-                                        perform(extra(n - aa.num))
-                                    }
-                                }, |(f)./(_.style + "-border"))
+                                        perform(a)
+                                    }))) ++
+                                    extra./(a => AskLine(a.question(game), a.option(game), false.$(f.style + "-border") ++ a.isInfo.$("thin"), a.isNoClear.not, a.isInfo.not.??(() => {
+                                        stopBackgroundCheck()
+
+                                        savedUIAction = |((f, actions))
+
+                                        perform(a)
+                                    })))
+                                )
                             }
                             case UIQuestionDebug(f, g, actions) => {
                                 cancelUndo()
@@ -1713,7 +1862,7 @@ object CthulhuWarsSolo {
 
         def smaller(s : String) = "<span class=\"smaller\">" + s + "</span>"
 
-        def allSeatings(factions : $[Faction]) = factions.permutations.toList.%(s => s.contains(GC).?(s(0) == GC).|(s(0) != WW))
+        def allSeatings(factions : $[Faction]) = factions.permutations.toList.%(s => s.has(GC).?(s(0) == GC).|(s(0) != WW))
         def randomSeating(factions : $[Faction]) = allSeatings(factions).sortBy(s => random()).head
 
         def startOnlineSetup(factions : $[Faction]) {
@@ -1726,26 +1875,28 @@ object CthulhuWarsSolo {
             def setupQuestions() {
                 askM($,
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).elem + ")")) ++
-                    seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    seatings.map(ff => ("Seating" + factions.has(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    $("Gameplay" -> ("Gate Diplomacy (" + setup.get(GateDiplomacy).?("yes").|("no").hl + ")")) ++
+                    $("Gameplay" -> ("Async Options (" + setup.get(AsyncActions).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " monsters (" + setup.get(NeutralMonsters).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + GhastCard.short + " (" + setup.get(UseGhast).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + GugCard.short + " (" + setup.get(UseGug).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + ShantakCard.short + " (" + setup.get(UseShantak).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + StarVampireCard.short + " (" + setup.get(UseStarVampire).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + AbhothCard.short + " (" + setup.get(UseAbhoth).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + DaolothCard.short + " (" + setup.get(UseDaoloth).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
@@ -1768,6 +1919,16 @@ object CthulhuWarsSolo {
                         }
                         n -= seatings.num
                         if (n == 0) {
+                            setup.toggle(GateDiplomacy)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(AsyncActions)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
                             setup.toggle(HighPriests)
                             setupQuestions()
                         }
@@ -1787,7 +1948,7 @@ object CthulhuWarsSolo {
 
                             setupQuestions()
                         }
-                        if (setup.options.contains(NeutralMonsters)) {
+                        if (setup.options.has(NeutralMonsters)) {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseGhast)
@@ -1820,7 +1981,7 @@ object CthulhuWarsSolo {
 
                             setupQuestions()
                         }
-                        if (setup.options.contains(IGOOs)) {
+                        if (setup.options.has(IGOOs)) {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseByatis)
@@ -1890,26 +2051,28 @@ object CthulhuWarsSolo {
             def setupQuestions() {
                 askM($,
                     factions.map(f => "Factions" -> ("" + f + " (" + setup.difficulty(f).elem + ")")) ++
-                    seatings.map(ff => ("Seating" + factions.contains(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    seatings.map(ff => ("Seating" + factions.has(GC).not.??(" and first player")) -> ((ff == setup.seating).?(ff.map(_.ss)).|(ff.map(_.short)).mkString(" -> "))) ++
+                    $("Gameplay" -> ("Gate Diplomacy (" + setup.get(GateDiplomacy).?("yes").|("no").hl + ")")) ++
+                    $("Gameplay" -> ("Async Options (" + setup.get(AsyncActions).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("High Priests (" + setup.get(HighPriests).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " spellbooks (" + setup.get(NeutralSpellbooks).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Neutral".styled("neutral") + " monsters (" + setup.get(NeutralMonsters).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + GhastCard.short + " (" + setup.get(UseGhast).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + GugCard.short + " (" + setup.get(UseGug).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + ShantakCard.short + " (" + setup.get(UseShantak).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(NeutralMonsters))
+                    (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + StarVampireCard.short + " (" + setup.get(UseStarVampire).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + AbhothCard.short + " (" + setup.get(UseAbhoth).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + DaolothCard.short + " (" + setup.get(UseDaoloth).?("yes").|("no").hl + ")")) ++
-                    (setup.options.contains(IGOOs))
+                    (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
@@ -1935,6 +2098,16 @@ object CthulhuWarsSolo {
                         }
                         n -= seatings.num
                         if (n == 0) {
+                            setup.toggle(GateDiplomacy)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
+                            setup.toggle(AsyncActions)
+                            setupQuestions()
+                        }
+                        n -= 1
+                        if (n == 0) {
                             setup.toggle(HighPriests)
                             setupQuestions()
                         }
@@ -1954,7 +2127,7 @@ object CthulhuWarsSolo {
 
                             setupQuestions()
                         }
-                        if (setup.options.contains(NeutralMonsters)) {
+                        if (setup.options.has(NeutralMonsters)) {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseGhast)
@@ -1987,7 +2160,7 @@ object CthulhuWarsSolo {
 
                             setupQuestions()
                         }
-                        if (setup.options.contains(IGOOs)) {
+                        if (setup.options.has(IGOOs)) {
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseByatis)
@@ -2147,14 +2320,13 @@ object CthulhuWarsSolo {
 
                         dom.document.title = logs(1) + " - Cthulhu Wars HRF"
 
-                        log(logs(1).styled("nt"))
-
-                        log(self./("Playing as " + _).|("Spectating"))
-
                         def parseDifficulty(s : String) : |[Difficulty] = Serialize.parseSymbol(s)./~(_.as[Difficulty])
 
                         val factions = logs(2).split(" ")(0).split("/").toList./(_.split(":"))./(s => Serialize.parseFaction(s(0)).get -> parseDifficulty(s(1)).get)
                         val options = logs(2).split(" ").toList.drop(1)./(Serialize.parseGameOption)./(_.get)
+
+                        log(logs(1).styled("nt"))
+                        log(self./("Playing as " + _).|("Spectating"))
 
                         val setup = new Setup(factions.lefts, Recorded)
                         factions.foreach { case (f, d) => setup.difficulty += f -> d }
@@ -2180,6 +2352,7 @@ object CthulhuWarsSolo {
                                         val opponents = combinations(no)
                                         val setup = new Setup(randomSeating(faction +: opponents), Normal)
                                         setup.difficulty += faction -> Human
+                                        setup.options ++= $(QuickGame, MapEarth35)
                                         startGame(setup)
                                     }
                                     else
@@ -2195,6 +2368,7 @@ object CthulhuWarsSolo {
                         val opponents = combinations.shuffle.first
                         val setup = new Setup(randomSeating(faction +: opponents), Normal)
                         setup.difficulty += faction -> Human
+                        setup.options ++= $(QuickGame) ++ $(MapEarth35, MapEarth53).shuffle.take(1)
                         startGame(setup)
                     case 1 =>
                         ask("Players", ("3 Players".hl :: "4 Players".hl :: "5 Players".hl) :+ "Back", n => {

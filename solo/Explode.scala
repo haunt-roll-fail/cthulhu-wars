@@ -7,7 +7,7 @@ object Explode {
         var result : $[Action] = $
 
         def process(actions : $[Action]) {
-            val aaa = actions./(_.unwrap)
+            val aaa = actions.unwrap
             var aa = aaa.%(_.isMore).some.|(aaa)
 
             aa = aa.%!(_.isCancel).%!(_.isInfo)

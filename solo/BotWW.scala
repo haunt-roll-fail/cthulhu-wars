@@ -15,8 +15,8 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
         def opposite = game.board.starting(self).but(game.starting(self)).head
         def pole(r : Region) = game.board.starting(self).contains(r)
 
-        def canStrikeCC(r : Region) = (r.foes.has(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
-        def canStrikeGC(r : Region) = (r.foes.has(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
+        def canStrikeCC(r : Region) = (r.foes.got(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
+        def canStrikeGC(r : Region) = (r.foes.got(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
 
         def checkAttack(r : Region, f : Faction, allies : $[UnitFigure], foes : $[UnitFigure], d : Int) {
             val enemyStr = f.strength(foes, self)
@@ -27,14 +27,14 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
             var ac = allies(Acolyte).num
             var we = allies(Wendigo).num
             var gk = allies(GnophKeh).num
-            val rha = allies.has(RhanTegoth)
-            val ith = allies.has(Ithaqua)
+            val rha = allies.got(RhanTegoth)
+            val ith = allies.got(Ithaqua)
 
             val rhas = rha.??(3)
             val iths = ith.??((f.doom + 1) / 2)
 
-            var eby = foes.has(Byatis)
-            var eab = foes.has(Abhoth)
+            var eby = foes.got(Byatis)
+            var eab = foes.got(Abhoth)
             var eny = foes(Nyogtha).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
@@ -47,7 +47,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     if (cth) {
                         if (ac > 0)
@@ -77,7 +77,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     var gh = foes(Ghoul).num
                     var fu = foes(Fungi).num
                     var dy = foes(DarkYoung).num
-                    var shu = foes.has(ShubNiggurath)
+                    var shu = foes.got(ShubNiggurath)
 
                     var shield = ac + we + gk
 
@@ -96,7 +96,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     var ng = foes(Nightgaunt).num
                     var fp = foes(FlyingPolyp).num
                     var hh = foes(HuntingHorror).num
-                    var nya = foes.has(Nyarlathotep)
+                    var nya = foes.got(Nyarlathotep)
 
                     var abd = f.has(Abduct).??(ng)
 
@@ -154,8 +154,8 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     var ec = foes(Acolyte).num
                     var un = foes(Undead).num
                     var by = foes(Byakhee).num
-                    var kiy = foes.has(KingInYellow)
-                    var has = foes.has(Hastur)
+                    var kiy = foes.got(KingInYellow)
+                    var has = foes.got(Hastur)
 
                     val shield = ac + we + gk
 
@@ -175,7 +175,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                     var wz = foes(Wizard).num
                     var sm = foes(SerpentMan).num
                     var fs = foes(FormlessSpawn).num
-                    var tsa = foes.has(Tsathoggua)
+                    var tsa = foes.got(Tsathoggua)
 
                     val shield = ac + we + gk
 

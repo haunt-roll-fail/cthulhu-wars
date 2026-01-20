@@ -12,8 +12,8 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             def |=> (e : (Int, String)) { if (bool) result +:= Evaluation(e._1, e._2) }
         }
 
-        def canStrikeCC(r : Region) = (r.foes.has(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
-        def canStrikeGC(r : Region) = (r.foes.has(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
+        def canStrikeCC(r : Region) = (r.foes.got(Nyarlathotep) && CC.power > 0) || (CC.power > 1 && CC.allSB && r.near012.%(_.foes(Nyarlathotep).any).any)
+        def canStrikeGC(r : Region) = (r.foes.got(Cthulhu) && GC.power > 0) || (GC.power > 1 && GC.allSB && r.near.%(_.foes(Cthulhu).any).any) || (GC.power > 0 && GC.allSB && GC.at(GC.deep).any)
 
         val forgetGates = have(Hastur) && have(KingInYellow) && self.realDoom + power / 3 * 2 >= 30 && game.desecrated.num < 12
 
@@ -44,11 +44,11 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             var ac = allies(Acolyte).num
             var un = allies(Undead).num
             var by = allies(Byakhee).num
-            val kiy = allies.has(KingInYellow)
-            val has = allies.has(Hastur)
+            val kiy = allies.got(KingInYellow)
+            val has = allies.got(Hastur)
 
-            var eby = foes.has(Byatis)
-            var eab = foes.has(Abhoth)
+            var eby = foes.got(Byatis)
+            var eab = foes.got(Abhoth)
             var eny = foes(Nyogtha).num
             var egug = foes(Gug).num
             var esht = foes(Shantak).num
@@ -61,7 +61,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                     var dp = foes(DeepOne).num
                     var sh = foes(Shoggoth).num
                     var ss = foes(Starspawn).num
-                    var cth = foes.has(Cthulhu)
+                    var cth = foes.got(Cthulhu)
 
                     var enemyStr = (f.has(Absorb) && sh > 0).?(ec * 3 + dp * 3).|(dp) + sh * 2 + ss * 3 + cth.??(6) + egug * 3 + esht * 2 + esv + eby.??(4) + eab.??(efi) + eny
                     var shield = ac + un + by - 1
@@ -77,7 +77,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                     var gh = foes(Ghoul).num
                     var fu = foes(Fungi).num
                     var dy = foes(DarkYoung).num
-                    var shu = foes.has(ShubNiggurath)
+                    var shu = foes.got(ShubNiggurath)
 
                     var enemyStr = f.strength(foes, self)
 
@@ -96,7 +96,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                     var ng = foes(Nightgaunt).num
                     var fp = foes(FlyingPolyp).num
                     var hh = foes(HuntingHorror).num
-                    var nya = foes.has(Nyarlathotep)
+                    var nya = foes.got(Nyarlathotep)
 
                     var abd = f.has(Abduct).??(ng)
 
@@ -150,7 +150,7 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
                     val wi = foes(Wizard).num
                     val sm = foes(SerpentMan).num
                     val fs = foes(FormlessSpawn).num
-                    val tsa = foes.has(Tsathoggua)
+                    val tsa = foes.got(Tsathoggua)
 
                     val dms = f.has(DemandSacrifice) && f.has(Tsathoggua)
 

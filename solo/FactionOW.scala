@@ -76,16 +76,20 @@ case class DreadCurseRetreatToAction(self : OW, r : Region, e : $[Faction], f : 
 
 case class DragonDescendingDoomAction(self : OW, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending.full) with DoomQuestion
 
+case class DragonAscendingCommandsAction(self : OW, then : ForcedAction) extends ForcedAction
+
 case class DragonAscendingMainAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with MainQuestion with Soft
 case class DragonAscendingDoomAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with DoomQuestion with Soft
 
-case class DragonAscendingAction(self : OW, f : |[Faction], reason : String, n : Int, then : ForcedAction) extends BaseFactionAction(self.styled(DragonAscending) + " before " + f./("" + _ + " ").|("") + reason, "Rise to " + n.power)
+case class DragonAscendingOutOfTurnAction(self : OW) extends BaseFactionAction(DragonAscending, implicit g => "Rise to " + factions./(_.power).max.power) with Soft
+
+case class DragonAscendingPromptAction(self : OW, e : Faction, then : ForcedAction) extends ForcedAction with Soft
+case class DragonAscendingAction(self : OW, f : |[Faction], reason : |[String], n : Int, then : ForcedAction) extends BaseFactionAction(self.styled(DragonAscending) + reason./(r => " before " + f./("" + _ + " ").|("") + r).|(""), "Rise to " + n.power)
 case class DragonAscendingAskAction(self : OW, f : |[Faction], reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingInstantAction(then : ForcedAction) extends ForcedAction
 case class DragonAscendingUpAction(reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingDownAction(f : Faction, reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingCancelAction(self : OW, then : ForcedAction) extends BaseFactionAction(None, "Cancel")
-case class DragonAscendingNotThisTurnAction(self : OW, then : ForcedAction) extends BaseFactionAction(None, "Not in this Action Phase")
 
 
 object OWExpansion extends Expansion {
@@ -182,12 +186,7 @@ object OWExpansion extends Expansion {
 
             game.reveals(f)
 
-            if (f.battled.any)
-                + EndTurnAction(f)
-            else
-                + PassAction(f)
-
-            game.toggles(f)
+            game.endTurn(f)(f.battled.any)
 
             asking
 
@@ -338,20 +337,54 @@ object OWExpansion extends Expansion {
             Force(RitualAction(self, cost, 2))
 
         // DRAGON ASCENDING
+        case SpellbookAction(_, _, DragonAscendingCommandsAction(_, _)) =>
+            UnknownContinue
+
+        case SpellbookAction(OW, DragonAscending, then) =>
+            Force(SpellbookAction(OW, DragonAscending, DragonAscendingCommandsAction(OW, then)))
+
+        case DragonAscendingCommandsAction(f, then) =>
+            f.plans ++= $(
+                DragonAscendingPrompt,
+                DragonAscendingSkip,
+                DragonAscendingPowerPlus2,
+                DragonAscendingPowerPlus3,
+                DragonAscendingPowerPlus5,
+                DragonAscendingPowerPlus7,
+                DragonAscendingPowerPlus9,
+            )
+
+            f.commands ++= $(DragonAscendingPrompt)
+
+            then
+
         case DoomNextPlayerAction(f : OW) =>
             CheckSpellbooksAction(DragonAscendingInstantAction(DragonAscendingDownAction(f, "doom action", DoomAction(f))))
 
         case DragonAscendingMainAction(self) =>
-            Ask(self).add(DragonAscendingAction(self, |(self), "own action", factions./(_.power).max, PreMainAction(self))).cancel
+            Ask(self).add(DragonAscendingAction(self, |(self), |("own action"), factions./(_.power).max, PreMainAction(self))).cancel
 
         case DragonAscendingDoomAction(self) =>
-            Ask(self).add(DragonAscendingAction(self, |(self), "own " + "Doom".styled("doom") + " action", factions./(_.power).max, DoomAction(self))).cancel
+            Ask(self).add(DragonAscendingAction(self, |(self), |("own " + "Doom".styled("doom") + " action"), factions./(_.power).max, DoomAction(self))).cancel
+
+        case DragonAscendingPromptAction(f, e, then) =>
+            DragonAscendingAskAction(f, |(e), "action", then)
 
         case DragonAscendingAskAction(self, f, reason, then) =>
+            val raise = factions./(_.power).max - self.power
+
+            val threshold = self.commands.of[DragonAscendingPower].single./(_.power).|(1)
+
             Ask(self)
-                .add(DragonAscendingAction(self, f, reason, factions./(_.power).max, then))
+                .when(raise >= threshold)(DragonAscendingAction(self, f, |(reason), factions./(_.power).max, then))
                 .add(DragonAscendingCancelAction(self, then))
-                .add(DragonAscendingNotThisTurnAction(self, then))
+
+        case DragonAscendingOutOfTurnAction(f) =>
+            val raise = factions./(_.power).max - f.power
+
+            Ask(f)
+                .add(DragonAscendingAction(f, None, None, factions./(_.power).max, OutOfTurnReturn))
+                .cancel
 
         case DragonAscendingAction(self, _, _, p, then) =>
             self.power = p
@@ -362,14 +395,13 @@ object OWExpansion extends Expansion {
 
             self.log("used", DragonAscending.full, "and rose to", p.power)
 
+            self.plans = self.plans.notOf[DragonAscendingPlan]
+            self.commands = self.commands.notOf[DragonAscendingPlan]
+
             Force(then)
 
         case DragonAscendingCancelAction(self, then) =>
             self.ignorePerInstant :+= DragonAscending
-            Force(then)
-
-        case DragonAscendingNotThisTurnAction(self, then) =>
-            self.ignorePerTurn :+= DragonAscending
             Force(then)
 
         case DragonAscendingInstantAction(then) =>
