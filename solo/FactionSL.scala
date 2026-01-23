@@ -98,6 +98,9 @@ object SLExpansion extends Expansion {
 
             game.rituals(f)
 
+            if (f.can(Dematerialization))
+                + DematerializationDoomAction(f)
+
             if (f.can(DeathFromBelow) && f.pool.monsters.any)
                 + DeathFromBelowDoomAction(f)
 
@@ -137,7 +140,15 @@ object SLExpansion extends Expansion {
                 if (game.options.has(IceAgeAffectsLethargy).not || f.affords(0)(f.goo(Tsathoggua).region))
                     + LethargyMainAction(f)
 
+            if (f.has(Hibernate))
+                + HibernateMainAction(f, min(f.power, f.enemies./~(_.goos.distinctBy(_.uclass)).num))
+
             game.moves(f)
+
+            if (f.has(BeyondOne) && game.gates.num < areas.num && areas.diff(game.gates).%(f.affords(1)).any)
+                game.gates.%(r => f.enemies.%(_.at(r, GOO).any).none).%(r => f.at(r).%(_.uclass.cost >= 3).%(_.canMove).any).some.foreach {
+                    + BeyondOneMainAction(f, _)
+                }
 
             game.captures(f)
 

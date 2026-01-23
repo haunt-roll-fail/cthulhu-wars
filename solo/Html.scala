@@ -5,6 +5,8 @@ import hrf.colmat._
 
 package object html {
     implicit class HtmlString(val s : String) extends AnyVal {
+        def spn : String = "<span>" + s + "</span>"
+        def inline : String = "<span class='inline-block'>" + s + "</span>"
         def styled(l : String*) : String = "<span class='" + l.mkString(" ")  + "'>" + s + "</span>"
         def styled(f : Faction) : String = s.styled(f.style)
         def power = (s + " Power").styled("power")

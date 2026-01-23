@@ -100,6 +100,7 @@ trait GameImplicits {
         def factionGOOs = l.%(u => u.uclass.utype == GOO && u.uclass.is[IGOO].not)
         def independentGOOs = l.%(u => u.uclass.utype == GOO && u.uclass.is[IGOO])
         def cultists = l.%(_.uclass.utype == Cultist)
+        def acolytes = l.%(_.uclass == Acolyte)
         def vulnerable = l.%(u => u.uclass.utype == Cultist || u.uclass.utype == Monster)
         def monsters = l.%(_.uclass.utype == Monster)
         def monsterly = l.%(u => u.uclass.utype == Monster || u.uclass.utype == Terror)
@@ -113,9 +114,10 @@ trait GameImplicits {
     }
 
     implicit class UnitFigureListGameEx(l : $[UnitFigure])(implicit game : Game) {
-        def sort = l.sortWith(game.compareUnits)
+        def sortA = l.sortWith(game.compareUnitsActive)
+        def sortP = l.sortWith(game.compareUnitsPassive)
         def preferablyNotOnGate =
-            l.sortWith(game.compareUnits)
+            l.sortWith(game.compareUnitsPassive)
                 .useIf(l => l.sameBy(_.region) && l.sameBy(_.uclass) && (l.sameBy(_.onGate) || l./(_.faction).distinct.only.clings))(_.take(1))
         def nex = game.nexed.some./(x => l.%(u => x.has(u.region))).|(l)
         def tag(s : UnitState) = l.%(_.tag(s))
@@ -177,7 +179,7 @@ case class ElderSign(value : Int) {
 trait LoyaltyCard {
     val icon : UnitClass
     val unit : UnitClass
-    val name = unit.name
+    def name = unit.name
     val doom : Int = 0
     val power : Int = 0
     val cost : Int
@@ -298,6 +300,7 @@ case class UnitRefFull(r : UnitRef)
 sealed abstract class Spellbook(val name : String) extends Record {
     def full : String
     override def toString = full
+    def styled(f : Faction) = name.styled(f)
 }
 
 trait BattleSpellbook extends Spellbook
@@ -605,14 +608,16 @@ case object UnspeakableOathImmediately extends UnspeakableOathPlan("Queue Activa
     override val info = selected
 }
 case object UnspeakableOathPrompt extends UnspeakableOathPlan("Always prompt") with DefaultPlan with OneOfPlan
-case object UnspeakableOathSkip extends UnspeakableOathPlan("Skip, unless...") with OneOfPlan { override val followers = $(UnspeakableOathThreatOfHPCapture, UnspeakableOathThreatOfAcolyteCapture, UnspeakableOathThreatOfAttack) }
+case object UnspeakableOathSkip extends UnspeakableOathPlan("Skip, unless...") with OneOfPlan { override val followers = $(UnspeakableOathThreatOfHPCapture, UnspeakableOathThreatOfAcolyteCapture, UnspeakableOathThreatOfAttackOnHighPriest) }
 trait UnspeakableThreat extends UnspeakableOathPlan { override val requires = $($(UnspeakableOathSkip)) }
 case object UnspeakableOathThreatOfHPCapture extends UnspeakableOathPlan("...threat of High Priest capture") with UnspeakableThreat
-case object UnspeakableOathThreatOfAcolyteCapture extends UnspeakableOathPlan("...threat of Acolyte capture") with UnspeakableThreat
-case object UnspeakableOathThreatOfAttack extends UnspeakableOathPlan("...credible threat of High Priest being killed") with UnspeakableThreat
-case object UnspeakableOathOfAttackOnGate extends UnspeakableOathPlan("...credible threat to the controlled gate") with UnspeakableThreat
-case object UnspeakableOathOfAttackOnGOO extends UnspeakableOathPlan("...credible threat of battle against GOO") with UnspeakableThreat
 case object UnspeakableOathThreatOfThousandForms extends UnspeakableOathPlan("...threat of unopposed Thousand Forms") with UnspeakableThreat
+case object UnspeakableOathThreatOfDryEternal extends UnspeakableOathPlan("...threat of battle again Rhan-Tegoth with no power") with UnspeakableThreat
+
+case object UnspeakableOathThreatOfAcolyteCapture extends UnspeakableOathPlan("...threat of Acolyte capture") with UnspeakableThreat
+case object UnspeakableOathThreatOfAttackOnHighPriest extends UnspeakableOathPlan("...credible threat of High Priest being killed") with UnspeakableThreat
+case object UnspeakableOathThreatOfAttackOnGate extends UnspeakableOathPlan("...credible threat to the controlled gate") with UnspeakableThreat
+case object UnspeakableOathThreatOfAttackOnGOO extends UnspeakableOathPlan("...credible threat of battle against GOO") with UnspeakableThreat
 
 
 class Player(private val f : Faction)(implicit game : Game) {
@@ -1109,7 +1114,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         }
     }
 
-    def compareUnits(a : UnitFigure, b : UnitFigure) : Boolean = {
+    def compareUnitsActive(a : UnitFigure, b : UnitFigure) : Boolean = {
         if (a.uclass.priority != b.uclass.priority)
             a.uclass.priority > b.uclass.priority
         else
@@ -1119,6 +1124,17 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             areas.indexOf(a.region) < areas.indexOf(b.region)
     }
 
+    def compareUnitsPassive(a : UnitFigure, b : UnitFigure) : Boolean = {
+        if (a.uclass.priority != b.uclass.priority)
+            a.uclass.priority < b.uclass.priority
+        else
+        if (a.onGate != b.onGate)
+            a.onGate < b.onGate
+        else
+            areas.indexOf(a.region) < areas.indexOf(b.region)
+    }
+
+    /*
     def compareUnitClasses(a : UnitClass, b : UnitClass) : Int = {
         if (a == b)
             0
@@ -1128,6 +1144,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         else
             a.priority - b.priority
     }
+    */
 
     def regionStatus(r : Region) : $[String] = {
         val gate = gates.contains(r)
@@ -1312,7 +1329,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def summons(f : Faction)(implicit w : AskWrapper) {
-        f.pool.monsterly.sort./(_.uclass).distinct.%(_.canBeSummoned(f)).reverse.foreach { uc =>
+        f.pool.monsterly.sortP./(_.uclass).distinct.%(_.canBeSummoned(f)).foreach { uc =>
             areas.nex.%(r => f.affords(f.summonCost(uc, r))(r)).%(f.canAccessGate).some.foreach { l =>
                 + SummonMainAction(f, uc, l)
             }
@@ -1838,6 +1855,59 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case PreMainAction(f) if factions.exists(f => f.unfulfilled.num + f.spellbooks.num < f.spellbooks.num) =>
             CheckSpellbooksAction(PreMainAction(f))
 
+        case PreMainAction(f) if f.active.not && f.hibernating.not =>
+            implicit val asking = Asking(f)
+
+            + GroupAction("Before " + f + " turn")
+
+            if (f.all(HighPriest).any) {
+                var reasons = f.commands.has(UnspeakableOathPrompt).$("always prompted")
+
+                f.enemies.%(e => e.active || e.all(HighPriest).any).foreach { e =>
+                    val canAct = true // e.acted.not
+                    val canBattle = true // canAct || e.hasAllSB
+                    def canBattleIn(r : Region) = true // canBattle && e.battled.has(r).not
+
+                    if (f.commands.has(UnspeakableOathThreatOfHPCapture) && canAct)
+                        f.all(HighPriest)./(_.region).distinct.%(r => e.canCapture(r)(f) && f.at(r).acolytes.none).some./{ l =>
+                            reasons :+= "" + e + " might capture " + HighPriest.styled(f) + " " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f.commands.has(UnspeakableOathThreatOfAttackOnHighPriest) && canBattle)
+                        f.all(HighPriest)./(_.region).distinct.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                            reasons :+= "" + e + " might kill " + HighPriest.styled(f) + " " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f.commands.has(UnspeakableOathThreatOfAcolyteCapture) && canAct)
+                        f.all.acolytes./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
+                            reasons :+= "" + e + " might capture " + Acolyte.styled(f) + " " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f.commands.has(UnspeakableOathThreatOfAttackOnGate) && canBattle)
+                        f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                            reasons :+= "" + e + " might take the gate" + " " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f == GC && canAct)
+                        if (e == SL && e.has(CursedSlumber) && e.gates.has(game.starting(f)))
+                            reasons :+= "" + e + " might whisk away the gate " + ("from " + game.starting(f)).inline
+
+                    if (f == GC && canAct)
+                        if (e == OW && f.at(game.starting(f)).goos.none && e.at(game.starting(f)).%(_.uclass.cost >= 3).any)
+                            reasons :+= "" + e + " might whisk away the gate " + ("from " + game.starting(f)).inline
+
+                    if (f.commands.has(UnspeakableOathThreatOfAttackOnGOO) && canBattle)
+                        f.goos./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && (e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num || e.at(r).got(Hastur))).some./{ l =>
+                            reasons :+= "GOO might be in danger from " + e + " " + ("in " + l.mkString(", ")).inline
+                        }
+                }
+
+                if (reasons.any)
+                    + SacrificeHighPriestPromptAction(f, PreMainAction(f)).as("Sacrifice", HighPriest.styled(f))("Unspeakable Oath".hl, reasons./("<br/>(" + _ + ")").mkString(""))
+            }
+
+            asking.ask.useIf(_.actions.exists(_.isInfo.not))(_.add(NeedOk).add(OutOfTurnRefresh(PreMainAction(f))).add(SacrificeHighPriestAllowedAction).group(" ")).skip(MainAction(f))
+
         case PreMainAction(f) if f.active && f.power > 0 =>
             PreActionPromptsAction(f, f.enemies)
 
@@ -1849,81 +1919,62 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             val asks = l./~{ f =>
                 implicit val asking = Asking(f)
 
-                + GroupAction("Before " + e + " action triggers")
+                + GroupAction("Before " + e + " action")
 
                 if (f.all(HighPriest).any) {
                     var reasons = f.commands.has(UnspeakableOathPrompt).$("always prompted")
 
                     if (f.commands.has(UnspeakableOathThreatOfHPCapture) && canAct)
-                        f.all(HighPriest)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
-                            reasons :+= "threat of High Priest capture in " + l.mkString(", ")
+                        f.all(HighPriest)./(_.region).distinct.%(r => e.canCapture(r)(f) && f.at(r).acolytes.none).some./{ l =>
+                            reasons :+= "" + e + " might capture " + HighPriest.styled(f) + " " + ("in " + l.mkString(", ")).inline
                         }
 
-                    if (f.active.not) {
-                        if (f.commands.has(UnspeakableOathThreatOfAcolyteCapture) && canAct)
-                            f.all(Acolyte)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
-                                reasons :+= "threat of Acolyte capture in " + l.mkString(", ")
-                            }
+                    if (f.commands.has(UnspeakableOathThreatOfAttackOnHighPriest) && canBattle)
+                        f.all(HighPriest)./(_.region).distinct.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                            reasons :+= "" + e + " might kill " + HighPriest.styled(f) + " " + ("in " + l.mkString(", ")).inline
+                        }
 
-                        if (f.commands.has(UnspeakableOathThreatOfAttack) && canBattle)
-                            f.all(HighPriest)./(_.region).distinct.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
-                                reasons :+= "threat of High Priest being killed in " + l.mkString(", ")
-                            }
-
-                        if (f.commands.has(UnspeakableOathOfAttackOnGate) && canBattle)
-                            f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
-                                reasons :+= "threat of gate being taken in " + l.mkString(", ")
-                            }
-
-                        if (f == GC && canAct)
-                            if (e == SL && e.has(CursedSlumber) && e.gates.has(game.starting(f)))
-                                reasons :+= "threat to the awakening gate in " + game.starting(f)
-
-                        if (f == GC && canAct)
-                            if (e == OW && e.at(game.starting(f)).%(_.uclass.cost >= 3).any)
-                                reasons :+= "threat to the awakening gate in " + game.starting(f)
-
-                        if (f.commands.has(UnspeakableOathOfAttackOnGOO) && canBattle)
+                    if (f.commands.has(UnspeakableOathThreatOfDryEternal) && canBattle)
+                        if (f.has(RhanTegoth) && f.power == 0)
                             f.goos./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && (e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num || e.at(r).got(Hastur))).some./{ l =>
-                                reasons :+= "GOO might be in danger in " + l.mkString(", ")
+                                reasons :+= RhanTegoth + " might not have power for " + Eternal // + " " + ("in " + l.mkString(", ")).inline
                             }
-                    }
 
                     if (f.commands.has(UnspeakableOathThreatOfThousandForms) && canAct)
                         if (e == CC && e.has(Nyarlathotep) && e.can(ThousandForms) && f.power < 6)
-                            reasons :+= "" + e + " can roll for " + ThousandForms
+                            reasons :+= "" + e + " might roll for " + ThousandForms + " unopposed"
 
                     if (reasons.any)
                         + SacrificeHighPriestPromptAction(f, PreMainAction(e)).as("Sacrifice", HighPriest.styled(f))("Unspeakable Oath".hl, reasons./("<br/>(" + _ + ")").mkString(""))
                 }
 
-                if (f.has(Devolve) && f.all(Acolyte).any && f.pool(DeepOne).any) {
+                if (f.has(Devolve) && f.all.acolytes.any && f.pool(DeepOne).any) {
                     var reasons = f.commands.has(DevolvePrompt).$("always prompted")
 
                     if (f.commands.has(DevolveThreatOfCapture) && canAct)
-                        f.all(Acolyte)./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
-                            reasons :+= "threat of Acolyte capture in " + l.mkString(", ")
-                            }
+                        f.all.acolytes./(_.region).distinct.%(r => e.canCapture(r)(f)).some./{ l =>
+                            reasons :+= "" + e + " might capture " + Acolyte.styled(f) + " " + ("in " + l.mkString(", ")).inline
+                        }
 
                     if (f.commands.has(DevolveThreatOfZingaya) && canAct)
                         if (e == YS && e.has(Zingaya) && e.pool(Undead).any)
-                            f.all(Acolyte)./(_.region).distinct.%(r => e.at(r).got(Undead)).some./{ l =>
-                                reasons :+= "threat of Zingaya in " + l.mkString(", ")
+                            f.all.acolytes./(_.region).distinct.%(r => e.at(r).got(Undead)).some./{ l =>
+                                reasons :+= "" + e + " might " + Zingaya + " " + ("in " + l.mkString(", ")).inline
                             }
 
                     if (f.commands.has(DevolveThreatOfBeyondOne) && canBattle)
                         f.gates.%(r => f.at(r).goos.none && e.at(r).%(_.uclass.cost >= 3).any).some./{ l =>
-                            reasons :+= "threat of Beyond One in " + l.mkString(", ")
+                            reasons :+= "" + e + " might " + BeyondOne + " " + ("from " + l.mkString(", ")).inline
                         }
 
                     if (f.commands.has(DevolveThreatOfAttackOnGate) && canBattle)
                         f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
-                            reasons :+= "threat of gate being taken in " + l.mkString(", ")
+                            reasons :+= "" + e + " might attack the gate" + " " + ("in " + l.mkString(", ")).inline
                         }
 
                     if (f.commands.has(DevolveThreatOfAttackOnGOO) && canBattle)
                         f.goos./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && (e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num || e.at(r).got(Hastur))).some./{ l =>
-                            reasons :+= "GOO might be in danger in " + l.mkString(", ")
+                            reasons :+= "GOO might be in danger from " + e + " " + ("in " + l.mkString(", ")).inline
                         }
 
                     if (reasons.any)
@@ -1942,7 +1993,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             else
                 Then(MainGatesAction(e))
 
-        case PreMainAction(f) if f.active.not || f.power == 0 =>
+        case PreMainAction(f) if f.active.not =>
+            MainAction(f)
+
+        case PreMainAction(f) =>
             MainGatesAction(f)
 
         case MainGatesAction(f) =>
@@ -2102,7 +2156,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             if (self.power == 0)
                 MoveDoneAction(self)
             else {
-                val units = self.units.nex.onMap.not(Moved).%(_.canMove).sort
+                val units = self.units.nex.onMap.not(Moved).%(_.canMove).sortA
 
                 if (units.none)
                     Then(MoveDoneAction(self))
@@ -2298,12 +2352,13 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                     UnspeakableOathPrompt,
                     UnspeakableOathSkip,
                     UnspeakableOathThreatOfHPCapture,
+                    UnspeakableOathThreatOfAttackOnHighPriest,
                     UnspeakableOathThreatOfAcolyteCapture,
-                    UnspeakableOathThreatOfAttack,
-                    UnspeakableOathOfAttackOnGate,
                 ) ++
-                (self != AN).$(UnspeakableOathOfAttackOnGOO) ++
-                self.enemies.has(CC).$(UnspeakableOathThreatOfThousandForms)
+                (self == WW).$(UnspeakableOathThreatOfDryEternal) ++
+                (self != AN).$(UnspeakableOathThreatOfAttackOnGOO) ++
+                self.enemies.has(CC).$(UnspeakableOathThreatOfThousandForms) ++
+                $(UnspeakableOathThreatOfAttackOnGate)
 
                 self.commands :+= UnspeakableOathPrompt
 
@@ -2370,6 +2425,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             self.power += 2
 
             self.log("sacrificed", c, "in", r)
+
+            if (self.hibernating.not)
+                self.active = true
 
             triggers()
 

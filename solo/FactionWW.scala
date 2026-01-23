@@ -66,7 +66,7 @@ case object WW extends Faction { f =>
 }
 
 
-case class HibernateMainAction(self : WW, n : Int) extends OptionFactionAction(Hibernate.full + " for extra " + n.power) with MainQuestion
+case class HibernateMainAction(self : Faction, n : Int) extends OptionFactionAction(Hibernate.styled(self) + " for extra " + n.power) with MainQuestion
 
 case class IceAgeMainAction(self : WW, l : $[Region]) extends OptionFactionAction(IceAge) with MainQuestion with Soft
 case class IceAgeAction(self : WW, r : Region) extends BaseFactionAction(self.styled(IceAge) + " region", r)
@@ -210,7 +210,7 @@ object WWExpansion extends Expansion {
         // ARCTIC WIND
         case MovedAction(self : WW, u, o, r) if u.uclass == Ithaqua && self.has(ArcticWind) =>
             Ask(self)
-                .each(self.at(o).not(Moved).%(_.canMove).sort)(u => ArcticWindAction(self, o, u, r).as(u.full, "from", o)(ArcticWind, "to", r))
+                .each(self.at(o).not(Moved).%(_.canMove).sortA)(u => ArcticWindAction(self, o, u, r).as(u.full, "from", o)(ArcticWind, "to", r))
                 .done(MoveContinueAction(self, true))
 
         case ArcticWindAction(self, o, u, r) =>

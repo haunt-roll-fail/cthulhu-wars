@@ -62,9 +62,9 @@ case object OW extends Faction { f =>
 }
 
 
-case class BeyondOneMainAction(self : OW, l : $[Region]) extends OptionFactionAction(self.styled(BeyondOne)) with MainQuestion with Soft
-case class BeyondOneUnitAction(self : OW, o : Region, uc : UnitClass) extends BaseFactionAction(self.styled(BeyondOne), self.styled(uc) + " from " + o) with Soft
-case class BeyondOneAction(self : OW, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(self.styled(BeyondOne) + " from " + o + " with " + self.styled(uc) + " to", implicit g => r + self.iced(r))
+case class BeyondOneMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(self.styled(BeyondOne)) with MainQuestion with Soft
+case class BeyondOneUnitAction(self : Faction, o : Region, uc : UnitClass) extends BaseFactionAction(self.styled(BeyondOne), self.styled(uc) + " from " + o) with Soft
+case class BeyondOneAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(self.styled(BeyondOne) + " from " + o + " with " + self.styled(uc) + " to", implicit g => r + self.iced(r))
 
 case class DreadCurseMainAction(self : OW, n : Int, l : $[Region]) extends OptionFactionAction(self.styled(DreadCurse)) with MainQuestion with Soft
 case class DreadCurseAction(self : OW, n : Int, r : Region) extends BaseFactionAction(self.styled(DreadCurse), implicit g => r + self.iced(r))
