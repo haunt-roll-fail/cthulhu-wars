@@ -194,7 +194,7 @@ object CCExpansion extends Expansion {
             var time = xtime
 
             while (offers./(_.n).sum > x)
-                offers = offers.dropRight(1)
+                offers = offers.dropEnding
 
             if (offers./(_.n).sum == x) {
                 offers.%(_.n > 0).reverse.foreach { o =>
@@ -226,7 +226,7 @@ object CCExpansion extends Expansion {
                 }
 
                 val next = xforum.first
-                val forum = xforum.drop(1) :+ next
+                val forum = xforum.dropStarting :+ next
 
                 offers = offers.%(_.f != next)
                 val offered = offers./(_.n).sum

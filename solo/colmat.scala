@@ -158,9 +158,10 @@ object colmat {
         def first = l.head
         def starting = l.headOption
         def ending = l.lastOption
-        def dropFirst = l.drop(1)
-        def dropLast = l.dropRight(1)
-        def dropEnd(n : Int) = l.dropRight(n)
+        def dropStarting = l.drop(1)
+        def dropEnding = l.dropRight(1)
+        def dropLast(n : Int) = l.dropRight(n)
+        def takeLast(n : Int) = l.takeRight(n)
 
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
@@ -210,14 +211,16 @@ object colmat {
         def first = l.head
         def starting = l.headOption
         def ending = l.lastOption
-        def dropFirst = l.drop(1)
-        def dropLast = l.dropRight(1)
-        def dropEnd(n : Int) = l.dropRight(n)
+        def dropStarting = l.drop(1)
+        def dropEnding = l.dropRight(1)
+        def dropLast(n : Int) = l.dropRight(n)
+        def takeLast(n : Int) = l.takeRight(n)
 
         def shuffle = scala.util.Random.shuffle(l)
         def shuffleWith(r : Randomness) = l.zip(r.get(l.num)).sortBy(_._2).map(_._1)
         def shuffleSeed(s : Int) = new scala.util.Random(s).shuffle(l)
         def occurrences[K](d : T => K) : Map[K, Int] = l.groupMapReduce(d)(_ => 1)(_ + _)
+        def subsets = 0.to(l.num)./~(l.combinations)
 
         def sameBy[U](f : T => U) = {
             l match {

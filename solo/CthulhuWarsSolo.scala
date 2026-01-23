@@ -949,7 +949,7 @@ object CthulhuWarsSolo {
                     if (game.cathedrals.has(r))
                         all +:= DrawItem(r, null, Cathedral, Alive, $, 0, 0)
 
-                    if (game.factions.%(_.iceAge.?(_ == r)).any)
+                    if (game.setup.%(_.iceAge.?(_ == r)).any)
                         all +:= DrawItem(r, null, IceAgeToken, Alive, $, 0, 0)
 
                     all.foreach { d =>
@@ -1159,7 +1159,7 @@ object CthulhuWarsSolo {
                 }
 
                 var smx = 0
-                game.factions.%(_ != f).foreach { e =>
+                game.setup.but(f).foreach { e =>
                     if (e.borrowed.has(f.abilities.head)) {
                         dd(DrawItem(null, e, SerpentMan, Alive, $, w - 46 + smx, 86).rect)
                         smx -= 20
@@ -1599,7 +1599,7 @@ object CthulhuWarsSolo {
                             case UIProcess(g, recorded) if recorded.none => {
                                 queue :+= UIRead(g)
 
-                                Some((false, 30*10))
+                                Some((false, 30))
                             }
                             case UIProcess(g, recorded) => {
                                 savedUIAction = None
@@ -1639,8 +1639,8 @@ object CthulhuWarsSolo {
                                 Some((true, 0))
                             }
 
-                            case UIPerform(g, aa) => {
-                                val a = aa match {
+                            case UIPerform(g, action) => {
+                                val a = action match {
                                     case esa : ElderSignAction if recorded.any => esa.copy(public = true)
                                     case a => a
                                 }
@@ -1658,6 +1658,7 @@ object CthulhuWarsSolo {
                                     case Ask(f, _) if setup.difficulty(f) == Human => 2
                                     case Ask(_, actions) if actions.distinct.num <= 2 => 4
                                     case DelayedContinue(n, _) => n
+                                    case Then(_) => 0
                                     case _ => 30
                                  }
 

@@ -69,7 +69,7 @@ object NeutralSpellbooksExpansion extends Expansion {
             UndimensionedContinueAction(self, self.units.onMap./(_.region).distinct, false)
 
         case UndimensionedContinueAction(self, destinations, moved) =>
-            val units = self.units.nex.onMap.not(Moved).%(u => destinations.but(u.region).%(self.affords(self.units.onMap.tag(Moved).none.??(2))).any).sort
+            val units = self.units.nex.onMap.not(Moved).%(u => destinations.but(u.region).%(self.affords(self.units.onMap.tag(Moved).none.??(2))).any).sortA
             if (units.none)
                 Then(UndimensionedDoneAction(self))
             else

@@ -142,6 +142,7 @@ case class CannibalismAction(self : Faction, r : Region, uc : UnitClass) extends
 case class ChannelPowerAction(self : Faction, n : Int) extends BaseFactionAction(self.styled(ChannelPower), "Reroll " + n + " " + (n > 1).?("Misses").|("Miss").styled("miss") + " for " + 1.power)
 
 case class MillionFavoredOnesAction(self : Faction, r : Region, uc : UnitClass, nw : $[UnitClass]) extends BaseFactionAction(self.styled(MillionFavoredOnes), self.styled(uc) + " in " + r + " to " + self.styled((nw.num > 1).?("" + nw.num + " " + nw(0).plural).|(nw(0).name)))
+case class MillionFavoredOnesXAction(self : Faction, r : Region, u : UnitRef, nw : $[UnitClass]) extends ForcedAction
 
 // AN
 case class UnholyGroundAction(self : Faction, o : Faction, cr : Region) extends ForcedAction
@@ -410,7 +411,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         if (f != s && assigned == 0)
             log(f, "assigned kills with", f.styled(Vengeance))
 
-        return DelayedContinue(50, Ask(f, s.forces.%(u => canAssignKills(u) > 0).sortBy(_.uclass.cost)./(u => AssignKillAction(f, kills - assigned, s, u))))
+        return DelayedContinue(50, Ask(f, s.forces.%(u => canAssignKills(u) > 0).sortP./(u => AssignKillAction(f, kills - assigned, s, u))))
     }
 
     def assignPains(s : Faction, next : BattlePhase) : Continue = {
@@ -431,7 +432,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         if (f != s && assigned == 0 && s.real)
             log(f, "assigned pains with", f.styled(Vengeance))
 
-        return DelayedContinue(50, Ask(f, s.forces.%(u => canAssignPains(u) > 0).sortBy(_.uclass.cost)./(u => AssignPainAction(f, pains - assigned, s, u))))
+        return DelayedContinue(50, Ask(f, s.forces.%(u => canAssignPains(u) > 0).sortP./(u => AssignPainAction(f, pains - assigned, s, u))))
     }
 
     def retreater(s : Faction) : Faction = {
@@ -454,7 +455,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         val chooser : Faction = retreater(s)
 
         if (destinations.none)
-            Ask(s).each(refugees.sortBy(_.uclass.cost))(u => EliminateNoWayAction(s, u).as(u)("Nowhere to retreat, a pained unit is eliminated"))
+            Ask(s).each(refugees.sortA)(u => EliminateNoWayAction(s, u).as(u)("Nowhere to retreat, a pained unit is eliminated"))
         else
         if (destinations.num == 1) {
             val r = destinations.only
@@ -852,11 +853,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(MillionFavoredOnes)) {
                         s.remove(MillionFavoredOnes)
 
-                        val options = s.forces./~(u => u.uclass match {
-                            case Acolyte if s.pool(Mutant).any      => |(MillionFavoredOnesAction(s, u.region, u.uclass, $(Mutant)))
-                            case Mutant if s.pool(Abomination).any  => |(MillionFavoredOnesAction(s, u.region, u.uclass, $(Abomination)))
-                            case Abomination if s.pool(SpawnOW).any => |(MillionFavoredOnesAction(s, u.region, u.uclass, $(SpawnOW)))
-                            case SpawnOW if s.pool(Mutant).any      => |(MillionFavoredOnesAction(s, u.region, u.uclass, s.pool(Mutant).num.times(Mutant)))
+                        val options = s.forces.sortA./~(u => u.uclass match {
+                            case Acolyte if s.pool(Mutant).any      => |(MillionFavoredOnesXAction(s, u.region, u, $(Mutant)).as(u.full, "in", u.region, "to", Mutant)(MillionFavoredOnes))
+                            case Mutant if s.pool(Abomination).any  => |(MillionFavoredOnesXAction(s, u.region, u, $(Abomination)).as(u.full, "in", u.region, "to", Abomination)(MillionFavoredOnes))
+                            case Abomination if s.pool(SpawnOW).any => |(MillionFavoredOnesXAction(s, u.region, u, $(SpawnOW)).as(u.full, "in", u.region, "to", SpawnOW)(MillionFavoredOnes))
+                            case SpawnOW if s.pool(Mutant).any      => |(MillionFavoredOnesXAction(s, u.region, u, s.pool(Mutant).num.times(Mutant)).as(u.full, "in", u.region, "to", "Mutant".s(s.pool(Mutant).num).styled(OW))(MillionFavoredOnes))
                             case _ => None
                         })
 
@@ -989,7 +990,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
         // DEVOUR
         case DevourPreBattleAction(self) =>
-            Ask(self.opponent).each(self.opponent.forces.vulnerable)(u => DevourAction(self.opponent, u).as(u.full)(Devour))
+            Ask(self.opponent).each(self.opponent.forces.vulnerable.sortP)(u => DevourAction(self.opponent, u).as(u.full)(Devour))
 
         case DevourAction(self, u) =>
             u.faction.opponent.add(Devour)
@@ -1164,6 +1165,14 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             self.log("promoted", t, "in", r, "to", nw./(self.styled).mkString(", "))
             proceed()
 
+        case MillionFavoredOnesXAction(self, r, u, nw) =>
+            self.add(MillionFavoredOnes)
+            exempt(u)
+            game.eliminate(u)
+            nw.foreach(n => self.place(n, r))
+            self.log("promoted", u, "in", r, "to", nw./(self.styled).mkString(", "))
+            proceed()
+
         // UNHOLY GROUND
         case UnholyGroundAction(self, o, cr) =>
             self.add(UnholyGround)
@@ -1189,7 +1198,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
         // SHRIVELING
         case ShrivelingPreBattleAction(self) =>
-            Ask(self).each(self.opponent.forces.vulnerable)(u => ShrivelingAction(self, u).as(u)(Shriveling)).cancel
+            Ask(self).each(self.opponent.forces.vulnerable.sortP)(u => ShrivelingAction(self, u).as(u)(Shriveling)).cancel
 
         case ShrivelingAction(self, u) =>
             self.add(Shriveling)
@@ -1210,7 +1219,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
         // COSMIC UNITY
         case CosmicUnityPreBattleAction(self) =>
-            Ask(self).each(self.opponent.forces.goos.distinctBy(_.uclass))(u => CosmicUnityAction(self, u).as(u)(CosmicUnity, "unites")).cancel
+            Ask(self).each(self.opponent.forces.goos.distinctBy(_.uclass).sortA)(u => CosmicUnityAction(self, u).as(u)(CosmicUnity, "unites")).cancel
 
         case CosmicUnityAction(self, u) =>
             self.add(CosmicUnity)

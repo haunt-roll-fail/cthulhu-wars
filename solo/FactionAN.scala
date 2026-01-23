@@ -84,11 +84,11 @@ case class BuildCathedralAction(self : AN, r : Region) extends BaseFactionAction
 
 case class FestivalUnManSummonAction(self : AN, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + " gave power to another faction", "" + f + " gets " + 1.power)
 
-case class DematerializationDoomAction(self : AN) extends OptionFactionAction(Dematerialization) with DoomQuestion with Soft with PowerNeutral
-case class DematerializationFromRegionAction(self : AN, o : Region) extends BaseFactionAction(self.styled(Dematerialization) + " from", o)
-case class DematerializationToRegionAction(self : AN, o : Region, r : Region) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to", r)
-case class DematerializationMoveUnitAction(self : AN, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(self.styled(Dematerialization) + " from " + o + " to " + r, self.styled(uc))
-case class DematerializationDoneAction(self : AN) extends BaseFactionAction(None, "Done")
+case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization.styled(self)) with DoomQuestion with Soft with PowerNeutral
+case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from", o)
+case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to", r)
+case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to " + r, self.styled(uc))
+case class DematerializationDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
 
 object ANExpansion extends Expansion {

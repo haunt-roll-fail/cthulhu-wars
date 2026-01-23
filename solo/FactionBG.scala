@@ -195,7 +195,7 @@ object BGExpansion extends Expansion {
 
         // BLOOD SACRIFICE
         case BloodSacrificeDoomAction(self) =>
-            Ask(self).each(self.all.cultists.sort)(u => BloodSacrificeAction(self, u.region, u).as(u.full, "in", u.region)(BloodSacrifice)).cancel
+            Ask(self).each(self.all.cultists.sortP)(u => BloodSacrificeAction(self, u.region, u).as(u.full, "in", u.region)(BloodSacrifice)).cancel
 
         case BloodSacrificeAction(self, r, u) =>
             game.eliminate(u)
@@ -214,8 +214,8 @@ object BGExpansion extends Expansion {
 
         // ELIMINATE CULTISTS
         case EliminateTwoCultistsMainAction(self) =>
-            val cultists = areas./~(r => self.at(r).cultists.sort.take(2))
-            val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a, b))).distinct
+            val cultists = areas./~(r => self.at(r).cultists.sortP.take(2))
+            val pairs = cultists./~(a => cultists.dropWhile(_ != a).dropStarting./(b => (a, b))).distinct
             Ask(self).each(pairs)((a, b) => EliminateTwoCultistsAction(self, a, b)).cancel
 
         case EliminateTwoCultistsAction(self, a, b) =>
@@ -228,8 +228,8 @@ object BGExpansion extends Expansion {
 
         // AWAKEN
         case AwakenMainAction(self : BG, uc : ShubNiggurath.type, locations) =>
-            val cultists = areas./~(r => self.at(r).cultists.sort.take(2))
-            val pairs = cultists./~(a => cultists.dropWhile(_ != a).drop(1)./(b => (a, b))).distinct
+            val cultists = areas./~(r => self.at(r).cultists.sortP.take(2))
+            val pairs = cultists./~(a => cultists.dropWhile(_ != a).dropStarting./(b => (a, b))).distinct
             Ask(self).each(pairs)((a, b) => AwakenEliminateTwoCultistsAction(self, uc, locations, a, b)).cancel
 
         case AwakenEliminateTwoCultistsAction(self, uc, locations, a, b) =>
@@ -318,7 +318,7 @@ object BGExpansion extends Expansion {
             var time = xtime
 
             while (offers./(_.n).sum > x)
-                offers = offers.dropRight(1)
+                offers = offers.dropEnding
 
             if (offers./(_.n).sum == x && offers.num == xforum.num) {
                 Force(GhrothEliminateAction(f, offers./~(o => o.n.times(o.f))))
@@ -344,7 +344,7 @@ object BGExpansion extends Expansion {
                 }
 
                 val next = xforum.first
-                val forum = xforum.drop(1) :+ next
+                val forum = xforum.dropStarting :+ next
 
                 offers = offers.%(_.f != next)
                 val offered = offers./(_.n).sum
@@ -397,7 +397,7 @@ object BGExpansion extends Expansion {
             //     } else base
             // }
 
-            Ask(e).each(cultists)(u => GhrothTargetAction(e, u, f, l.drop(1)).as(u.full, "in", u.region)("Eliminate", (n > 1).?(n.styled("hightlight")).|("a"), "Cultist".s(n)))
+            Ask(e).each(cultists)(u => GhrothTargetAction(e, u, f, l.dropStarting).as(u.full, "in", u.region)("Eliminate", (n > 1).?(n.styled("hightlight")).|("a"), "Cultist".s(n)))
 
         case GhrothTargetAction(self, u, f, l) =>
             log(u, "was eliminated in", u.region)
