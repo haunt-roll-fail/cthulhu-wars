@@ -34,8 +34,6 @@ case object CC extends Faction { f =>
     def name = "Crawling Chaos"
     def short = "CC"
     def style = "cc"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Flight, Harbinger)
     override def library = $(Abduct, Invisibility, SeekAndDestroy, Emissary, ThousandForms, Madness)

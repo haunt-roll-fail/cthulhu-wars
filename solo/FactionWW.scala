@@ -33,8 +33,6 @@ case object WW extends Faction { f =>
     def name = "Windwalker"
     def short = "WW"
     def style = "ww"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Hibernate, Eternal, Ferox)
     override def library = $(Cannibalism, Howl, Berserkergang, ArcticWind, IceAge, Herald)

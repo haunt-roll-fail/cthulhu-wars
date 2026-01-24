@@ -49,7 +49,7 @@ object NeutralSpellbooksExpansion extends Expansion {
 
         // RECRIMINATIONS
         case RecriminationsMainAction(self) =>
-            Ask(self).each(self.spellbooks)(RecriminationsAction(self, _))
+            Ask(self).each(self.spellbooks)(b => RecriminationsAction(self, b))
 
         case RecriminationsAction(self, sb) =>
             self.power -= 1

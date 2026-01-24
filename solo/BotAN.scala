@@ -285,7 +285,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
 
                 o.foes.goos.any |=> -500 -> "stay with enemy goos"
 
-                val canCaptureYS = self.all.cultists./(_.region).%(_.capturers.contains(YS)).none
+                val canCaptureYS = self.cultists./(_.region).%(_.capturers.contains(YS)).none
                 val canCaptureWW = !WW.has(Ithaqua)
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => !f.active && (f != YS || canCaptureYS) && (f != WW || canCaptureWW)).any |=> 250 -> "go for capture"
 
@@ -352,19 +352,19 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 needGate && active.none && self.gates.num < 4 && !u.gateKeeper && d.noGate && power > 3 && (d.ocean.not || !GC.needs(OceanGates)) |=> (2 * 100000 / 4) -> "safe move and build gate"
 
                 u.gateKeeper && (!u.capturable || u.enemies.goos.none) |=> -500 -> "dont move gatekeeper"
-                self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -500 -> "why move if can recruit for same"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.empty) |=> 999 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.of(YS).none) |=> 990 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) |=> 909 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.foes.none) |=> 908 -> "crowded cultists 6 explore all friendly around"
+                self.pool.cultists.any && d.allies.any && !self.allInPlay.tag(Moved).any |=> -500 -> "why move if can recruit for same"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.empty) |=> 999 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.of(YS).none) |=> 990 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) |=> 909 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.foes.none) |=> 908 -> "crowded cultists 6 explore all friendly around"
                 // SL has these, but not CC. Should AN? Should CC?
-                //o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
-                //o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
-                //o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
-                //o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
+                //o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
+                //o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
+                //o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
+                //o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
 
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.ownGate |=> 60 -> "flee from capture to own gate"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.allies.monsterly.any |=> 59 -> "flee from capture to monster"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.empty |=> 58 -> "flee from capture"
@@ -397,7 +397,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val origIsAA = o.glyph == GlyphAA
                 val origIsNonGlyph = (o.glyph != GlyphWW && o.glyph != GlyphOO && o.glyph != GlyphAA)
 
-                val cultistGlyphs = self.all.cultists.map(_.region.glyph).toSet
+                val cultistGlyphs = self.cultists.map(_.region.glyph).toSet
                 val cultistAtWW = cultistGlyphs.contains(GlyphWW)
                 val cultistAtOO = cultistGlyphs.contains(GlyphOO)
                 val cultistAtAA = cultistGlyphs.contains(GlyphAA)
@@ -469,7 +469,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 numSB >= 5 |=> 16000 -> "capture with all sb"
 
                 !f.has(Passion) |=> 1600 -> "capture"
-                f.has(Passion) && f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
+                f.has(Passion) && f.power == 0 && self.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
                 f.has(Passion) && (f.power == 0 || !YS.has(Hastur) || !YS.has(ThirdEye)) |=> 1100 -> "capture with passion safe"
                 f.has(Passion) |=> 850 -> "capture with passion"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -604,7 +604,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val origIsNonGlyph = (o.glyph != GlyphWW && o.glyph != GlyphOO && o.glyph != GlyphAA)
                 val origIsOcean = o.glyph == Ocean
 
-                val cultistGlyphs = self.all.cultists.map(_.region.glyph).toSet
+                val cultistGlyphs = self.cultists.map(_.region.glyph).toSet
                 val cultistAtWW = cultistGlyphs.contains(GlyphWW)
                 val cultistAtOO = cultistGlyphs.contains(GlyphOO)
                 val cultistAtAA = cultistGlyphs.contains(GlyphAA)
@@ -807,7 +807,7 @@ class GameEvaluationAN(implicit game : Game) extends GameEvaluation(AN)(game) {
                 val destIsAA = d.glyph == GlyphAA
                 val destIsNonGlyph = (d.glyph != GlyphWW && d.glyph != GlyphOO && d.glyph != GlyphAA)
 
-                val cultistGlyphs = self.all.cultists.map(_.region.glyph).toSet
+                val cultistGlyphs = self.cultists.map(_.region.glyph).toSet
                 val cultistAtWW = cultistGlyphs.contains(GlyphWW)
                 val cultistAtOO = cultistGlyphs.contains(GlyphOO)
                 val cultistAtAA = cultistGlyphs.contains(GlyphAA)

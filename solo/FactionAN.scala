@@ -36,10 +36,8 @@ case object AN extends Faction { f =>
     def name = "The Ancients"
     def short = "AN"
     def style = "an"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
-    def extinct = Region("Extinct", Extinct)
+    val extinct = Extinct(f)
 
     override def abilities = $(Dematerialization)
     override def library = $(Festival, Brainless, Extinction, UnholyGround, Consecration, WorshipServices)

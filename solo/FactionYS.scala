@@ -34,8 +34,6 @@ case object YS extends Faction { f =>
     def name = "Yellow Sign"
     def short = "YS"
     def style = "ys"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(Feast, Desecrate, Vengeance)
     override def library = $(Passion, Zingaya, Shriek, ScreamingDead, ThirdEye, HWINTBN)
@@ -222,7 +220,7 @@ object YSExpansion extends Expansion {
             val us = (self.pool.cultists ++ self.pool.monsters)./(_.uclass).distinct.%(_.cost <= 2)
 
             if (us.any)
-                Ask(self).each(us)(DesecratePlaceAction(self, r, _))
+                Ask(self).each(us)(uc => DesecratePlaceAction(self, r, uc))
             else
                 EndAction(self)
 
@@ -233,7 +231,7 @@ object YSExpansion extends Expansion {
 
         // HWINTBN
         case HWINTBNMainAction(self, o, l) =>
-            Ask(self).each(l)(HWINTBNAction(self, o, _)).cancel
+            Ask(self).each(l)(r => HWINTBNAction(self, o, r)).cancel
 
         case HWINTBNAction(self, o, r) =>
             self.power -= 1
@@ -247,7 +245,7 @@ object YSExpansion extends Expansion {
 
         // SCREAMING DEAD
         case ScreamingDeadMainAction(self, o, l) =>
-            Ask(self).each(l)(ScreamingDeadAction(self, o, _)).cancel
+            Ask(self).each(l)(r => ScreamingDeadAction(self, o, r)).cancel
 
         case ScreamingDeadAction(self, o, r) =>
             self.power -= 1
@@ -261,7 +259,7 @@ object YSExpansion extends Expansion {
                 log(KingInYellow, "screamed from", o, "to", r)
             else
                 log(u, "followed along")
-            Ask(self).each(self.at(o, Undead)./(_.uclass))(ScreamingDeadFollowAction(self, o, r, _)).add(ScreamingDeadDoneAction(self))
+            Ask(self).each(self.at(o, Undead)./(_.uclass))(uc => ScreamingDeadFollowAction(self, o, r, uc)).add(ScreamingDeadDoneAction(self))
 
         case ScreamingDeadDoneAction(self) =>
             self.oncePerRound :+= ScreamingDead
@@ -270,7 +268,7 @@ object YSExpansion extends Expansion {
 
         // SHRIEK
         case ShriekMainAction(self, l) =>
-            Ask(self).each(l)(ShriekAction(self, _)).cancel
+            Ask(self).each(l)(r => ShriekAction(self, r)).cancel
 
         case ShriekAction(self, r) =>
             val b = self.all(Byakhee)./(_.region).but(r)
@@ -278,7 +276,7 @@ object YSExpansion extends Expansion {
                 EndAction(self)
             else
                 Ask(self)
-                    .each(b)(ShriekFromAction(self, _, r))
+                    .each(b)(o => ShriekFromAction(self, o, r))
                     .use(x => self.oncePerAction.contains(Shriek).?(x.add(ShriekDoneAction(self))).|(x.cancel))
 
         case ShriekFromAction(self, o, r) =>
@@ -297,7 +295,7 @@ object YSExpansion extends Expansion {
 
         // ZINGAYA
         case ZingayaMainAction(self, l) =>
-            Ask(self).each(l./~(r => self.enemies./~(f => f.at(r, Acolyte).take(1))))(u => ZingayaAction(self, u.region, u.faction)).cancel
+            Ask(self).some(l)(r => self.enemies.%(f => f.at(r, Acolyte).any)./(e => ZingayaAction(self, r, e))).cancel
 
         case ZingayaAction(self, r, f) =>
             val c = f.at(r).one(Acolyte)

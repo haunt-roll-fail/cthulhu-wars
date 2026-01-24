@@ -19,7 +19,7 @@ sealed trait UIAction
 case object UIStop extends UIAction
 case class UILog(s : String) extends UIAction
 case class UIPerform(game : Game, action : Action) extends UIAction
-case class UIQuestion(faction : Faction, game : Game, actions : $[Action]) extends UIAction
+case class UIQuestion(faction : Faction, game : Game, actions : $[Action], waiting : $[Faction] = $) extends UIAction
 case class UIQuestionDebug(faction : Faction, game : Game, actions : $[Action]) extends UIAction
 
 case class UIRead(game : Game) extends UIAction
@@ -208,8 +208,8 @@ object CthulhuWarsSolo {
         }
     }
 
-
     val DottedLine = "............................................................................................................................................................................................................................................"
+    val DoubleLine = "======================================================================================================================="
 
     def setupUI() {
         val (hash, quick) = dom.window.location.hash.drop(1) @@ {
@@ -581,7 +581,10 @@ object CthulhuWarsSolo {
                                 }
                         ).first
 
-                        askFaction(a)
+                        askFaction(a) match {
+                            case q : UIQuestion => q.copy(waiting = asks./(_.faction))
+                            case ui => ui
+                        }
 
                     case Ask(faction, actions) =>
                         if (actions(0).isInstanceOf[PlayDirectionAction] || actions(0).isInstanceOf[StartingRegionAction]) {
@@ -1010,7 +1013,7 @@ object CthulhuWarsSolo {
 
                 draws.sortBy(d => d.y + (d.unit == Gate).?(-2000).|(0) + (d.unit == DesecrationToken).?(-1000).|(0))./(_.rect).foreach { d =>
                     g.globalAlpha = d.alpha
-                    g.drawImage(d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key)), d.x, d.y, d.width, d.height)
+                    g.drawImage(d.tint./(t => getTintedAsset(d.key, t)).|(getAsset(d.key)), d.x, d.y, d.width, d.height)
                     g.globalAlpha = 1.0
                 }
 
@@ -1143,7 +1146,7 @@ object CthulhuWarsSolo {
                 g.clearRect(0, 0, bitmap.width, bitmap.height)
 
                 def dd(d : DrawRect) = {
-                    val img = d.tint./(getTintedAsset(d.key, _)).|(getAsset(d.key))
+                    val img = d.tint./(t => getTintedAsset(d.key, t)).|(getAsset(d.key))
                     g.drawImage(img, d.x, d.y)
                 }
 
@@ -1486,7 +1489,7 @@ object CthulhuWarsSolo {
             }
 
             def performUndoLocal(n : Int) : Unit = {
-                actions = actions.reverse.take(n).reverse
+                actions = actions.takeLast(n)
 
                 clear(logDiv)
 
@@ -1516,8 +1519,14 @@ object CthulhuWarsSolo {
             }
 
             def performUndoOnline(n : Int) : Unit = {
-                postF(server + "rollback-v2/" + hash + "/" + (n + 3), "") {
+                hrf.web.postF(server + "rollback-v2/" + hash + "/" + (n + 3), "") { _ =>
                     dom.document.location.assign(dom.document.location.href)
+                } {
+                    log("Failed to undo, reloading...")
+
+                    setTimeout(3000) {
+                        dom.document.location.assign(dom.document.location.href)
+                    }
                 }
             }
 
@@ -1579,11 +1588,55 @@ object CthulhuWarsSolo {
                                 Some((false, 30))
                             }
                             case UIPerform(g, a) if hash != "" && a.isRecorded && localReplay.not => {
-                                postF(server + "write/" + hash + "/" + (actions.num + 3), serializer.write(a.unwrap)) {
-                                    queue :+= UIRead(g)
+                                val position = actions.num
+                                var n = 0
 
-                                    startUI()
+                                def retry() {
+                                    n += 1
+
+                                    if (n < 12) {
+                                        if (n > 1)
+                                            askN($(n.times(".").mkString("")), $)
+
+                                        setTimeout(n * 100) { post() }
+                                    }
+                                    else {
+                                        hrf.web.getF(server + "alive") { s =>
+                                            if (s == "1")
+                                                askN($("Synchronization Error"), $(AskLine("", "Reload", $, false, () => dom.document.location.assign(dom.document.location.href))))
+                                            else
+                                                askN($("Server Error"), $(AskLine("", "Reload", $, false, () => dom.document.location.assign(dom.document.location.href))))
+                                        } {
+                                            askN($("Server Down"), $(AskLine("", "Please Reload Later", $("thin"), false)))
+                                        }
+                                    }
                                 }
+
+                                def post() {
+                                    if (position == actions.num) {
+                                        hrf.web.postF(server + "write/" + hash + "/" + (position + 3), serializer.write(a.unwrap)) { _ =>
+                                            queue :+= UIRead(g)
+
+                                            startUI()
+                                        } {
+                                            if (position == actions.num) {
+                                                hrf.web.getF(server + "read/" + hash + "/" + (position + 3)) { ll =>
+                                                    if (ll.splt("\n").but("").any) {
+                                                        queue :+= UIRead(g)
+
+                                                        startUI()
+                                                    }
+                                                    else
+                                                        retry()
+                                                } {
+                                                    retry()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                post()
 
                                 None
                             }
@@ -1698,14 +1751,14 @@ object CthulhuWarsSolo {
                                 val options = ((1 -> es1) :: (2 -> es2) :: (3 -> es3)).%>(_ > 0)
                                 ask(q(g), options./((e, q) => "[" + e.styled("es") + "]" + " of " + q), n => perform(draw(options(n)._1, true)))
 
-                            case UIQuestion(e, game, actions) if hash != "" && e != null && self.none && localReplay.not => {
+                            case UIQuestion(e, game, actions, waiting) if hash != "" && e != null && self.none && localReplay.not => {
                                 startBackgroundCheck()
 
                                 scrollTop = 0
 
-                                askN($("Waiting for " + e + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"), $)
+                                askN($("Waiting for " + waiting.some.|($(e)).mkString(", ") + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"), $)
                             }
-                            case UIQuestion(e, game, actions) if hash != "" && e != null && self.any && self.has(e).not && localReplay.not => {
+                            case UIQuestion(e, game, actions, waiting) if hash != "" && e != null && self.any && self.has(e).not && localReplay.not => {
                                 val extra = self./~(f => game.extraActions(f, true, actions.has(SacrificeHighPriestAllowedAction)))
                                 val f = self.get
 
@@ -1713,7 +1766,7 @@ object CthulhuWarsSolo {
 
                                 scrollTop = 0
 
-                                askN($("Waiting for " + e + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"),
+                                askN($("Waiting for " + waiting.some.|($(e)).mkString(", ") + "<br/>“" + actions.first.safeQ(game) + "”<br/><br/>"),
                                     extra./(a => AskLine(a.question(game), a.option(game), false.$(f.style + "-border") ++ a.isInfo.$("thin"), a.isNoClear.not, a.isInfo.not.??(() => {
                                         stopBackgroundCheck()
 
@@ -1723,7 +1776,7 @@ object CthulhuWarsSolo {
                                     })))
                                 )
                             }
-                            case UIQuestion(f, game, actions) => {
+                            case UIQuestion(f, game, actions, waiting) => {
                                 cancelUndo()
 
                                 if (hash != "")

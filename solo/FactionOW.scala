@@ -33,8 +33,6 @@ case object OW extends Faction { f =>
     def name = "Opener of the Way"
     def short = "OW"
     def style = "ow"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
     override def abilities = $(BeyondOne, KeyAndGate)
     override def library = $(TheyBreakThrough, DreadCurse, MillionFavoredOnes, ChannelPower, DragonAscending, DragonDescending)
@@ -57,7 +55,7 @@ case object OW extends Faction { f =>
         units(Mutant).num * 1 +
         units(Abomination).num * 2 +
         units(SpawnOW).num * 3 +
-        units(YogSothoth).not(Zeroed).num * (2 * factions.but(f)./(_.all.factionGOOs.num).sum) +
+        units(YogSothoth).not(Zeroed).num * (2 * factions.but(f)./(_.factionGOOs.num).sum) +
         neutralStrength(units, opponent)
 }
 
@@ -95,9 +93,9 @@ case class DragonAscendingCancelAction(self : OW, then : ForcedAction) extends B
 object OWExpansion extends Expansion {
     override def triggers()(implicit game : Game) {
         val f = OW
-        f.satisfyIf(EightGates, "Eight Gates on the map", game.allGates.%(_.glyph.onMap).num >= 8)
-        f.satisfyIf(TenGates, "Ten Gates on the map", game.allGates.%(_.glyph.onMap).num >= 10)
-        f.satisfyIf(TwelveGates, "Twelve Gates on the map", game.allGates.%(_.glyph.onMap).num >= 12)
+        f.satisfyIf(EightGates, "Eight Gates on the map", game.allGates.onMap.num >= 8)
+        f.satisfyIf(TenGates, "Ten Gates on the map", game.allGates.onMap.num >= 10)
+        f.satisfyIf(TwelveGates, "Twelve Gates on the map", game.allGates.onMap.num >= 12)
         f.satisfyIf(GooMeetsGoo, "GOO shares Area with another GOO", areas.%(r => f.at(r).goos.any && f.enemies.%(_.at(r).goos.any).any).any)
         f.satisfyIf(UnitsAtEnemyGates, "Units at two enemy Gates", areas.%(r => f.at(r).any && f.enemies.%(_.gates.has(r)).any).num >= 2)
     }
@@ -209,7 +207,7 @@ object OWExpansion extends Expansion {
             Ask(self).each(l./~(r => self.at(r).%(_.uclass.cost >= 3)).%(_.canMove))(u => BeyondOneUnitAction(self, u.region, u.uclass)).cancel
 
         case BeyondOneUnitAction(self, o, uc) =>
-            Ask(self).each(areas.diff(game.gates).%(self.affords(1)))(BeyondOneAction(self, o, uc, _)).cancel
+            Ask(self).each(areas.diff(game.gates).%(self.affords(1)))(r => BeyondOneAction(self, o, uc, r)).cancel
 
         case BeyondOneAction(self, o, uc, r) =>
             self.power -= 1
@@ -227,7 +225,7 @@ object OWExpansion extends Expansion {
 
         // DREAD CURSE
         case DreadCurseMainAction(self, n, l) =>
-            Ask(self).each(l)(DreadCurseAction(self, n, _)).cancel
+            Ask(self).each(l)(r => DreadCurseAction(self, n, r)).cancel
 
         case DreadCurseAction(self, n, r) =>
             self.power -= 2

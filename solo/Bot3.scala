@@ -37,7 +37,6 @@ case class Bot3(faction : Faction) {
         implicit class FactionClassify(val f : Faction) {
             def realDoom = f.doom + f.es./(_.value).sum
             def aprxDoom = f.doom + (f.es.num * 1.67).round.toInt
-            def cultists = f.all.cultists.num
             def count(uc : UnitClass) = f.all(uc).num
             def allSB = f.hasAllSB
             def numSB = f.spellbooks.num
@@ -122,8 +121,8 @@ case class Bot3(faction : Faction) {
             }
         }
 
-        def maxDoomGain = validGatesForRitual.num + self.all.goos.num * 3
-        def aprxDoomGain = validGatesForRitual.num + self.all.goos.num * 1.666
+        def maxDoomGain = validGatesForRitual.num + self.factionGOOs.num * 3
+        def aprxDoomGain = validGatesForRitual.num + self.factionGOOs.num * 1.666
 
         def evalA(a : Action) : $[Evaluation] = {
             var result : $[Evaluation] = $
@@ -177,14 +176,14 @@ case class Bot3(faction : Faction) {
                     others.%(_.power > 0 || power == 2).%(f => f.at(r).goos.any || (r.allies.none && f.at(r).monsterly.any)).any |=> -200 -> "may end captured"
 
                 case SubmergeMainAction(_, _) =>
-                    val cthulhu = self.all.goos.single.get
+                    val cthulhu = self.goo(Cthulhu)
 
                     cthulhu.enemies.any |=> -100 -> "can fight right now"
                     true |=> 400 -> "better than moving"
                     cthulhu.friends.num >= 5 |=> 100 -> "many friends"
 
                 case SubmergeAction(_, r, uc) =>
-                    val u = self.at(r, uc).head
+                    val u = self.at(r).one(uc)
                     u.gateKeeper |=> -500 -> "don't submerge gate keeper"
                     u.defender |=> -400 -> "don't submerge defender"
                     u.uclass.cost == 3 |=> 300 -> "submerge 3"
@@ -289,7 +288,7 @@ case class Bot3(faction : Faction) {
                     self.oncePerRound.has(Fertility) || self.acted |=> 8000 -> "don't oversummon"
 
                 case NextPlayerAction(_) =>
-                    self.oncePerRound.has(Fertility) || self.acted && self.all.%(_.capturable).none |=> 8000 -> "don't oversummon"
+                    self.oncePerRound.has(Fertility) || self.acted && self.cultists.%(_.capturable).none |=> 8000 -> "don't oversummon"
 
                 case BloodSacrificeAction(_, r, u) =>
                     instantDeathNow |=> 10000 -> "instant death now"
@@ -297,7 +296,7 @@ case class Bot3(faction : Faction) {
                     u.gateKeeper |=> -5000 -> "don't sacrifice gatekeeper"
                     u.capturable |=> 1000 -> "sacrifice capturable"
                     u.vulnerable |=> 500 -> "sacrifice vulnerable"
-                    self.cultists > 4 |=> 200 -> "many cultists"
+                    self.cultists.num > 4 |=> 200 -> "many cultists"
                     u.friends.%(_.canControlGate).num == 8 |=> 80 -> "many fcultists 8"
                     u.friends.%(_.canControlGate).num == 7 |=> 70 -> "many fcultists 7"
                     u.friends.%(_.canControlGate).num == 6 |=> 60 -> "many fcultists 6"
@@ -333,7 +332,7 @@ case class Bot3(faction : Faction) {
                     game.cathedrals.has(r) && AN.has(UnholyGround) && AN.strength(AN.at(r), self) > 0 && (AN.power > 0 || power < 3) |=> -50000 -> "beware unholy ground"
 
                 case MoveAction(_, u, o, d, cost) =>
-                    self.realDoom > 28 && d.allies.none && o.allies.any && self.needs(Spread8) && self.all.num >= 8 && areas.%(self.present).num < 8 |=> 3000 -> "final spread"
+                    self.realDoom > 28 && d.allies.none && o.allies.any && self.needs(Spread8) && self.allInPlay.num >= 8 && areas.%(self.present).num < 8 |=> 3000 -> "final spread"
                     self.realDoom > 27 && self.needs(SpreadSocial) && d.allies.none && d.foes./(_.faction).%(f => areas.%(r => r.allies.any && f.at(r).any).none).any |=> 1000 -> "final social spread"
 
                     (u.is(Ghoul) || u.uclass == Fungi) && d.allies.none && u.friends.any && self.needs(Spread4) && areas.%(r => r.allies.any).num == 3 |=> 100 -> "get spread 4"
@@ -354,7 +353,7 @@ case class Bot3(faction : Faction) {
                     true |=> 400 -> "spell is good"
                     self.numSB == 5 |=> 500 -> "final spellbook"
                     self.numSB == 5 && self.realDoom >= 30 |=> 3500 -> "final spellbook"
-                    self.cultists == 6 |=> 100 -> "too many cultists"
+                    self.cultists.num == 6 |=> 100 -> "too many cultists"
 
                 case AwakenEliminateTwoCultistsAction(_, _, _, a, b) =>
                     a.gateKeeper |=> -1000 -> "don't eliminate gatekeeper a"
@@ -368,7 +367,7 @@ case class Bot3(faction : Faction) {
                     power < 8 + self.pool.cultists.num + 2 |=> -200 -> "need power to re-recruit all cultists awaken"
                     true |=> 400 -> "awaken shub is good"
                     self.needs(AwakenShubNiggurath) && self.doom > 10 |=> 1100 -> "awaken shub is very good"
-                    self.cultists == 6 |=> 100 -> "too many cultists"
+                    self.cultists.num == 6 |=> 100 -> "too many cultists"
 
                 case _ =>
             }
@@ -490,13 +489,13 @@ case class Bot3(faction : Faction) {
 
                     u.monsterly && o.allies.none && d.foes.goos.any |=> 100 -> "alone vs goo"
 
-                    u.canControlGate && !u.gateKeeper && d.freeGate && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 500 -> "ic free gate"
-                    u.monsterly && !d.foes.goos.any && d.freeGate && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && power > 1 |=> 500 -> "ic free gate"
+                    u.canControlGate && !u.gateKeeper && d.freeGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 500 -> "ic free gate"
+                    u.monsterly && !d.foes.goos.any && d.freeGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && power > 1 |=> 500 -> "ic free gate"
 
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 1 |=> -1000 -> "why move if can summon for same"
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 2 |=> -500 -> "why move if can summon for almost same"
 
-                    u.cultist && self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
+                    u.cultist && self.pool.cultists.any && d.allies.any && !self.allInPlay.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
 
                     power < 3 && u.protector |=> -400 -> "don't move protector if low power"
                     power < 3 && u.defender |=> -400 -> "don't move defender if low power"

@@ -8,7 +8,7 @@ import fastparse._, NoWhitespace._
 import scalajs.reflect._
 
 
-class Serialize(val g : Game) {
+class Serialize(val game : Game) {
     import Serialize._
 
     def write(o : Any) : String = o match {
@@ -140,11 +140,7 @@ class Serialize(val g : Game) {
         case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).|!("unknown class " + f).apply(params.map(parseExpr)))
     }
 
-    def parseRegion(s : String) : |[Region] = {
-        val normalized = s.replaceAll(" ", "")
-        val allRegions = g.board.regions :+ SL.slumber
-        allRegions.find(r => r.name.replaceAll(" ", "") == normalized)
-    }
+    def parseRegion(s : String) : |[Region] = (game.board.regions :+ SL.slumber).find(_.id == s)
 }
 
 object Serialize {

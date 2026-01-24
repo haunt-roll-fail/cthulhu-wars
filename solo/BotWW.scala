@@ -308,7 +308,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 active.none && d.near.%(n => n.enemyGate && n.foes.goos.none).any |=> 125 -> "enemy gate near imp"
 
                 d.ownGate && power == 1 |=> 100 -> "own gate"
-                d.freeGate && self.gates.num < self.all.cultists.num + self.pool.cultists.num |=> 75 -> "free gate"
+                d.freeGate && self.gates.num < self.cultists.num + self.pool.cultists.num |=> 75 -> "free gate"
                 d.enemyGate && d.controllers.num == 1 |=> 60 -> "enemy gate"
                 d.enemyGate |=> 50 -> "enemy gate"
                 d.allies.cultists.any |=> 25 -> "hug cultist"
@@ -353,14 +353,14 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 u.onGate |=> -10 -> "on gate"
 
                 // Adjusted to stop moving cultist if they will be captured at opposite pole
-                need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 0 |=> 900 -> "go build opposite gate"
-                need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 1 |=> 800 -> "go build opposite gate"
-                need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 2 |=> 700 -> "go build opposite gate"
-                need(OppositeGate) && opposite.capturers.%(_.active).none && self.all.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 3 |=> 600 -> "go build opposite gate"
+                need(OppositeGate) && opposite.capturers.%(_.active).none && self.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 0 |=> 900 -> "go build opposite gate"
+                need(OppositeGate) && opposite.capturers.%(_.active).none && self.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 1 |=> 800 -> "go build opposite gate"
+                need(OppositeGate) && opposite.capturers.%(_.active).none && self.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 2 |=> 700 -> "go build opposite gate"
+                need(OppositeGate) && opposite.capturers.%(_.active).none && self.cultists.num == 6 && game.board.distance(d, opposite) < game.board.distance(o, opposite) && game.board.distance(d, opposite) == 3 |=> 600 -> "go build opposite gate"
 
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && self.iceAge.has(d) && d.capturers.%(_.power > 1).none |=> 1400 -> "ic free ice gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && self.iceAge.has(d) && d.capturers.%(_.power > 1).none |=> 1400 -> "ic free ice gate"
 
             case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"
@@ -508,7 +508,7 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
                     SL.power == 8 && r.foes(FormlessSpawn).any && r.foes(FormlessSpawn).num == SL.all(FormlessSpawn).num && !SL.has(Tsathoggua) |=> f(1600) -> "prevent tsa"
 
-                    r.noGate && r.foes.cultists./(_.faction).%(f => f.power == 3 && f.all.goos.none).any |=> f(600) -> "prevent gate"
+                    r.noGate && r.foes.cultists./(_.faction).%(f => f.power == 3 && f.goos.none).any |=> f(600) -> "prevent gate"
 
                     YS.power > 0 && ofinale(YS) && !r.desecrated && r.foes(KingInYellow).any |=> f(7000) -> "prevent ys desecrate"
 

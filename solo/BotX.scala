@@ -76,7 +76,6 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def exists = game.players.contains(f)
         def aprxDoom = f.doom + (f.es.num * 1.67).round.toInt
         def maxDoom = f.doom + min(6, f.es.num) * 3 + max(0, f.es.num - 6) * 2
-        def cultists = f.all.cultists.num
         def count(uc : UnitClass) = f.all(uc).num
         def allSB = f.hasAllSB
         def numSB = f.spellbooks.num
@@ -122,9 +121,9 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         /* Check if unaccompanied cultist for given faction at risk of capture in this region */
         def riskyForCultists(f : Faction) = (allies ++ foes).%!(_.cultist).%!(_.faction == f).any
         /* Distance to specified faction unit type */
-        def distanceTo(f : Faction, u : UnitType) = f.all.%(_.uclass.utype == u)./(uf => game.board.distance(r, uf.region)).minOr(Int.MaxValue)
+        def distanceTo(f : Faction, u : UnitType) = f.all(u)./(uf => game.board.distance(r, uf.region)).minOr(999)
         /* Distance from this region to Pole region opposite WW start location */
-        def distanceToWWOppPole : Int = (WW.exists).?(game.board.distance(r, game.board.starting(WW).but(game.starting(WW)).head))|Int.MaxValue
+        def distanceToWWOppPole : Int = WW.exists.?(game.board.distance(r, game.board.starting(WW).but(game.starting(WW)).only)).|(999)
     }
 
     implicit class UnitListClassify(val us : $[UnitFigure]) {
@@ -198,8 +197,8 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         }
     }
 
-    def maxDoomGain = validGatesForRitual.num + self.all.goos.num * 3
-    def aprxDoomGain = validGatesForRitual.num + self.all.goos.num * 1.666
+    def maxDoomGain = validGatesForRitual.num + self.goos.num * 3
+    def aprxDoomGain = validGatesForRitual.num + self.goos.num * 1.666
 
     def willActBeforeFaction(current : Faction, f : Faction) : Boolean = {
         if (power == 0)
@@ -255,7 +254,7 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
             if (p < 10)
                 0
             else
-                1 + min(p - 10, game.factions.%(_ != f)./(_.all.goos.num).sum * 2)
+                1 + min(p - 10, game.factions.%(_ != f)./(_.goos.num).sum * 2)
 
         case YS =>
             var p = f.power

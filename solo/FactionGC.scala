@@ -34,10 +34,8 @@ case object GC extends Faction { f =>
     def name = "Great Cthulhu"
     def short = "GC"
     def style = "gc"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
-    def deep = Region("Ocean Deep", Deep)
+    val deep = Deep(f)
 
     override def abilities : $[Spellbook] = $(Immortal, Devour)
     override def library : $[Spellbook] = $(Devolve, Absorb, Regenerate, Dreams, YhaNthlei, Submerge)

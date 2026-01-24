@@ -782,7 +782,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 sides.foreach { s =>
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Pained).not(Harbinged).some.foreach { l =>
-                            return Ask(s).add(HarbingerPowerAction(s, l.first, l.first.uclass.cost / 2)).add(HarbingerESAction(s, l.first, 2))
+                            val u = l.first
+                            val n = u.uclass.cost / 2
+                            return Ask(s)
+                                .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
+                                .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
                         }
                     }
                 }
@@ -1052,7 +1056,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             Ask(self).each(us)(u => SeekAndDestroyAction(self, u.uclass, u.region)).cancel
 
         case SeekAndDestroyAction(self, uc, r) =>
-            val u = self.at(r, uc).head
+            val u = self.at(r).one(uc)
             u.region = arena
             self.forces :+= u
             log(u, "flew from", r)
