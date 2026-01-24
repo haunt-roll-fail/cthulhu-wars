@@ -191,15 +191,15 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 active.none && self.gates.num < 4 && !u.gateKeeper && d.noGate && power > 3 && (d.ocean.not || !GC.needs(OceanGates)) |=> (2 * 100000 / 4) -> "safe move and build gate"
 
                 u.gateKeeper && (!u.capturable || u.enemies.goos.active.none) |=> -500 -> "dont move gatekeeper"
-                self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -500 -> "why move if can recruit for same"
+                self.pool.cultists.any && d.allies.any && !self.allInPlay.tag(Moved).any |=> -500 -> "why move if can recruit for same"
                 o.allies.cultists.num == 6 && d.empty && d.near.all(_.empty) && d.near2.all(_.empty) |=> 999 -> "crowded cultists 6 explore all empty around"
                 o.allies.cultists.num == 6 && d.empty && d.near.all(_.empty) && d.near2.all(_.of(YS).none) |=> 990 -> "crowded cultists 6 explore all empty around"
                 o.allies.cultists.num == 6 && d.empty && d.near.all(_.empty) |=> 900 -> "crowded cultists 6 explore all empty around"
                 o.allies.cultists.num == 6 && d.empty && d.near.all(r => r.empty || r.foes.active.num == r.foes.active.cultists.num) |=> 800 -> "crowded cultists 6 explore all empty or passive or cultists around"
 
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 350 -> "ic temporary free gate"
-                !u.gateKeeper && d.freeGate && d.foes.goos.any  && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate with goo"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 350 -> "ic temporary free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.any  && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate with goo"
                 o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.ownGate |=> 60 -> "flee from capture to own gate"
                 o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.allies.monsterly.any |=> 59 -> "flee from capture to monster"
                 o.allies.cultists.num == 1 && o.capturers.%(_.active).any && d.capturers.none && d.empty |=> 58 -> "flee from capture"
@@ -236,7 +236,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
                 o.foes.goos.any |=> -500 -> "stay with enemy goos"
 
-                val canCaptureYS = self.all.cultists./(_.region).%(_.capturers.contains(YS)).none
+                val canCaptureYS = self.cultists./(_.region).%(_.capturers.contains(YS)).none
 
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => f.blind(self) && (f != YS || canCaptureYS)).any && (need(CaptureCultist) || !have(Nyarlathotep)) |=> 250 -> "go for capture"
 
@@ -425,7 +425,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
 
                         has && have(Abduct).?(ng).|(0) + have(Invisibility).?(fp).|(0) >= ec + un + by + eght + egug + esht + esv + efi + eby.??(0) + eab.??(0) + eny && ownStr + ihh * 2 > 4 |=> 3334 -> "assassinate has"
 
-                        !f.active && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
+                        !f.active && self.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
                         emissary && r.enemyGate && r.owner == f && r.owner.has(Passion) && ec > 1 |=> 900 -> "better skirmish ys than capture"
 
                     case SL =>
@@ -512,7 +512,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
                 need(CaptureCultist) |=> 1700 -> "spellbook good"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && active.%(_.at(r).%(_.canControlGate).any).any |=> -700 -> "give gate away"
                 !f.has(Passion) |=> 1600 -> "capture"
-                f.has(Passion) && !f.active && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
+                f.has(Passion) && !f.active && self.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
                 f.has(Passion) && (!f.active || !YS.has(Hastur) || !YS.has(ThirdEye)) |=> 1100 -> "capture with passion safe"
                 f.has(Passion) |=> 950 -> "capture with passion"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -671,7 +671,7 @@ class GameEvaluationCC(implicit game : Game) extends GameEvaluation(CC)(game) {
             case ThousandFormsMainAction(_) =>
                 power == 1 |=> 2000 -> "spend last power on 1000F"
                 active.none |=> 1000000 -> "no enemy power"
-                self.allSB && others.all(f => f.all.goos./(_.region).all(_.str(f) > 2)) |=> 2000 -> "before launching nya attack"
+                self.allSB && others.all(f => f.goos./(_.region).all(_.str(f) > 2)) |=> 2000 -> "before launching nya attack"
 
             case Pay10PowerMainAction(_) =>
                 self.numSB == 4 && realDoom >= 30 |=> 5000 -> "last spellbooks and end"

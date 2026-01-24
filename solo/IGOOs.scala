@@ -56,8 +56,6 @@ case object NeutralAbhoth extends NeutralFaction {
     def name = "Neutral Abhoth"
     def short = "NA"
     def style = "nt"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
     override def abilities = $
     override def library = $

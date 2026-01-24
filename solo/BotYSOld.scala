@@ -128,14 +128,14 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 u.onGate |=> -10 -> "on gate"
 
                 u.gateKeeper && (!u.capturable || u.enemies.goos.none) |=> -100 -> "don't move gatekeeper"
-                self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
-                o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d == EarthMap4v35.NorthAsia |=> 800 -> "crowded cultists - north asia"
-                o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d.near.%(_.enemyGate).num > 1 |=> 800 -> "crowded cultists 6 explore near other gates"
-                o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d.glyph != Ocean |=> 800 -> "crowded cultists 6 explore"
-                o.allies.cultists.num == 6 && self.all.monsterly.none && d.empty && d.ocean |=> 790 -> "crowded cultists 6 explore ocean"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && d.capturers.%(_.power > 0).none |=> 1300 -> "ic temporary free gate"
+                self.pool.cultists.any && d.allies.any && !self.allInPlay.tag(Moved).any |=> -1000 -> "why move if can recruit for same"
+                o.allies.cultists.num == 6 && self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.NorthAsia |=> 800 -> "crowded cultists - north asia"
+                o.allies.cultists.num == 6 && self.allInPlay.monsterly.none && d.empty && d.near.%(_.enemyGate).num > 1 |=> 800 -> "crowded cultists 6 explore near other gates"
+                o.allies.cultists.num == 6 && self.allInPlay.monsterly.none && d.empty && d.glyph != Ocean |=> 800 -> "crowded cultists 6 explore"
+                o.allies.cultists.num == 6 && self.allInPlay.monsterly.none && d.empty && d.ocean |=> 790 -> "crowded cultists 6 explore ocean"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.allies.goos.any && d.foes.goos.active.none |=> 5500 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 1400 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.allies.cultists.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && d.capturers.%(_.power > 0).none |=> 1300 -> "ic temporary free gate"
 
                 o.capturers.%(_.power > 0).any && d.capturers.none |=> 10 -> "move from capture"
                 o.allies.goos.any |=> -310 -> "move from own goo"
@@ -152,7 +152,7 @@ class GameEvaluationYSOld(implicit game : Game) extends GameEvaluation(YS)(game)
                 !have(KingInYellow) && !u.gateKeeper && o.gate && d.noGate && d.foes.monsterly.none && d.foes.goos.none && d.allies.none |=> 300 -> "go awaken kiy"
 
                 power > 1 && !u.gateKeeper && d.near.%(n => n.freeGate && n.capturers.none && n.allies.cultists.none).any && d.allies.cultists.none && d.capturers.none && active.none |=> 450 -> "ic free gate 2 steps"
-                power > 1 && !u.gateKeeper && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.none && d.capturers.none && self.all.tag(Moved).none |=> 1100 -> "ic free gate and goo 2 steps"
+                power > 1 && !u.gateKeeper && d.near.%(n => n.freeGate && n.allies.goos.any && n.foes.goos.none && n.allies.cultists.none).any && d.allies.cultists.none && d.capturers.none && self.allInPlay.tag(Moved).none |=> 1100 -> "ic free gate and goo 2 steps"
 
             case AttackAction(_, r, f, _) if f.neutral =>
                 true |=> -100000 -> "don't attack uncontrolled filth (for now)"

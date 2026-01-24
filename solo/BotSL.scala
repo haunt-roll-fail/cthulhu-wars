@@ -88,7 +88,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 active.none |=> 5000000 -> "move done"
 
             case MoveAction(_, u, o, d, cost) if u.uclass == Tsathoggua =>
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -113,7 +113,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 power == 1 && o.ownGate && o.allies.num == 2 && others.%(_.power > 0).%(_.at(o).goos.any).none && o.near.%(_.foes.monsterly.%(_.faction.power > 1).any).any |=> -1900 -> "dont lose the gate"
                 power == 1 && o.ownGate && o.allies.num == 2 && others.%(_.power > 0).%(_.at(o).goos.any).none && o.near.%(_.near.%(_.foes.monsterly.%(_.faction.power > 2).any).any).any |=> -1800 -> "dont lose the gate"
 
-                val canCaptureYS = self.all.cultists./(_.region).%(_.capturers.contains(YS)).none
+                val canCaptureYS = self.cultists./(_.region).%(_.capturers.contains(YS)).none
 
                 active.none && power > 1 && d.enemyGate && (d.owner != YS || canCaptureYS) && d.controllers.num == 1 && d.of(d.owner).goos.none |=> (5 * 100000 / 3) -> "go get a gate"
                 active.none && power > 2 && d.enemyGate && (d.owner != YS || canCaptureYS) && d.controllers.num == 2 && d.of(d.owner).goos.none |=> (5 * 100000 / 4) -> "go get a gate"
@@ -155,7 +155,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
             case MoveAction(_, u, o, d, cost) if u.uclass == Acolyte =>
                 u.onGate |=> -10 -> "on gate"
 
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -171,18 +171,18 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 needGate && active.none && self.gates.num < 4 && !u.gateKeeper && d.noGate && power > 3 && (d.ocean.not || !GC.needs(OceanGates)) |=> (2 * 100000 / 4) -> "safe move and build gate"
 
                 u.gateKeeper && (!u.capturable || u.enemies.goos.none) |=> -500 -> "dont move gatekeeper"
-                self.pool.cultists.any && d.allies.any && !self.all.tag(Moved).any |=> -500 -> "why move if can recruit for same"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.empty) |=> 999 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.of(YS).none) |=> 990 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.empty) |=> 909 -> "crowded cultists 6 explore all empty around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.foes.none) |=> 908 -> "crowded cultists 6 explore all friendly around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
-                o.allies.cultists.num == 6 && !self.all.monsterly.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
+                self.pool.cultists.any && d.allies.any && !self.allInPlay.tag(Moved).any |=> -500 -> "why move if can recruit for same"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.empty) |=> 999 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) && d.near2.all(_.of(YS).none) |=> 990 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.empty) |=> 909 -> "crowded cultists 6 explore all empty around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.foes.none) |=> 908 -> "crowded cultists 6 explore all friendly around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d.near.all(_.of(YS).none) |=> 900 -> "crowded cultists 6 explore all no-ys around"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.Antarctica |=> 800 -> "crowded cultists 6 explore - antarctica"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.NorthAmerica |=> 750 -> "crowded cultists 6 explore - north america"
+                o.allies.cultists.num == 6 && !self.allInPlay.monsterly.none && d.empty && d == EarthMap4v35.Arabia |=> 700 -> "crowded cultists 6 explore - arabia"
 
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
-                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.all.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 400 -> "ic free gate"
+                !u.gateKeeper && d.freeGate && d.foes.goos.none && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && (active.none || d.capturers.%(f => f.power > 0 || f.has(Passion)).none) |=> 300 -> "ic temporary free gate"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.ownGate |=> 60 -> "flee from capture to own gate"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.allies.monsterly.any |=> 59 -> "flee from capture to monster"
                 o.allies.cultists.num == 1 && o.capturers.%(_.power > 0).any && d.capturers.none && d.empty |=> 58 -> "flee from capture"
@@ -207,7 +207,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 // Works best in early game when it's "safe" to leave cultists along
                 wwLoneCultistPolarGate(1) && (WW.exists.?(d == game.board.starting(WW).but(game.starting(WW)).head)|(false)) |=> 1500 -> "move monster to block ww getting 2nd gate at opp pole"
 
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -220,7 +220,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                 o.foes.goos.any |=> -500 -> "stay with enemy goos"
 
-                val canCaptureYS = self.all.cultists./(_.region).%(_.capturers.contains(YS)).none
+                val canCaptureYS = self.cultists./(_.region).%(_.capturers.contains(YS)).none
                 val canCaptureWW = !WW.has(Ithaqua)
 
                 d.allies.none && d.foes.cultists.%(_.vulnerableM).map(_.faction).%(f => !f.active && (f != YS || canCaptureYS) && (f != WW || canCaptureWW)).any |=> 250 -> "go for capture"
@@ -301,7 +301,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                         has && 0 >= ec + un + by + eght + egug + esht + esv + eby.??(4) + eab.??(efi) + eny && ownStr > 4 |=> 3334 -> "assassinate has"
 
-                        f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
+                        f.power == 0 && self.cultists./(_.region).%(_.capturers.contains(YS)).any && f.has(Passion) && ec > 1 |=> -1000 -> "dont attack if passion allows reverse capture"
 
                     case CC =>
                         0 -> "todo"
@@ -343,7 +343,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                 r.enemyGate && f == r.owner && r.controllers.num == 1 && r.allies.cultists.none && others.%(_.power > 0).%(_.at(r).%(_.canControlGate).any).any |=> -700 -> "give gate away"
                 !f.has(Passion) |=> 1600 -> "capture"
-                f.has(Passion) && f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
+                f.has(Passion) && f.power == 0 && self.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
                 f.has(Passion) && (f.power == 0 || !YS.has(Hastur) || !YS.has(ThirdEye)) |=> 1100 -> "capture with passion safe"
                 f.has(Passion) |=> 850 -> "capture with passion"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -384,7 +384,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 // Defense against WW setting up 2nd gate at opposite pole. Only worth it if adjacent to location for new gate
                 r.distanceToWWOppPole == 1 && wwLoneCultistPolarGate(2) && r.allies.monsterly.none |=> 1500 ->"cheap summon to stop WW 2nd gate at opp pole"
 
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -419,7 +419,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 true |=> 3000 -> "wizards out"
 
             case SummonAction(_, SerpentMan, r) =>
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -440,7 +440,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
                 r.allies.goos.any |=> 100 -> "summon to tsa"
 
             case SummonAction(_, FormlessSpawn, r) =>
-                if (have(Burrow) && self.all.tag(Moved).num == 1) {
+                if (have(Burrow) && self.allInPlay.tag(Moved).num == 1) {
                     true |=> 1000 -> "move free"
                     active.none |=> 5000000 -> "move free"
                 }
@@ -491,7 +491,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
                 active.none && realDoom + self.gates.num * 2 + self.goos.num >= 30 |=> 1000000 -> "the end is now"
 
-                f.power == 0 && f.all.goos.none |=> 270 -> "good power conf"
+                f.power == 0 && f.goos.none |=> 270 -> "good power conf"
                 f.power == 0 && areas.%(r => r.allies.cultists.any && r.capturers.contains(f)).any |=> -1000 -> "dont give power to capture"
 
                 self.count(SerpentMan) == 3 && !have(AncientSorcery) |=> 300 -> "get ancient sorcery"
@@ -593,7 +593,7 @@ class GameEvaluationSL(implicit game : Game) extends GameEvaluation(SL)(game) {
 
             case AncientSorceryPlaceAction(self, r, uc) =>
                 val o = areas.minBy(r => r.foes.num + r.allies.num)
-                result = eval(MoveAction(self, self.at(SL.slumber).one(uc), o, r, 1))
+                result = eval(MoveAction(self, self.at(SL.sorcery).one(uc), o, r, 1))
 
             case HibernateMainAction(_, n) =>
                 power == n |=> 300 -> "optimal power"

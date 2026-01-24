@@ -35,9 +35,9 @@ case class NeutralMonstersAction(self : Faction, lc : NeutralMonsterLoyaltyCard)
         s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 }) with PowerNeutral
-case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => self + " places " + self.styled(uc) + " in", implicit g => r + self.iced(r))
+case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "" + self + " places " + self.styled(uc) + " in", implicit g => r + self.iced(r))
 
-case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends BaseFactionAction(g => self + " summons " + self.styled(uc) + " for free in", implicit g => r + self.iced(r))
+case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends BaseFactionAction(g => "" + self + " summons " + self.styled(uc) + " for free in", implicit g => r + self.iced(r))
 
 case class ShantakCarryCultistAction(self : Faction, o : Region, ur : UnitRef, r : Region) extends ForcedAction
 
@@ -99,7 +99,7 @@ object NeutralMonstersExpansion extends Expansion {
         // SHANTAK
         case MovedAction(self, u, o, r) if u.uclass == Shantak =>
             Ask(self)
-                .each(self.at(o).not(Moved).cultists.sortA)(u => ShantakCarryCultistAction(self, o, u, r).as(u.full, "from", o)(Shantak.styled(self), "carries", "Cultist".styled(self), "to", r))
+                .each(self.at(o).not(Moved).cultists.sortA)(u => ShantakCarryCultistAction(self, o, u, r).as(u.full, "from", o)(Shantak, "carries", "Cultist".styled(self), "to", r))
                 .skip(MoveContinueAction(self, true))
 
         case ShantakCarryCultistAction(self, o, u, r) =>
@@ -108,7 +108,7 @@ object NeutralMonstersExpansion extends Expansion {
             u.add(Moved)
             u.add(MovedForFree)
 
-            log(Shantak.styled(self), "carried", u, "to", r)
+            log(Shantak, "carried", u, "to", r)
 
             MoveContinueAction(self, true)
 

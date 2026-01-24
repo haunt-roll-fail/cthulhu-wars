@@ -34,10 +34,9 @@ case object SL extends Faction { f =>
     def name = "Sleeper"
     def short = "SL"
     def style = "sl"
-    val reserve = Region(name + " Pool", Pool)
-    val prison = Region(name + " Prison", Prison)
 
-    def slumber = Region("Slumber", Slumber)
+    val slumber = Slumber(f)
+    val sorcery = Sorcery(f)
 
     override def abilities = $(DeathFromBelow, Lethargy)
     override def library = $(Burrow, EnergyNexus, AncientSorcery, CaptureMonster, DemandSacrifice, CursedSlumber)
@@ -110,7 +109,7 @@ object SLExpansion extends Expansion {
 
             game.hires(f)
 
-            if (f.has(AncientSorcery) && f.at(SL.slumber, SerpentMan).any)
+            if (f.has(AncientSorcery) && f.at(SL.sorcery, SerpentMan).any)
                 + AncientSorceryDoomAction(f)
             else
                 + DoomDoneAction(f)
@@ -163,7 +162,7 @@ object SLExpansion extends Expansion {
 
             game.builds(f)
 
-            if (f.has(CursedSlumber) && game.gates.%(_.glyph == Slumber).none && f.gates.nex.%(_.glyph.onMap).any)
+            if (f.has(CursedSlumber) && game.gates.%(_.glyph == Slumber).none && f.gates.nex.onMap.any)
                 + CursedSlumberSaveMainAction(f)
 
             if (f.has(CursedSlumber) && game.gates.%(_.glyph == Slumber).any)
@@ -244,7 +243,7 @@ object SLExpansion extends Expansion {
 
         // PAY 3 POWER
         case Pay3SomeoneGains3MainAction(self) =>
-            Ask(self).each(self.enemies)(Pay3SomeoneGains3Action(self, _)).cancel
+            Ask(self).each(self.enemies)(e => Pay3SomeoneGains3Action(self, e)).cancel
 
         case Pay3SomeoneGains3Action(self, f) =>
             self.power -= 3
@@ -293,7 +292,7 @@ object SLExpansion extends Expansion {
 
         case AncientSorceryUnitAction(self, a, r, uc) =>
             self.power -= 1
-            self.at(r).one(uc).region = SL.slumber
+            self.at(r).one(uc).region = SL.sorcery
             self.borrowed :+= a
             self.log("sent", uc, "from", r, "to access", a.full)
             EndAction(self)
@@ -302,14 +301,14 @@ object SLExpansion extends Expansion {
             Ask(self).each(areas)(r => AncientSorceryPlaceAction(self, r, SerpentMan)).cancel
 
         case AncientSorceryPlaceAction(self, r, uc) =>
-            self.at(SL.slumber).one(uc).region = r
+            self.at(SL.sorcery).one(uc).region = r
             self.power += 1
             self.log("placed", uc, "in", r, "with", AncientSorcery.full, "and gained", 1.power)
             CheckSpellbooksAction(DoomAction(self))
 
         // CURSED SLUMBER
         case CursedSlumberSaveMainAction(self) =>
-            Ask(self).each(self.gates.nex)(CursedSlumberSaveAction(self, _)).cancel
+            Ask(self).each(self.gates.nex)(r => CursedSlumberSaveAction(self, r)).cancel
 
         case CursedSlumberSaveAction(self, r) =>
             self.power -= 1
@@ -326,7 +325,7 @@ object SLExpansion extends Expansion {
             EndAction(self)
 
         case CursedSlumberLoadMainAction(self, l) =>
-            Ask(self).each(l)(CursedSlumberLoadAction(self, _)).cancel
+            Ask(self).each(l)(r => CursedSlumberLoadAction(self, r)).cancel
 
         case CursedSlumberLoadAction(self, r) =>
             self.power -= 1

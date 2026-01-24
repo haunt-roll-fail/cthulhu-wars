@@ -57,7 +57,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
                 if (p < 10)
                     0
                 else
-                    1 + min(p - 10, game.factions.%(_ != f)./(_.all.goos.num).sum * 2)
+                    1 + min(p - 10, game.factions.%(_ != f)./(_.goos.num).sum * 2)
 
             case SL =>
                 var p = f.power
@@ -205,7 +205,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
 
                 numSB >= 5 && d.foes.goos.none && d.freeGate && d.foes.none && d.ocean && self.at(GC.deep).cultists.any |=> 1150 -> "empty ocean gate"
 
-                d.enemyGate && d.owner.has(Passion) && d.owner.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1200 -> "dont go capture if passion allows reverse capture"
+                d.enemyGate && d.owner.has(Passion) && d.owner.power == 0 && self.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1200 -> "dont go capture if passion allows reverse capture"
                 d.enemyGate && d.controllers.num + 1 > power |=> -1200 -> "wont open the gate"
 
                 d.ocean && numSB >= 5 && d.foes.goos.none && d.ownGate && d.foes.cultists.num > 1 |=> 1100 -> "cultvisit"
@@ -303,7 +303,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
                 numSB >= 5 |=> 16000 -> "capture with all sb"
 
                 !f.has(Passion) |=> 1600 -> "capture"
-                f.has(Passion) && f.power == 0 && self.all.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
+                f.has(Passion) && f.power == 0 && self.cultists./(_.region).%(_.capturers.contains(YS)).any |=> -1500000 -> "dont capture if passion allows reverse capture"
                 f.has(Passion) && (f.power == 0 || !YS.has(Hastur) || !YS.has(ThirdEye)) |=> 1100 -> "capture with passion safe"
                 f.has(Passion) |=> 850 -> "capture with passion"
                 r.enemyGate && f == r.owner && r.controllers.num == 1 |=> 450 -> "capture and open gate"
@@ -377,7 +377,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
             case AwakenAction(_, _, r, _) =>
                 finale(0) |=> 1000000 -> "finale awaken"
 
-                need(AwakenCthulhu) && others.%(f => f.power > 3 && f.all.goos.any).any |=> 20000 -> "awaken cthulhu"
+                need(AwakenCthulhu) && others.%(f => f.power > 3 && f.goos.any).any |=> 20000 -> "awaken cthulhu"
 
                 !need(OceanGates) |=> 10000 -> "awaken cthulhu"
 
@@ -387,8 +387,8 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
                 c.gateKeeper |=> -500 -> "dont devolve gatekeeper"
                 c.capturable && !(c.gateKeeper && power > 0 && cthulhu.region == GC.deep) |=> 1200 -> "devolve to avoid capture"
                 r.allies.cultists.num > self.pool(DeepOne).num |=> -2500 -> "cant save everyone"
-                self.all.cultists.%(_.capturable).num > self.pool(DeepOne).num |=> -2500 -> "cant save everyone 2"
-                r.ownGate && power > 0 && cthulhu.region == GC.deep && self.all.cultists.%(_.capturable)./(_.region).distinct.num == 1 |=> -1500 -> "better unsubmerge to protect"
+                self.cultists.%(_.capturable).num > self.pool(DeepOne).num |=> -2500 -> "cant save everyone 2"
+                r.ownGate && power > 0 && cthulhu.region == GC.deep && self.cultists.%(_.capturable)./(_.region).distinct.num == 1 |=> -1500 -> "better unsubmerge to protect"
                 power > 1 && r.ownGate && r.capturers.any && r.capturers./(_.power).sum <= 1 |=> -2000 -> "let them have it"
                 then == PreMainAction(self) && power > 1 && !self.acted && self.has(Dreams) && self.pool.cultists.none && areas.%(r => r.enemyGate && r.controllers.num == 1 && others.%(_.power > 0).%(f => f.at(r).monsterly.any || f.at(r).goos.any).none).any |=> 300 -> "devolve to allow dreams"
 
@@ -455,7 +455,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
 
                 true |=> -100 -> "dreams are expensive"
 
-                f.has(Passion) && f.power == 0 && (r +: self.all.cultists./(_.region)).%(_.capturers.contains(f)).any |=> -1500000 -> "dont dream if passion allows reverse capture"
+                f.has(Passion) && f.power == 0 && (r +: self.cultists./(_.region)).%(_.capturers.contains(f)).any |=> -1500000 -> "dont dream if passion allows reverse capture"
 
             case SubmergeMainAction(_, r) =>
                 finale(2) |=> 1500000 -> "finale submerge"
@@ -478,7 +478,7 @@ class GameEvaluationGC(implicit game : Game) extends GameEvaluation(GC)(game) {
 
                 r.foes.goos.active.any |=> 10000 -> "get away from goo"
 
-                val u = self.at(r, uc).head
+                val u = self.at(r).one(uc)
                 u.gateKeeper && r.capturers.%(_.active).none |=> -500 -> "don't submerge gate keeper"
                 u.defender |=> -400 -> "don't submerge defender"
                 u.uclass.cost == 3 |=> 300 -> "submerge 3"
