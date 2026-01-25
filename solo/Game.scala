@@ -2138,7 +2138,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         case MoveContinueAction(self, moved) =>
             if (self.power == 0)
-                MoveDoneAction(self)
+                Then(MoveDoneAction(self))
             else {
                 val units = self.units.nex.onMap.not(Moved).%(_.canMove).sortA
 
