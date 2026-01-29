@@ -1692,6 +1692,17 @@ object CthulhuWarsSolo {
                                 Some((true, 0))
                             }
 
+                            case UIPerform(g, action) if action.isVoid =>
+                                if (action.isRecorded || recorded.any)
+                                    actions +:= action
+
+                                if (recorded.any && hash == "" && localReplay.not) {
+                                    if (recorded.num > actions.num && paused.not)
+                                        queue :+= UIPerform(game, serializer.parseAction(recorded(actions.num).replace("&gt;", ">")))
+                                }
+
+                                Some((true, 0))
+
                             case UIPerform(g, action) => {
                                 val a = action match {
                                     case esa : ElderSignAction if recorded.any => esa.copy(public = true)
@@ -1839,7 +1850,7 @@ object CthulhuWarsSolo {
                                     bot.eval(g, aa).sortWith(bot.compare)
                                 }
 
-                                askM($, sorted./(wa => wa.action.question(g).some.|(" ") -> (wa.action.option(g) + " (" + wa.evaluations.headOption./(_.weight)./(v => v.styled((v > 0).?("power").|("doom"))).|("0") + ")" + "<br/>" +
+                                askM($, sorted./(wa => wa.action.question(g).some.|(" ") -> (wa.action.option(g) + " " + wa.action.toString + " (" + wa.evaluations.starting./(_.weight)./(v => v.styled((v > 0).?("power").|("doom"))).|("0") + ")" + "<br/>" +
                                     wa.evaluations./(e =>
                                         ("(" + e.weight.styled((e.weight > 0).?("power").|("doom")) + " -> " + e.desc + ")").styled("expl")
                                     ).mkString("<br/>"))),
@@ -2335,6 +2346,7 @@ object CthulhuWarsSolo {
                                | "Cthulhu Wars Solo HRF 1.14"
                                | "Cthulhu Wars Solo HRF 1.15"
                                | "Cthulhu Wars Solo HRF 1.16"
+                               | "Cthulhu Wars Solo HRF 1.17"
                             =>
                                 val l = dom.document.location
                                 val search = ("version=" + "retro") +: l.search.drop(1).split('&').$.%(_.startsWith("version").not).but("")
@@ -2394,6 +2406,11 @@ object CthulhuWarsSolo {
         else {
             def topMenu() {
                 ask("Cthulhu Wars", $("Quick Game".hl, "Local Game".hl, redirect.?("<a href='https://cwo.im/' target='_blank'><div>" + "Online game".hl + "</div></a>").|("Online Game".hl), "Extra", "About", "Test").take(menu), {
+                    case 998_0 =>
+                        val setup = new Setup(randomSeating($(GC, BG, WW, OW)), Normal)
+                        setup.difficulty += OW -> Debug
+                        setup.options = $(MapEarth35, GateDiplomacy)
+                        startGame(setup)
                     case 999_0 =>
                         val n = 1
                         val pn = n + 3

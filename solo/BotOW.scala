@@ -540,6 +540,9 @@ class GameEvaluationOW(implicit game : Game) extends GameEvaluation(OW)(game) {
             case AbandonGateAction(_, _, _) =>
                 true |=> -1000000 -> "never"
 
+            case ControlGateAction(_, _, _, _) =>
+                true |=> 1000000 -> "always"
+
             case _ if game.battle.none =>
                 true |=> 1000 -> "todo"
 

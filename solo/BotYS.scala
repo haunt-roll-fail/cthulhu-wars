@@ -894,6 +894,9 @@ class GameEvaluationYS(implicit game : Game) extends GameEvaluation(YS)(game) {
             case AbandonGateAction(_, _, _) =>
                 true |=> -1000000 -> "never"
 
+            case ControlGateAction(_, _, _, _) =>
+                true |=> 1000000 -> "always"
+
             case _ =>
         }
 
