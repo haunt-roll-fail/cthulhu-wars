@@ -14,8 +14,9 @@ class Serialize(val game : Game) {
     def write(o : Any) : String = o match {
         case b : Boolean => b.toString
         case n : Int => n.toString
+        case s : String if s.contains("\"") => "\"\"\"" + s + "\"\"\""
         case s : String => "\"" + s + "\""
-        case r : Region => r.name.split(" ").mkString("")
+        case r : Region => r.id
         case f : Faction => f.short
         case sb : Spellbook => className(sb)
         case uc : UnitClass => className(uc)
@@ -59,6 +60,8 @@ class Serialize(val game : Game) {
 
     def fractional[* : P] = P{ ("-".? ~ CharsWhileIn("0-9") ~ "." ~ CharsWhileIn("0-9")).! }.map(_.toDouble).map(EDouble)
 
+    def stringQQQ[* : P] = P{ (("\"\"\"" ~/ ((AnyChar ~ !("\"\"\"")).rep ~ AnyChar).! ~ "\"\"\"")) }.map(EString)
+
     def string[* : P] = P{ "\"" ~/ CharsWhile(c => c != '\"' && c != '\\', 0).! ~ "\"" }.map(EString)
 
     def pfalse[* : P] = P{ "false" }.map(_ => EBool(false))
@@ -77,7 +80,7 @@ class Serialize(val game : Game) {
 
     def none[* : P] = P{ "None" }.map(o => ENone)
 
-    def base[* : P] : P[Expr] = P{ some | none | action | symbol | fractional | number | pfalse | ptrue | list | map | string }
+    def base[* : P] : P[Expr] = P{ some | none | action | symbol | fractional | number | pfalse | ptrue | list | map | stringQQQ | string }
 
     def main[* : P] : P[Expr] = P{ action | symbol }
 

@@ -378,6 +378,7 @@ case class Ask(faction : Faction, actions : $[Action] = $) extends Continue {
     def some[T](l : IterableOnce[T])(a : T => IterableOnce[Action]) = list(l.iterator.flatMap(a).$)
     def group(t : Any*) = add(GroupAction(t.$.but("").mkString(" ")))
     def done(a : ForcedAction) = add(a.as("Done")(" "))
+    def doneIf(c : Boolean)(a : ForcedAction) = c.?(add(a.as("Done"))).|(this)
     def skip(a : ForcedAction) = add(a.as("Skip"))
     def skipIf(c : Boolean)(a : ForcedAction) = c.?(add(a.as("Skip"))).|(this)
     def cancel = add(CancelAction)
@@ -893,7 +894,7 @@ case object ProceedBattlesAction extends ForcedAction
 case class EndTurnAction(self : Faction) extends BaseFactionAction(" ", "Done".styled("power")) with PowerNeutral
 case class NextPlayerAction(faction : Faction) extends ForcedAction
 
-case class AdjustGateControlAction(self : Faction, then : ForcedAction) extends OptionFactionAction("Control gates") with MainQuestion with Soft
+case class AdjustGateControlAction(self : Faction, changed : Boolean, then : ForcedAction) extends OptionFactionAction("Control gates") with MainQuestion with Soft
 case class ControlGateAction(self : Faction, r : Region, u : UnitRef, then : ForcedAction) extends ForcedAction with NoClear
 case class AbandonGateAction(self : Faction, r : Region, then : ForcedAction) extends ForcedAction with NoClear
 
@@ -1232,7 +1233,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             || f.gates.nex.exists(r => f.at(r).%(_.canControlGate)./(_.uclass).distinct.diff(f.commands.has(HighPriestGatesSkip).$(HighPriest)).num > 1)
             || (f.commands.has(GateDiplomacyPrompt) && f.gates.nex.any)
         )
-            + AdjustGateControlAction(f, MainAction(f))
+            + AdjustGateControlAction(f, false, MainAction(f))
     }
 
     def battles(f : Faction)(implicit w : AskWrapper) {
@@ -1925,9 +1926,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                             }
 
                     if (f.commands.has(DevolveThreatOfBeyondOne) && canAct)
-                        f.gates.intersect(areas).%(r => f.at(r).goos.none && e.at(r).%(_.uclass.cost >= 3).any).some./{ l =>
-                            reasons :+= "" + e + " might " + BeyondOne + " " + ("from " + l.mkString(", ")).inline
-                        }
+                        if (e.can(BeyondOne))
+                            f.gates.intersect(areas).%(r => f.at(r).goos.none && e.at(r).%(_.uclass.cost >= 3).any).some./{ l =>
+                                reasons :+= "" + e + " might " + BeyondOne + " " + ("from " + l.mkString(", ")).inline
+                            }
 
                     if (f.commands.has(DevolveThreatOfAttackOnGate) && canBattle)
                         f.gates.intersect(areas).%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) * 3 / 4 + 1 >= f.at(r).num).some./{ l =>
@@ -2084,7 +2086,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             EndAction(self)
 
         // CONTROL
-        case AdjustGateControlAction(f, then) =>
+        case AdjustGateControlAction(f, changed, then) =>
             Ask(f)
                 .some(areas.%(r => f.gates.has(r) || abandonedGates.has(r))) { r =>
                     val l = f.at(r).%(_.canControlGate).sortBy(_.onGate.not).distinctBy(_.uclass)
@@ -2101,11 +2103,13 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                     ) ++
                     (f.gates.has(r) && f.clings.not && f.commands.has(GateDiplomacySkipAbandon).not).$(AbandonGateAction(f, r, then).as("Abandon")(""))
                 }
-                .add(OutOfTurnRefresh(AdjustGateControlAction(f, then)))
-                .done(then)
+                .add(OutOfTurnRefresh(AdjustGateControlAction(f, changed, then)))
+                .group(" ")
+                .doneIf(changed)(then)
+                .cancelIf(changed.not)
 
         case ControlGateAction(f, r, u, then) if u.onGate =>
-            Force(AdjustGateControlAction(f, then))
+            Force(AdjustGateControlAction(f, true, then))
 
         case ControlGateAction(f, r, u, then) =>
             f.at(r).foreach(_.onGate = false)
@@ -2120,7 +2124,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             else
                 f.log("changed control of the gate in", r, "to", u)
 
-            Force(AdjustGateControlAction(f, then))
+            Force(AdjustGateControlAction(f, true, then))
 
         case AbandonGateAction(f, r, then) =>
             f.at(r).foreach(_.onGate = false)
@@ -2130,7 +2134,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             f.log("abandoned gate in", r)
 
-            Force(AdjustGateControlAction(f, then))
+            Force(AdjustGateControlAction(f, true, then))
 
         // MOVE
         case MoveMainAction(self) =>
@@ -2410,6 +2414,8 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             val c = self.at(r).one(HighPriest)
 
             eliminate(c)
+
+            self.oncePerAction :-= Passion
 
             self.power += 2
 

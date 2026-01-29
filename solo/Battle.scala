@@ -538,6 +538,9 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
     def proceed() : Continue = {
         phase match {
             case BattleStart =>
+                if (attacker.hasAllSB.not)
+                    attacker.acted = true
+
                 attacker.forces = attacker.at(arena)
 
                 if (attacker.forces.none) {
