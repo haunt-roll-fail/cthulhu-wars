@@ -315,7 +315,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
         if (s.has(Absorb) && s.forces(Shoggoth).any && s.forces.vulnerable.num > 1)
             options :+= AbsorbPreBattleAction(s)
 
-        if (s.has(Howl) && s.tag(Howl).not && s.forces(Wendigo).any && s.opponent.forces.%(_.canMove).any)
+        if (s.has(Howl) && s.tag(Howl).not && s.forces(Wendigo).any && s.opponent.forces.%(_.canBeMoved).any)
             options :+= HowlPreBattleAction(s)
 
         if (s.has(Abduct) && s.forces(Nightgaunt).any && s.opponent.forces.vulnerable.any)

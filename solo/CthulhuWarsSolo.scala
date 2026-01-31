@@ -1679,8 +1679,9 @@ object CthulhuWarsSolo {
                                             cc = |(c)
                                         else
                                             c @@ {
-                                                case Then(OutOfTurnRepeat(f, action)) if self.has(f) => cc = |(Then(OutOfTurnRepeat(f, action)))
-                                                case c =>
+                                                case Then(OutOfTurnRepeat(f, action)) if self.has(f) => cc = |(c)
+                                                case Then(OutOfTurnRepeat(f, action)) if self.has(f).not =>
+                                                case c => cc = |(c)
                                             }
                                     }
                                 }
