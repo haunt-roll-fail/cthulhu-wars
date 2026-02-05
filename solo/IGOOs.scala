@@ -230,8 +230,10 @@ object IGOOsExpansion extends Expansion {
             self.enemies.foreach { f =>
                 f.at(r).cultists.foreach { u =>
                     u.region = d
+                    u.onGate = false
                 }
             }
+
             log(self.styled(Byatis), "used", GodOfForgetfulness.name.styled("nt"), "to move all enemy cultist from", r, "to", d)
             EndAction(self)
 

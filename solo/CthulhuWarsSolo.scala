@@ -1084,7 +1084,7 @@ object CthulhuWarsSolo {
                 val iconSpacing = 30
                 val baseRightOffset = 3
 
-                val lcis = f.loyaltyCards.zipWithIndex.map { case (lc, i) =>
+                val lcis = f.loyaltyCards.reverse.indexed./ { (lc, i) =>
                     val spellbook = lc match {
                         case ByatisCard => |(f.upgrades.has(GodOfForgetfulness))
                         case AbhothCard => |(f.upgrades.has(TheBrood))
@@ -1107,7 +1107,7 @@ object CthulhuWarsSolo {
 
                     s"""<img class='loyalty-card-icon'
                         src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace(" ", "-"))}'
-                        style='right:${right}px;'
+                        style='right:${right/12.0}vh; right:${right/12.0}dvh;'
                         onclick='event.stopPropagation(); onExternalClick("${unitName}"${sb})'
                         onpointerover='event.stopPropagation(); onExternalOver("${unitName}"${sb})'
                         onpointerout='event.stopPropagation(); onExternalOut("${unitName}"${sb})' />"""
