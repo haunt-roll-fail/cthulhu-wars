@@ -100,6 +100,11 @@ object OWExpansion extends Expansion {
         f.satisfyIf(UnitsAtEnemyGates, "Units at two enemy Gates", areas.%(r => f.at(r).any && f.enemies.%(_.gates.has(r)).any).num >= 2)
     }
 
+    override def eliminate(u : UnitFigure)(implicit game : Game) : Unit = {
+        if (OW.unitGate.has(u))
+            OW.unitGate = OW.unitGate.but(u)
+    }
+
     def perform(action : Action, soft : VoidGuard)(implicit game : Game) = action @@ {
         // DOOM
         case DoomAction(f : OW) =>

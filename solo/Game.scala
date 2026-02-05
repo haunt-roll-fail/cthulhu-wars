@@ -2063,7 +2063,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 + GroupAction("Before the end of Action Phase")
 
                 if (f.onMap(HighPriest).any)
-                    if (f.commands.has(UnspeakableOathOpportunityEndOfPhase))
+                    if (f.commands.has(UnspeakableOathOpportunityEndOfPhase) || f.commands.has(UnspeakableOathPrompt))
                         + SacrificeHighPriestPromptAction(f, PreMainAction(next)).as("Sacrifice", HighPriest.styled(f))("Unspeakable Oath".hl)
 
                 |(asking.ask).%(_.actions.%!(_.isInfo).any)./(_.add(NeedOk).add(OutOfTurnRefresh(EndPhasePromptsAction(next, l))).add(SacrificeHighPriestAllowedAction).group(" ").skip(EndPhasePromptsAction(next, l.but(f))))
