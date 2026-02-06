@@ -83,8 +83,8 @@ case class BuildCathedralAction(self : AN, r : Region) extends BaseFactionAction
 case class FestivalUnManSummonAction(self : AN, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + " gave power to another faction", "" + f + " gets " + 1.power)
 
 case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization.styled(self)) with DoomQuestion with Soft with PowerNeutral
-case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from", o)
-case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to", r)
+case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from", o) with Soft
+case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to", r) with Soft
 case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to " + r, self.styled(uc))
 case class DematerializationDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
@@ -279,7 +279,7 @@ object ANExpansion extends Expansion {
             Ask(self).each(areas.but(o))(r => DematerializationToRegionAction(self, o, r)).cancel
 
         case DematerializationToRegionAction(self, o, d) =>
-            Ask(self).each(self.at(o).%(_.canMove))(u => DematerializationMoveUnitAction(self, o, d, u.uclass)).add(DematerializationDoneAction(self))
+            Ask(self).each(self.at(o).%(_.canMove))(u => DematerializationMoveUnitAction(self, o, d, u.uclass)).cancel
 
         case DematerializationMoveUnitAction(self, o, d, uc) =>
             val u = self.at(o).one(uc)
