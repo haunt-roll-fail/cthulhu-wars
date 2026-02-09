@@ -104,6 +104,9 @@ object WWExpansion extends Expansion {
 
             game.controls(f)
 
+            if (f.hasAllSB)
+                game.battles(f)
+
             game.reveals(f)
 
             if (f.needs(AnytimeGainElderSigns))

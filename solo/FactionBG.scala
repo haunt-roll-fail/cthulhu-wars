@@ -133,10 +133,10 @@ object BGExpansion extends Expansion {
         case MainAction(f : BG) if f.acted =>
             implicit val asking = Asking(f)
 
+            game.controls(f)
+
             if (f.hasAllSB)
                 game.battles(f)
-
-            game.controls(f)
 
             game.summons(f)
 

@@ -95,6 +95,8 @@ object GCExpansion extends Expansion {
         case MainAction(f : GC) if f.acted =>
             implicit val asking = Asking(f)
 
+            game.controls(f)
+
             if (f.hasAllSB)
                 game.battles(f)
 

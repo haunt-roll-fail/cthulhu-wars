@@ -1971,8 +1971,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case MainAction(f) if f.active.not =>
             implicit val asking = Asking(f)
 
-            if (f.doom + f.es./(_.value).sum >= 30)
-                game.reveals(f)
+            game.reveals(f)
 
             + NextPlayerAction(f).as("Skip")
 
@@ -1986,8 +1985,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             if (f.hasAllSB)
                 game.battles(f)
 
-            if (f.doom + f.es./(_.value).sum >= 30)
-                game.reveals(f)
+            game.reveals(f)
 
             game.endTurn(f)(true)
 
