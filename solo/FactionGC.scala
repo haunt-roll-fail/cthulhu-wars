@@ -243,7 +243,9 @@ object GCExpansion extends Expansion {
             Force(SubmergeAction(f, r, Cthulhu))
 
         case SubmergeAction(f, r, uc) =>
-            f.at(r).one(uc).region = GC.deep
+            val u = f.at(r).one(uc)
+            u.region = GC.deep
+            u.onGate = false
             Ask(f).each(f.at(r).%(_.canMove))(u => SubmergeAction(f, r, u.uclass)).add(SubmergeDoneAction(f, r))
 
         case SubmergeDoneAction(f, r) =>

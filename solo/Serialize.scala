@@ -143,7 +143,7 @@ class Serialize(val game : Game) {
         case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).|!("unknown class " + f).apply(params.map(parseExpr)))
     }
 
-    def parseRegion(s : String) : |[Region] = (game.board.regions :+ SL.slumber).find(_.id == s)
+    def parseRegion(s : String) : |[Region] = (game.board.regions :+ SL.slumber :+ GC.deep).find(_.id == s)
 }
 
 object Serialize {

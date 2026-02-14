@@ -106,9 +106,13 @@ object IGOOsExpansion extends Expansion {
             if (f.has(Interdimensional)) {
                 val r = f.goo(Daoloth).region
 
-                if (r.onMap && game.gates.has(r).not) {
-                    game.gates :+= r
-                    log(f.styled(Daoloth), "placed a Gate in", r, "with", f.styled(Interdimensional))
+                if (game.lastDaolothRegion.has(r).not) {
+                    game.lastDaolothRegion = |(r)
+
+                    if (r.onMap && game.gates.has(r).not) {
+                        game.gates :+= r
+                        log(f.styled(Daoloth), "placed a Gate in", r, "with", f.styled(Interdimensional))
+                    }
                 }
             }
         }
@@ -146,6 +150,8 @@ object IGOOsExpansion extends Expansion {
 
                 f.loyaltyCards :-= DaolothCard
                 game.loyaltyCards :+= DaolothCard
+
+                game.lastDaolothRegion = None
 
             case Nyogtha if f.all(Nyogtha).but(u).any =>
                 f.oncePerAction :+= NyogthaMourning

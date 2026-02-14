@@ -133,12 +133,17 @@ object OWExpansion extends Expansion {
         case MainAction(f : OW) if f.active.not =>
             implicit val asking = Asking(f)
 
-            if (f.want(DragonAscending) && f.power < f.enemies./(_.power).max)
-                + DragonAscendingMainAction(f)
+            if (f.can(DragonAscending)) {
+                val raise = factions./(_.power).max - f.power
+                val threshold = f.commands.of[DragonAscendingPower].single./(_.power).|(1)
+
+                if (raise >= threshold)
+                    + DragonAscendingMainAction(f)
+            }
 
             game.reveals(f)
 
-            + NextPlayerAction(f).as("Skip")
+            + NextPlayerAction(f).as("Skip")("" + f + " action")
 
             asking
 
@@ -375,7 +380,6 @@ object OWExpansion extends Expansion {
 
         case DragonAscendingAskAction(self, f, reason, then) =>
             val raise = factions./(_.power).max - self.power
-
             val threshold = self.commands.of[DragonAscendingPower].single./(_.power).|(1)
 
             Ask(self)

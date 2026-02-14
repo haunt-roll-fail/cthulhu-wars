@@ -67,6 +67,7 @@ object colmat {
         def @@(t : T => Nothing) = t(o)
         def @@?[U](t : T => U) : U = t(o)
         def as[U : ClassTag] : Option[U] = Some(o).collect({ case m : U => m })
+        def <<[U : ClassTag](p : U => Unit) : Unit = Some(o).collect({ case m : U => m }).foreach(p)
         def sure[U : ClassTag] : U = o match {
             case m : U => m
             case x => throw new Error("" + x + " is not of class " + implicitly[ClassTag[U]])
