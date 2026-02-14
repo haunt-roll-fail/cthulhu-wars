@@ -206,9 +206,9 @@ object BGExpansion extends Expansion {
             CheckSpellbooksAction(DoomAction(self))
 
         // FERTILITY
-        case SummonedAction(self, uc, r, l) if self.has(Fertility) && !self.ignored(Fertility) =>
+        case SummonedAction(self, uc, r, l) if self.has(Fertility) && self.oncePerRound.has(Fertility).not =>
             self.oncePerRound :+= Fertility
-            AfterAction(self)
+            SummonedAction(self, uc, r, l)
 
         // ELIMINATE CULTISTS
         case EliminateTwoCultistsMainAction(self) =>

@@ -62,7 +62,7 @@ case class Prison(faction : Faction) extends FactionRegion {
 
 case class Deep(faction : Faction) extends FactionRegion {
     val glyph = Deep
-    val id = "???"
+    val id = "Deep"
     val name = "Ocean Deep"
 }
 
@@ -538,11 +538,12 @@ case object UnspeakableOathPrompt extends UnspeakableOathPlan("Always prompt") w
 case object UnspeakableOathSkip extends UnspeakableOathPlan("Skip, unless...") with OneOfPlan { override val followers = $(UnspeakableOathThreatOfHPCapture, UnspeakableOathThreatOfAcolyteCapture, UnspeakableOathThreatOfAttackOnHighPriest, UnspeakableOathOpportunityEndOfPhase) }
 trait UnspeakableThreat extends UnspeakableOathPlan { override val requires = $($(UnspeakableOathSkip)) }
 case object UnspeakableOathThreatOfHPCapture extends UnspeakableOathPlan("...threat of High Priest capture") with UnspeakableThreat
-case object UnspeakableOathThreatOfGhroth extends UnspeakableOathPlan("...threat of Ghroth elimiating High Priest") with UnspeakableThreat
+case object UnspeakableOathThreatOfGhroth extends UnspeakableOathPlan("...threat of Ghroth eliminating High Priest") with UnspeakableThreat
 case object UnspeakableOathThreatOfThousandForms extends UnspeakableOathPlan("...threat of unopposed Thousand Forms") with UnspeakableThreat
 case object UnspeakableOathThreatOfDryEternal extends UnspeakableOathPlan("...threat of battle again Rhan-Tegoth with no power") with UnspeakableThreat
 case object UnspeakableOathOpportunityOfDreadCurse extends UnspeakableOathPlan("...opportunity for Dread Curse") with UnspeakableThreat
 case object UnspeakableOathOpportunityEndOfPhase extends UnspeakableOathPlan("...end of Action Phase") with UnspeakableThreat
+case object UnspeakableOathOpportunityFirstPlayer extends UnspeakableOathPlan("...become eligible First Player") with UnspeakableThreat
 
 case object UnspeakableOathThreatOfAcolyteCapture extends UnspeakableOathPlan("...threat of Acolyte capture") with UnspeakableThreat
 case object UnspeakableOathThreatOfAttackOnHighPriest extends UnspeakableOathPlan("...credible threat of High Priest being killed") with UnspeakableThreat
@@ -828,6 +829,7 @@ case object StartAction extends ForcedAction
 case object SetupFactionsAction extends ForcedAction
 case class CheckSpellbooksAction(then : ForcedAction) extends ForcedAction
 case object AfterPowerGatherAction extends ForcedAction
+case class BeforeFirstPlayerAction(l : $[Faction]) extends ForcedAction
 case object FirstPlayerDeterminationAction extends ForcedAction
 case object PlayOrderAction extends ForcedAction
 case class PowerGatherAction(then : Faction) extends ForcedAction
@@ -995,6 +997,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     var nexed : $[Region] = $
     var queue : $[Battle] = $
     var anyIceAge : Boolean = false
+    var lastDaolothRegion : |[Region] = None
     var neutralSpellbooks : $[Spellbook] = options.contains(NeutralSpellbooks).$(MaoCeremony, Recriminations, Shriveling, StarsAreRight, UmrAtTawil, Undimensioned)
     var loyaltyCards : $[LoyaltyCard] = options.of[LoyaltyCardGameOption]./(_.lc)
 
@@ -1521,7 +1524,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             triggers()
 
-            AfterPowerGatherAction
+            AfterPowerGatherAction // Then(...)
 
         case AfterPowerGatherAction =>
             factions.foreach { f =>
@@ -1534,7 +1537,38 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
             factions.foreach(_.ignorePerInstant = $)
 
-            DragonAscendingInstantAction(DragonAscendingUpAction("first player determination", FirstPlayerDeterminationAction))
+            BeforeFirstPlayerAction(factions)
+
+        case BeforeFirstPlayerAction(l) =>
+            val max = factions./(_.power).max
+            val asks = l./~{ f =>
+                implicit val asking = Asking(f)
+
+                + GroupAction("Before First Player determination")
+
+                if (f.power + 2 >= max && f.power <= f.enemies./(_.power).max)
+                    if (f.onMap(HighPriest).any)
+                        if (f.commands.has(UnspeakableOathOpportunityFirstPlayer) || f.commands.has(UnspeakableOathPrompt))
+                            + SacrificeHighPriestPromptAction(f, BeforeFirstPlayerAction(factions)).as("Sacrifice", HighPriest.styled(f))("Unspeakable Oath".hl)
+
+                f << [OW] { f =>
+                    if (f.can(DragonAscending) && f.power < max)
+                        + DragonAscendingAction(f, None, None, max, BeforeFirstPlayerAction(factions))
+                }
+
+                |(asking.ask).%(_.actions.%!(_.isInfo).any)./{ _
+                    .add(NeedOk)
+                    .add(OutOfTurnRefresh(BeforeFirstPlayerAction(l)))
+                    .add(SacrificeHighPriestAllowedAction)
+                    .group(" ")
+                    .skip(BeforeFirstPlayerAction(l.but(f)))
+                }
+            }
+
+            if (asks.any)
+                MultiAsk(asks)
+            else
+                FirstPlayerDeterminationAction // Then(...)
 
         case DoomPhaseAction =>
             doomPhase = true
@@ -1614,7 +1648,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 if (old != game.first)
                     game.first.log("became the first player")
 
-                PlayOrderAction
+                PlayOrderAction // Then(...)
             }
 
         case FirstPlayerAction(f, first) =>
@@ -1625,7 +1659,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             else
                 f.log("chose", first, "as the first player")
 
-            PlayOrderAction
+            PlayOrderAction // Then(...)
 
         case PlayOrderAction =>
             game.first.satisfy(FirstPlayer, "Become First Player")
@@ -1643,7 +1677,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             log("Play order", factions.mkString(", "))
 
             if (turn == 1)
-                ActionPhaseAction
+                ActionPhaseAction // Then(...)
             else {
                 log(CthulhuWarsSolo.DottedLine)
                 log("DOOM PHASE")
@@ -1651,7 +1685,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 factions.foreach(f => f.satisfyIf(FirstDoomPhase, "The first Doom phase", turn == 2))
                 factions.foreach(f => f.satisfyIf(FiveSpellbooks, "Have five spellbooks", f.unfulfilled.num == 1))
 
-                CheckSpellbooksAction(DoomPhaseAction)
+                CheckSpellbooksAction(DoomPhaseAction) // Then(...)
             }
 
         // SPELLBOOK
@@ -2232,7 +2266,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 .skipIf(effect.has(FromBelow))(ProceedBattlesAction)
 
         case AttackAction(self, r, f, effect) =>
-            self.power -= 1
+            if (effect.has(FromBelow).not)
+                self.power -= 1
+
             self.payTax(r)
             self.log("battled", f, "in", r, effect./("with " + _).|(""))
 
@@ -2341,6 +2377,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                     UnspeakableOathThreatOfAttackOnHighPriest,
                     UnspeakableOathThreatOfAcolyteCapture,
                     UnspeakableOathOpportunityEndOfPhase,
+                    UnspeakableOathOpportunityFirstPlayer,
                 ) ++
                 (self == WW).$(UnspeakableOathThreatOfDryEternal) ++
                 (self == OW).$(UnspeakableOathOpportunityOfDreadCurse) ++
