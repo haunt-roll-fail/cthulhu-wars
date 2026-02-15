@@ -301,6 +301,15 @@ object OWExpansion extends Expansion {
                     f.at(r).%(_.health == Killed).foreach { u =>
                         log(u, "was", "killed".styled("kill"))
                         game.eliminate(u)
+
+                        if (u.goo)
+                            factions.foreach { f =>
+                                if (f.upgrades.has(Interdimensional).not && f.has(Daoloth)) {
+                                    f.upgrades :+= Interdimensional
+
+                                    log(f, "gained", f.styled(Interdimensional), "for", f.styled(Daoloth))
+                                }
+                            }
                     }
                 }
 
