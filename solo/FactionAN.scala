@@ -69,23 +69,23 @@ case object AN extends Faction { f =>
 
 case class GiveWorstMonsterMainAction(self : AN) extends OptionFactionAction("Give enemies lowest cost monster") with MainQuestion
 case class GiveWorstMonsterContinueAction(self : AN, rest : $[Faction]) extends ForcedAction
-case class GiveWorstMonsterSelectMonsterAction(self : Faction, f : AN, uc : UnitClass, l : $[Region], rest : $[Faction]) extends BaseFactionAction("Summon monster for free", self.styled(uc))
+case class GiveWorstMonsterSelectMonsterAction(self : Faction, f : AN, uc : UnitClass, l : $[Region], rest : $[Faction]) extends BaseFactionAction("Summon monster for free", uc.styled(self))
 case class GiveWorstMonsterAskAction(self : Faction, f : AN, uc : UnitClass, r : Region, rest : $[Faction]) extends BaseFactionAction("Summon a " + uc + " for free at", r)
 
 case class GiveBestMonsterMainAction(self : AN) extends OptionFactionAction("Give enemies highest cost monster") with MainQuestion
 case class GiveBestMonsterContinueAction(self : AN, l : $[Faction]) extends ForcedAction
-case class GiveBestMonsterSelectMonsterAction(self : Faction, f : AN, uc : UnitClass, l : $[Region], rest : $[Faction]) extends BaseFactionAction("Summon monster for free", self.styled(uc))
+case class GiveBestMonsterSelectMonsterAction(self : Faction, f : AN, uc : UnitClass, l : $[Region], rest : $[Faction]) extends BaseFactionAction("Summon monster for free", uc.styled(self))
 case class GiveBestMonsterAskAction(self : Faction, f : AN, uc : UnitClass, r : Region, rest : $[Faction]) extends BaseFactionAction("Summon a " + uc + " for free at", r)
 
-case class BuildCathedralMainAction(self : AN, l : $[Region]) extends OptionFactionAction("Build " + AN.styled("Cathedral")) with MainQuestion with Soft
+case class BuildCathedralMainAction(self : AN, l : $[Region]) extends OptionFactionAction("Build " + "Cathedral".styled(AN)) with MainQuestion with Soft
 case class BuildCathedralAction(self : AN, r : Region) extends BaseFactionAction(implicit g => "Build cathedral" + g.forNPowerWithTax(r, self, AN.cathedralCost(r)) + " in", r)
 
-case class FestivalUnManSummonAction(self : AN, f : Faction) extends BaseFactionAction(AN.styled("UnMen") + " gave power to another faction", "" + f + " gets " + 1.power)
+case class FestivalUnManSummonAction(self : AN, f : Faction) extends BaseFactionAction("UnMen".styled(AN) + " gave power to another faction", "" + f + " gets " + 1.power)
 
-case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization.styled(self)) with DoomQuestion with Soft with PowerNeutral
-case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from", o) with Soft
-case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to", r) with Soft
-case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction(Dematerialization.styled(self) + " from " + o + " to " + r, self.styled(uc))
+case class DematerializationDoomAction(self : Faction) extends OptionFactionAction(Dematerialization) with DoomQuestion with Soft with PowerNeutral
+case class DematerializationFromRegionAction(self : Faction, o : Region) extends BaseFactionAction("" + Dematerialization + " from", o) with Soft
+case class DematerializationToRegionAction(self : Faction, o : Region, r : Region) extends BaseFactionAction("" + Dematerialization + " from " + o + " to", r) with Soft
+case class DematerializationMoveUnitAction(self : Faction, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction("" + Dematerialization + " from " + o + " to " + r, uc.styled(self))
 case class DematerializationDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
 
@@ -94,7 +94,7 @@ object ANExpansion extends Expansion {
         if (u.uclass == Yothan && u.faction.has(Extinction)) {
             u.region = AN.extinct
             u.state = $
-            log(u.faction.styled(Yothan), "was removed from the game permanently due to", Extinction)
+            log(Yothan, "was removed from the game permanently due to", Extinction)
         }
     }
 
@@ -268,7 +268,7 @@ object ANExpansion extends Expansion {
 
         case FestivalUnManSummonAction(self, f) =>
             f.power += 1
-            f.log("got", 1.power, "from", self.styled(Festival))
+            f.log("got", 1.power, "from", Festival)
             EndAction(self)
 
         // DEMATERIALIZATION
@@ -285,7 +285,7 @@ object ANExpansion extends Expansion {
             val u = self.at(o).one(uc)
             u.region = d
             u.onGate = false
-            self.log("sent", self.styled(uc), "from", o, "to", d, "with", Dematerialization.full)
+            self.log("sent", uc.styled(self), "from", o, "to", d, "with", Dematerialization)
             Ask(self).each(self.at(o).%(_.canMove))(u => DematerializationMoveUnitAction(self, o, d, u.uclass)).add(DematerializationDoneAction(self))
 
         case DematerializationDoneAction(self) =>

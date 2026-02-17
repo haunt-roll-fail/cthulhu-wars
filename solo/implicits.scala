@@ -114,7 +114,7 @@ trait GameImplicits {
     implicit def stringToDesc(s : String) : Game => String = (g : Game) => s
     implicit def regionToDesc(r : Region) : Game => String = (g : Game) => r.toString
     implicit def factionToDesc(f : Faction) : Game => String = (g : Game) => f.full
-    implicit def spellbookToDesc(b : Spellbook) : Game => String = (g : Game) => b.full
+    implicit def spellbookToDesc(b : Spellbook) : Game => String = (g : Game) => b.elem
     implicit def optionToDesc(n : |[String]) : Game => String = (g : Game) => n.|(null)
     implicit def unitRefShortToDesc(ur : UnitRefShort) : Game => String = (g : Game) => g.unit(ur.r).short
     implicit def unitRefFullToDesc(ur : UnitRefFull) : Game => String = (g : Game) => g.unit(ur.r).full

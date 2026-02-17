@@ -35,9 +35,9 @@ case class NeutralMonstersAction(self : Faction, lc : NeutralMonsterLoyaltyCard)
         s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 }) with PowerNeutral
-case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "" + self + " places " + self.styled(uc) + " in", implicit g => r + self.iced(r))
+case class LoyaltyCardSummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(g => "" + self + " places " + uc.styled(self) + " in", implicit g => r + self.iced(r))
 
-case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends BaseFactionAction(g => "" + self + " summons " + self.styled(uc) + " for free in", implicit g => r + self.iced(r))
+case class FreeSummonAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends BaseFactionAction(g => "" + self + " summons " + uc.styled(self) + " for free in", implicit g => r + self.iced(r))
 
 case class ShantakCarryCultistAction(self : Faction, o : Region, ur : UnitRef, r : Region) extends ForcedAction
 
@@ -69,14 +69,14 @@ object NeutralMonstersExpansion extends Expansion {
             if (self.allGates.onMap.any)
                 Ask(self).each(self.allGates.onMap)(r => LoyaltyCardSummonAction(self, lc.unit, r))
             else {
-                self.log("had nowhere to place", self.styled(lc.unit))
+                self.log("had nowhere to place", lc.unit.styled(self))
 
                 CheckSpellbooksAction(DoomAction(self))
             }
 
         case LoyaltyCardSummonAction(self, uc, r) =>
             self.place(uc, r)
-            self.log("placed", self.styled(uc), "in", r)
+            self.log("placed", uc.styled(self), "in", r)
 
             if (uc == Ghast && self.pool(Ghast).any)
                 Ask(self).each(self.allGates.onMap)(r => LoyaltyCardSummonAction(self, uc, r))
@@ -92,7 +92,7 @@ object NeutralMonstersExpansion extends Expansion {
                 self.payTax(r)
 
             self.place(uc, r)
-            self.log("summoned", self.styled(uc), "in", r, "for free")
+            self.log("summoned", uc.styled(self), "in", r, "for free")
 
             SummonedAction(self, uc, r, l :+ r)
 

@@ -178,7 +178,7 @@ case object HighPriestCard extends LoyaltyCard {
 
 
 abstract class FactionUnitClass(val faction : Faction, name : String, utype : UnitType, cost : Int) extends UnitClass(name, utype, cost) {
-    def elem = faction.styled(name)
+    def elem = name.styled(faction)
     override def toString = elem
 }
 
@@ -205,9 +205,9 @@ class UnitFigure(val faction : Faction, val uclass : UnitClass, val index : Int,
 
     def dbg = faction.short + "/" + uclass.name + "/" + index
 
-    def short = faction.styled(uclass.name)
+    def short = uclass.name.styled(faction)
 
-    def full = faction.styled(uclass.name) + onGate.??(" (on the gate)") + state.some./(_.mkString(" (", "/", ")")).|("") + (health != Alive && health != DoubleHP(Alive, Alive)).??(" (" + health + ")")
+    def full = uclass.name.styled(faction) + onGate.??(" (on the gate)") + state.some./(_.mkString(" (", "/", ")")).|("") + (health != Alive && health != DoubleHP(Alive, Alive)).??(" (" + health + ")")
 
     def tag(s : UnitState) = state.has(s)
     def add(s : UnitState) { state :+= s }
@@ -218,7 +218,7 @@ class UnitFigure(val faction : Faction, val uclass : UnitClass, val index : Int,
 }
 
 case class UnitRef(faction : Faction, uclass : UnitClass, index : Int) {
-    def short = faction.styled(uclass)
+    def short = uclass.styled(faction)
     def full = UnitRefFull(this)
 }
 
@@ -226,19 +226,19 @@ case class UnitRefShort(r : UnitRef)
 case class UnitRefFull(r : UnitRef)
 
 sealed abstract class Spellbook(val name : String) extends Record {
-    def full : String
-    override def toString = full
+    def elem : String
+    override def toString = elem
     def styled(f : Faction) = name.styled(f)
 }
 
 trait BattleSpellbook extends Spellbook
 
 abstract class NeutralSpellbook(name : String) extends Spellbook(name) {
-    override def full = name.styled("nt")
+    override def elem = name.styled("nt")
 }
 
 abstract class FactionSpellbook(val faction : Faction, name : String) extends Spellbook(name) {
-    override def full = faction.styled(name)
+    override def elem = name.styled(faction)
 }
 
 abstract class Requirement(val text : String, val es : Int = 0)
@@ -248,10 +248,6 @@ trait Faction { f =>
     def short : String
     def style : String
     def abbr : String = style.toUpperCase.styled(style)
-    def styled(s : String) = s.styled(style)
-    def styled(ut : UnitType) = ut.name.styled(style)
-    def styled(uc : UnitClass) = uc.name.styled(style)
-    def styled(sb : Spellbook) = sb.name.styled(style)
     val reserve = Pool(f)
     val prison = Prison(f)
 
@@ -626,7 +622,7 @@ class Player(private val f : Faction)(implicit game : Game) {
     def satisfy(rq : Requirement, text : String, es : Int = 0) {
         if (f.needs(rq)) {
             f.unfulfilled = f.unfulfilled.but(rq)
-            f.log("achieved", f.styled(text), ((es + rq.es) > 0).??("and gained " + (es + rq.es).es))
+            f.log("achieved", text.styled(f), ((es + rq.es) > 0).??("and gained " + (es + rq.es).es))
             f.takeES(es + rq.es)
         }
     }
@@ -716,7 +712,7 @@ class Player(private val f : Faction)(implicit game : Game) {
         val s = iced(r)
         if (s.any) {
             f.power -= s.tax
-            f.log("lost", s.tax.power, "due to", s.list./(_.styled(IceAge)).mkString(", "))
+            f.log("lost", s.tax.power, "due to", s.list./(IceAge.styled).mkString(", "))
             s.tax
         }
         else
@@ -733,7 +729,7 @@ object RitualTrack {
 case class IceAges(list : $[Faction]) {
     def any = list.any
     def tax = list.num
-    def elem = list./(" (" + _.styled(IceAge) + ")").mkString("")
+    def elem = list./(e => " (" + IceAge.styled(e) + ")").mkString("")
     override def toString = elem
 }
 
@@ -867,7 +863,7 @@ case class SpellbookAction(self : Faction, sb : Spellbook, then : ForcedAction) 
     val p = s""""${self.short}", "${sb.name.replace('\\'.toString, '\\'.toString + '\\'.toString)}"""".replace('"'.toString, "&quot;")
     val qm = Overlays.imageSource("question-mark")
     "<div class=sbdiv>" +
-        sb.full +
+        sb +
         s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 })
@@ -927,26 +923,26 @@ case class CaptureMainAction(self : Faction, l : $[Region], effect : |[Spellbook
 case class CaptureAction(self : Faction, r : Region, f : Faction, effect : |[Spellbook]) extends ForcedAction
 case class CaptureTargetAction(self : Faction, r : Region, f : Faction, ur : UnitRef, effect : |[Spellbook]) extends ForcedAction
 
-case class RecruitMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Recruit " + self.styled(uc)) with MainQuestion with Soft
-case class RecruitAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(implicit g => "Recruit " + self.styled(uc) + g.forNPowerWithTax(r, self, self.recruitCost(uc, r)) + " in", implicit g => r + self.iced(r))
+case class RecruitMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Recruit " + uc.styled(self)) with MainQuestion with Soft
+case class RecruitAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(implicit g => "Recruit " + uc.styled(self) + g.forNPowerWithTax(r, self, self.recruitCost(uc, r)) + " in", implicit g => r + self.iced(r))
 
-case class SummonMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Summon " + self.styled(uc)) with MainQuestion with Soft
-case class SummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(implicit g => "Summon " + self.styled(uc) + g.forNPowerWithTax(r, self, self.summonCost(uc, r)) + " in", implicit g => r + self.iced(r))
+case class SummonMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Summon " + uc.styled(self)) with MainQuestion with Soft
+case class SummonAction(self : Faction, uc : UnitClass, r : Region) extends BaseFactionAction(implicit g => "Summon " + uc.styled(self) + g.forNPowerWithTax(r, self, self.summonCost(uc, r)) + " in", implicit g => r + self.iced(r))
 case class SummonedAction(self : Faction, uc : UnitClass, r : Region, l : $[Region]) extends ForcedAction
 
-case class AwakenMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Awaken " + self.styled(uc)) with MainQuestion with Soft
-case class AwakenAction(self : Faction, uc : UnitClass, r : Region, cost : Int) extends BaseFactionAction(g => "Awaken " + self.styled(uc) + g.forNPowerWithTax(r, self, cost) + " in", implicit g => r + self.iced(r))
+case class AwakenMainAction(self : Faction, uc : UnitClass, l : $[Region]) extends OptionFactionAction("Awaken " + uc.styled(self)) with MainQuestion with Soft
+case class AwakenAction(self : Faction, uc : UnitClass, r : Region, cost : Int) extends BaseFactionAction(g => "Awaken " + uc.styled(self) + g.forNPowerWithTax(r, self, cost) + " in", implicit g => r + self.iced(r))
 case class AwakenedAction(self : Faction, uc : UnitClass, r : Region, cost : Int) extends ForcedAction
 
 case class Offer(f : Faction, n : Int)
 
-case class SacrificeHighPriestDoomAction(self : Faction) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with DoomQuestion with Soft with PowerNeutral
-case class SacrificeHighPriestMainAction(self : Faction) extends OptionFactionAction("Sacrifice " + self.styled("High Priest")) with MainQuestion with Soft
+case class SacrificeHighPriestDoomAction(self : Faction) extends OptionFactionAction("Sacrifice " + "High Priest".styled(self)) with DoomQuestion with Soft with PowerNeutral
+case class SacrificeHighPriestMainAction(self : Faction) extends OptionFactionAction("Sacrifice " + "High Priest".styled(self)) with MainQuestion with Soft
 case class SacrificeHighPriestPromptAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
-case class SacrificeHighPriestAction(self : Faction, r : Region, then : ForcedAction) extends BaseFactionAction("Sacrifice to gain " + 2.power, self.styled(HighPriest) + " in " + r)
+case class SacrificeHighPriestAction(self : Faction, r : Region, then : ForcedAction) extends BaseFactionAction("Sacrifice to gain " + 2.power, HighPriest.styled(self) + " in " + r)
 
 case object SacrificeHighPriestAllowedAction extends HiddenAction
-case class SacrificeHighPriestOutOfTurnMainAction(self : Faction) extends BaseFactionAction("Unspeakable Oath".hl, "Sacrifice " + self.styled("High Priest")) with Soft
+case class SacrificeHighPriestOutOfTurnMainAction(self : Faction) extends BaseFactionAction("Unspeakable Oath".hl, "Sacrifice " + "High Priest".styled(self)) with Soft
 
 case class CommandsMainAction(self : Faction) extends BaseFactionAction("  ", "Commands".styled(self)) with OutOfTurn with Soft
 case class CommandsAddAction(self : Faction, plan : Plan) extends BaseFactionAction(plan.group, plan.unselected) with OutOfTurn with NoClear
@@ -1013,8 +1009,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case s : String => s
         case r : Region => r.toString
         case f : Faction => f.full
-        case b : Spellbook => b.full
-        case n : |[String] => n.|("")
+        case b : Spellbook => b.elem
+        case |(n) => desc(n)
+        case None => ""
         case u : UnitFigure => u.short
         case ur : UnitRef => unit(ur).short
         case ur : UnitRefShort => unit(ur.r).short
@@ -1098,7 +1095,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         val keeper = controler./~(f => f.at(r).%(_.health == Alive).%(u => u.uclass.utype == Cultist || (u.uclass == DarkYoung && f.has(RedSign))).starting)
         val others = factions.%(f => !f.gates.contains(r)).%(_.at(r).num > 0).sortBy(f => f.strength(f.at(r), f))
         if (gate || !others.none || ds) {
-            $("" + r + ":" + gate.??(" " + keeper./(u => ("[[[".styled(u.faction.style) + " " + u + " " + "]]]".styled(u.faction.style))).|("[[[ GATE ]]]".styled("power"))) + ds.??(" " + YS.styled(")|("))) ++
+            $("" + r + ":" + gate.??(" " + keeper./(u => ("[[[".styled(u.faction.style) + " " + u + " " + "]]]".styled(u.faction.style))).|("[[[ GATE ]]]".styled("power"))) + ds.??(" " + ")|(".styled(YS))) ++
             controler./(f => "    " + f.at(r).diff(keeper.$)./(u => u.short).mkString(", ")).$ ++
             others.sortBy(_.units.%(_.region == r).num)./ { f =>  "    " + f.at(r)./(u => u.short).mkString(", ") } ++ $("&nbsp;")
         }
@@ -1584,7 +1581,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 if (f.has(Byatis)) {
                     val r = f.goo(Byatis).region
                     if (factionlike.but(f).exists(_.present(r)).not) {
-                        f.log("gained", 1.es, "from", f.styled(Byatis), "and", ToadOfBerkeley)
+                        f.log("gained", 1.es, "from", Byatis.styled(f), "and", ToadOfBerkeley)
                         f.takeES(1)
                     }
                 }
@@ -1713,7 +1710,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case SpellbookAction(f, sb, next) =>
             f.spellbooks = f.spellbooks :+ sb
 
-            f.log("received", sb.full)
+            f.log("received", sb)
 
             neutralSpellbooks = neutralSpellbooks.but(sb)
 
@@ -2219,7 +2216,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case MoveDoneAction(self) =>
             if (self.has(Burrow) && self.units.%(u => u.tag(Moved))./(u => 1 - u.count(MovedForFree) + u.count(MovedForExtra)).sum > 1) {
                 self.power += 1
-                self.log("recovered", 1.power, "from", Burrow.full)
+                self.log("recovered", 1.power, "from", Burrow)
             }
 
             self.units.foreach(_.remove(Moved))
@@ -2288,7 +2285,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case ProceedBattlesAction =>
             factions.%(f => game.nexed.none && f.has(EnergyNexus) && queue.exists(b => f.at(b.arena)(Wizard).any) && f.acted.not).foreach { f =>
                 game.nexed = queue.%(_.attacker == queue.first.attacker)./(_.arena).%(r => f.at(r)(Wizard).any)
-                f.log("interrupted battle", queue.exists(_.effect.has(EnergyNexus)).??("again"), "with", EnergyNexus.full)
+                f.log("interrupted battle", queue.exists(_.effect.has(EnergyNexus)).??("again"), "with", EnergyNexus)
                 return Force(PreMainAction(f))
             }
 
@@ -2308,7 +2305,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         case CaptureMainAction(self, l, effect) =>
             val variants = l./~ { r =>
                 self.enemies.%(self.canCapture(r))./ { f =>
-                    CaptureAction(self, r, f, effect).as(f.at(r).cultists./(_.uclass).distinct.single./(f.styled).|(f.styled(Cultist)))("Capture", for1PowerWithTax(r, self), "in", r, self.iced(r))
+                    CaptureAction(self, r, f, effect).as(f.at(r).cultists./(_.uclass).distinct.single./(_.name).|(Cultist.name).styled(f))("Capture", for1PowerWithTax(r, self), "in", r, self.iced(r))
                 }
             }
 
@@ -2366,7 +2363,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             self.power -= self.recruitCost(uc, r)
             self.payTax(r)
             self.place(uc, r)
-            self.log("recruited", self.styled(uc), "in", r)
+            self.log("recruited", uc.styled(self), "in", r)
 
             if (uc === HighPriest) {
                 self.plans ++= $(
@@ -2411,7 +2408,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             self.power -= self.summonCost(uc, r)
             self.payTax(r)
             self.place(uc, r)
-            self.log("summoned", self.styled(uc), "in", r)
+            self.log("summoned", uc.styled(self), "in", r)
 
             SummonedAction(self, uc, r, $)
 
@@ -2428,7 +2425,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             self.payTax(r)
             self.place(uc, r)
 
-            self.log("awakened", self.styled(uc), "in", r)
+            self.log("awakened", uc.styled(self), "in", r)
 
             AwakenedAction(self, uc, r, cost)
 

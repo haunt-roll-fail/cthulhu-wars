@@ -75,16 +75,16 @@ case class IndependentGOOMainAction(self : Faction, lc : IGOOLoyaltyCard, l : $[
     s"""<img class=explain src="${qm}" onclick="event.stopPropagation(); onExternalClick(${p})" onpointerover="onExternalOver(${p})" onpointerout="onExternalOut(${p})" />""" +
     "</div>"
 }) with MainQuestion with Soft
-case class IndependentGOOAction(self : Faction, lc : LoyaltyCard, r : Region, cost : Int) extends BaseFactionAction(g => "Awaken " + self.styled(lc.unit) + g.forNPowerWithTax(r, self, cost) + " in", implicit g => r + self.iced(r))
+case class IndependentGOOAction(self : Faction, lc : LoyaltyCard, r : Region, cost : Int) extends BaseFactionAction(g => "Awaken " + lc.unit.styled(self) + g.forNPowerWithTax(r, self, cost) + " in", implicit g => r + self.iced(r))
 
-case class GodOfForgetfulnessMainAction(self : Faction, d : Region, l : $[Region]) extends OptionFactionAction(self.styled("God of Forgetfulness")) with MainQuestion with Soft
-case class GodOfForgetfulnessAction(self : Faction, d : Region, r : Region) extends BaseFactionAction(g => "Move all enemy Cultists to " + self.styled(Byatis) + " " + g.forNPowerWithTax(d, self, 1) + " from", r)
+case class GodOfForgetfulnessMainAction(self : Faction, d : Region, l : $[Region]) extends OptionFactionAction("God of Forgetfulness".styled(self)) with MainQuestion with Soft
+case class GodOfForgetfulnessAction(self : Faction, d : Region, r : Region) extends BaseFactionAction(g => "Move all enemy Cultists to " + Byatis.styled(self) + " " + g.forNPowerWithTax(d, self, 1) + " from", r)
 
-case class FilthMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Place " + self.styled(Filth)) with MainQuestion with Soft
-case class FilthAction(self : Faction, r : Region) extends BaseFactionAction(g => "Place " + self.styled(Filth) + " " + g.forNPowerWithTax(r, self, 1) + " in", r)
+case class FilthMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Place " + Filth.styled(self)) with MainQuestion with Soft
+case class FilthAction(self : Faction, r : Region) extends BaseFactionAction(g => "Place " + Filth.styled(self) + " " + g.forNPowerWithTax(r, self, 1) + " in", r)
 
-case class NightmareWebMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Awaken " + self.styled(Nyogtha) + " with " + self.styled(NightmareWeb)) with MainQuestion with Soft
-case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAction(g => "Awaken " + self.styled(Nyogtha) + g.forNPowerWithTax(r, self, 2) + " in", implicit g => r + self.iced(r))
+case class NightmareWebMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Awaken " + Nyogtha.styled(self) + " with " + NightmareWeb.styled(self)) with MainQuestion with Soft
+case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAction(g => "Awaken " + Nyogtha.styled(self) + g.forNPowerWithTax(r, self, 2) + " in", implicit g => r + self.iced(r))
 
 
 object IGOOsExpansion extends Expansion {
@@ -95,7 +95,7 @@ object IGOOsExpansion extends Expansion {
 
                 if (monsters./(_.uclass).distinct.num >= 4 || monsters.num >= 8) {
                     f.upgrades :+= TheBrood
-                    f.log("gained", f.styled(TheBrood), "for", f.styled(Abhoth))
+                    f.log("gained", TheBrood.styled(f), "for", Abhoth.styled(f))
                 }
             }
         }
@@ -111,7 +111,7 @@ object IGOOsExpansion extends Expansion {
 
                     if (r.onMap && game.gates.has(r).not) {
                         game.gates :+= r
-                        log(f.styled(Daoloth), "placed a Gate in", r, "with", f.styled(Interdimensional))
+                        log(Daoloth.styled(f), "placed a Gate in", r, "with", Interdimensional.styled(f))
                     }
                 }
             }
@@ -178,7 +178,7 @@ object IGOOsExpansion extends Expansion {
             if (f.upgrades.has(NightmareWeb).not) {
                 f.upgrades :+= NightmareWeb
 
-                f.log("gained", f.styled(NightmareWeb), "for", f.styled(Nyogtha))
+                f.log("gained", NightmareWeb.styled(f), "for", Nyogtha.styled(f))
             }
         }
     }
@@ -218,7 +218,7 @@ object IGOOsExpansion extends Expansion {
             }
 
             if (self.has(Immortal)) {
-                self.log("gained", 1.es, "as", Immortal.full)
+                self.log("gained", 1.es, "as", Immortal)
 
                 self.takeES(1)
             }
@@ -240,7 +240,7 @@ object IGOOsExpansion extends Expansion {
                 }
             }
 
-            log(self.styled(Byatis), "used", GodOfForgetfulness.name.styled("nt"), "to move all enemy cultist from", r, "to", d)
+            log(Byatis.styled(self), "used", GodOfForgetfulness.name.styled("nt"), "to move all enemy cultist from", r, "to", d)
             EndAction(self)
 
         // ABHOTH
@@ -252,13 +252,13 @@ object IGOOsExpansion extends Expansion {
             self.payTax(r)
 
             self.place(Filth, r)
-            log(self.styled(Abhoth), "placed", self.styled(Filth), "in", r)
+            log(Abhoth.styled(self), "placed", Filth.styled(self), "in", r)
 
             EndAction(self)
 
         // NYOGTHA
         case MovedAction(self, u, o, r) if u.uclass == Nyogtha =>
-            self.all(Nyogtha).but(u).not(Moved).single./(n => MoveSelectAction(self, n, n.region, 0)).|(MoveContinueAction(self, true))
+            self.all(Nyogtha).but(u).not(Moved).%(_.region.onMap).single./(n => MoveSelectAction(self, n, n.region, 0)).|(MoveContinueAction(self, true))
 
         case NightmareWebMainAction(self, regions) =>
             Ask(self).each(regions)(r => NightmareWebAction(self, r)).cancel
@@ -271,7 +271,7 @@ object IGOOsExpansion extends Expansion {
 
             ny.region = r
 
-            self.log("awakened", self.styled(Nyogtha), "in", r, "with", self.styled(NightmareWeb))
+            self.log("awakened", Nyogtha.styled(self), "in", r, "with", NightmareWeb.styled(self))
 
             EndAction(self)
 
