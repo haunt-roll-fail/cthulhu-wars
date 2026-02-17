@@ -68,16 +68,16 @@ case class DevolvePromptAction(self : GC, then : ForcedAction) extends ForcedAct
 case class DevolveMainAction(self : GC, then : ForcedAction) extends OptionFactionAction(Devolve) with MainQuestion with Soft
 case class DevolveAction(self : GC, r : Region, then : ForcedAction) extends BaseFactionAction(Devolve, Acolyte.styled(self) + " in " + r)
 
-case class DreamsMainAction(self : GC, l : $[Region]) extends OptionFactionAction(self.styled(Dreams)) with MainQuestion with Soft
-case class DreamsAction(self : GC, r : Region, f : Faction) extends BaseFactionAction(self.styled(Dreams), implicit g => f.styled(Acolyte) + " in " + r + self.iced(r))
+case class DreamsMainAction(self : GC, l : $[Region]) extends OptionFactionAction(Dreams) with MainQuestion with Soft
+case class DreamsAction(self : GC, r : Region, f : Faction) extends BaseFactionAction(Dreams, implicit g => Acolyte.styled(f) + " in " + r + self.iced(r))
 case class DreamsTargetAction(self : Faction, f : GC, r : Region, u : UnitRef) extends ForcedAction
 
-case class SubmergeMainAction(self : GC, r : Region) extends OptionFactionAction(self.styled(Submerge)) with MainQuestion
-case class SubmergeAction(self : GC, r : Region, uc : UnitClass) extends BaseFactionAction(Submerge.full + " with " + self.styled(Cthulhu) + " from " + r, self.styled(uc))
+case class SubmergeMainAction(self : GC, r : Region) extends OptionFactionAction(Submerge) with MainQuestion
+case class SubmergeAction(self : GC, r : Region, uc : UnitClass) extends BaseFactionAction("" + Submerge + " with " + Cthulhu.styled(self) + " from " + r, uc.styled(self))
 case class SubmergeDoneAction(self : GC, r : Region) extends BaseFactionAction(None, "Done".styled("power"))
 
-case class UnsubmergeMainAction(self : GC, l : $[Region]) extends OptionFactionAction(self.styled("Unsubmerge")) with MainQuestion with Soft
-case class UnsubmergeAction(self : GC, r : Region) extends BaseFactionAction(self.styled("Unsubmerge"), implicit g => r + self.iced(r))
+case class UnsubmergeMainAction(self : GC, l : $[Region]) extends OptionFactionAction("Unsubmerge".styled(self)) with MainQuestion with Soft
+case class UnsubmergeAction(self : GC, r : Region) extends BaseFactionAction("Unsubmerge".styled(self), implicit g => r + self.iced(r))
 
 
 object GCExpansion extends Expansion {
@@ -159,7 +159,7 @@ object GCExpansion extends Expansion {
         // AWAKEN
         case AwakenedAction(self, Cthulhu, r, cost) =>
             if (self.has(Immortal)) {
-                self.log("gained", 1.es, "as", Immortal.full)
+                self.log("gained", 1.es, "as", Immortal)
                 self.takeES(1)
             }
 
@@ -230,7 +230,7 @@ object GCExpansion extends Expansion {
             Ask(e).each(l)(u => DreamsTargetAction(e, f, r, u).as(u.full)(f, "sent", Dreams, "to", r))
 
         case DreamsTargetAction(f, e, r, u) =>
-            e.log("replaced", u, "with", e.styled(Acolyte))
+            e.log("replaced", u, "with", Acolyte.styled(e))
 
             game.eliminate(u)
             e.place(Acolyte, r)

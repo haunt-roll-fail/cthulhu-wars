@@ -67,13 +67,13 @@ case object WW extends Faction { f =>
 case class HibernateMainAction(self : Faction, n : Int) extends OptionFactionAction(Hibernate.styled(self) + " for extra " + n.power) with MainQuestion
 
 case class IceAgeMainAction(self : WW, l : $[Region]) extends OptionFactionAction(IceAge) with MainQuestion with Soft
-case class IceAgeAction(self : WW, r : Region) extends BaseFactionAction(self.styled(IceAge) + " region", r)
+case class IceAgeAction(self : WW, r : Region) extends BaseFactionAction("" + IceAge + " region", r)
 
 case class ArcticWindAction(self : WW, o : Region, u : UnitRef, r : Region) extends ForcedAction
 
-case class AnytimeGainElderSignsMainAction(self : WW) extends OptionFactionAction(self.styled("Anytime Spellbook")) with MainQuestion with Soft with PowerNeutral
-case class AnytimeGainElderSignsDoomAction(self : WW) extends OptionFactionAction(self.styled("Anytime Spellbook")) with DoomQuestion with Soft with PowerNeutral
-case class AnytimeGainElderSignsAction(self : WW, n : Int, next : ForcedAction) extends BaseFactionAction(self.styled("Anytime Spellbook"), "Get spellbook and " + n.es)
+case class AnytimeGainElderSignsMainAction(self : WW) extends OptionFactionAction("Anytime Spellbook".styled(self)) with MainQuestion with Soft with PowerNeutral
+case class AnytimeGainElderSignsDoomAction(self : WW) extends OptionFactionAction("Anytime Spellbook".styled(self)) with DoomQuestion with Soft with PowerNeutral
+case class AnytimeGainElderSignsAction(self : WW, n : Int, next : ForcedAction) extends BaseFactionAction("Anytime Spellbook".styled(self), "Get spellbook and " + n.es)
 
 
 object WWExpansion extends Expansion {

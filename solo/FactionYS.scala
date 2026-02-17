@@ -64,23 +64,23 @@ case class Provide3DoomAction(self : YS, f : Faction) extends BaseFactionAction(
 
 case class DesecrateMainAction(self : YS, r : Region, te : Boolean) extends OptionFactionAction(implicit g => "" + Desecrate + " " + r + te.??(" (" + ThirdEye + ")") + self.iced(r)) with MainQuestion
 case class DesecrateRollAction(f : YS, r : Region, te : Boolean, x : Int) extends ForcedAction
-case class DesecratePlaceAction(self : YS, r : Region, uc : UnitClass) extends BaseFactionAction("Place in " + r, self.styled(uc))
+case class DesecratePlaceAction(self : YS, r : Region, uc : UnitClass) extends BaseFactionAction("Place in " + r, uc.styled(self))
 
 case class HWINTBNMainAction(self : YS, o : Region, l : $[Region]) extends OptionFactionAction(HWINTBN) with MainQuestion with Soft
 case class HWINTBNAction(self : YS, o : Region, r : Region) extends BaseFactionAction(HWINTBN, implicit g => r + self.iced(r))
 
 case class ScreamingDeadMainAction(self : YS, o : Region, l : $[Region]) extends OptionFactionAction(ScreamingDead) with MainQuestion with Soft
 case class ScreamingDeadAction(self : YS, o : Region, r : Region) extends BaseFactionAction(ScreamingDead, implicit g => r + self.iced(r))
-case class ScreamingDeadFollowAction(self : YS, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction("Follow " + KingInYellow, self.styled(uc))
+case class ScreamingDeadFollowAction(self : YS, o : Region, r : Region, uc : UnitClass) extends BaseFactionAction("Follow " + KingInYellow, uc.styled(self))
 case class ScreamingDeadDoneAction(self : YS) extends BaseFactionAction(None, "Done")
 
 case class ShriekMainAction(self : YS, l : $[Region]) extends OptionFactionAction(Shriek) with MainQuestion with Soft
 case class ShriekAction(self : YS, r : Region) extends BaseFactionAction(Shriek, implicit g => r + self.iced(r))
-case class ShriekFromAction(self : YS, o : Region, r : Region) extends BaseFactionAction("" + Shriek.full + " to " + r, "" + Byakhee + " from " + o)
+case class ShriekFromAction(self : YS, o : Region, r : Region) extends BaseFactionAction("" + Shriek + " to " + r, "" + Byakhee + " from " + o)
 case class ShriekDoneAction(self : YS) extends BaseFactionAction(None, "Done")
 
-case class ZingayaMainAction(self : YS, l : $[Region]) extends OptionFactionAction(self.styled(Zingaya)) with MainQuestion with Soft
-case class ZingayaAction(self : YS, r : Region, f : Faction) extends BaseFactionAction(self.styled(Zingaya), implicit g => f.styled(Acolyte) + " in " + r + self.iced(r))
+case class ZingayaMainAction(self : YS, l : $[Region]) extends OptionFactionAction(Zingaya) with MainQuestion with Soft
+case class ZingayaAction(self : YS, r : Region, f : Faction) extends BaseFactionAction(Zingaya, implicit g => Acolyte.styled(f) + " in " + r + self.iced(r))
 
 
 object YSExpansion extends Expansion {
@@ -93,7 +93,7 @@ object YSExpansion extends Expansion {
         factions.%(_.has(Passion)).%(_.oncePerAction.has(Passion)).foreach { f =>
             f.power += 1
 
-            f.log("got", 1.power, "from", Passion.full)
+            f.log("got", 1.power, "from", Passion)
         }
     }
 
@@ -197,13 +197,13 @@ object YSExpansion extends Expansion {
         case DesecrateMainAction(self, r, te) =>
             self.power -= te.?(1).|(2)
             self.payTax(r)
-            RollD6("Roll for " + self.styled(Desecrate) + " in " + r, x => DesecrateRollAction(self, r, te, x))
+            RollD6("Roll for " + Desecrate + " in " + r, x => DesecrateRollAction(self, r, te, x))
 
         case DesecrateRollAction(self, r, te, x) =>
             if (self.at(r).num >= x) {
-                log(self.styled(KingInYellow), "desecrated", r, "with roll [" + x.styled("power") + "]")
+                log(KingInYellow, "desecrated", r, "with roll [" + x.styled("power") + "]")
                 if (te) {
-                    self.log("gained", 1.es, "using", ThirdEye.full)
+                    self.log("gained", 1.es, "using", ThirdEye)
                     self.takeES(1)
                 }
                 r.glyph match {
@@ -215,7 +215,7 @@ object YSExpansion extends Expansion {
                 game.desecrated :+= r
             }
             else
-                log(self.styled(KingInYellow), "failed", r, "desecration with roll [" + x.styled("power") + "]")
+                log(KingInYellow, "failed", r, "desecration with roll [" + x.styled("power") + "]")
 
             val us = (self.pool.cultists ++ self.pool.monsters)./(_.uclass).distinct.%(_.cost <= 2)
 
@@ -226,7 +226,7 @@ object YSExpansion extends Expansion {
 
         case DesecratePlaceAction(self, r, uc) =>
             self.place(uc, r)
-            log(self.styled(uc), "appeared in", r)
+            log(uc.styled(self), "appeared in", r)
             EndAction(self)
 
         // HWINTBN

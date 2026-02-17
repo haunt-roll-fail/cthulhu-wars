@@ -13,16 +13,16 @@ case object UmrAtTawil extends NeutralSpellbook("Umr at-Tawil")
 case object Undimensioned extends NeutralSpellbook("Undimensioned")
 
 
-case class MaoCeremonyAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(MaoCeremony, self.styled(uc) + " in " + r)
+case class MaoCeremonyAction(self : Faction, r : Region, uc : UnitClass) extends BaseFactionAction(MaoCeremony, uc.styled(self) + " in " + r)
 case class MaoCeremonyDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 
-case class RecriminationsMainAction(self : Faction) extends OptionFactionAction(Recriminations.full) with MainQuestion with Soft
+case class RecriminationsMainAction(self : Faction) extends OptionFactionAction(Recriminations) with MainQuestion with Soft
 case class RecriminationsAction(self : Faction, sb : Spellbook) extends BaseFactionAction("Discard spellbook", sb)
 
-case class UndimensionedMainAction(self : Faction) extends OptionFactionAction(Undimensioned.full) with MainQuestion with Soft
+case class UndimensionedMainAction(self : Faction) extends OptionFactionAction(Undimensioned) with MainQuestion with Soft
 case class UndimensionedContinueAction(self : Faction, destinations : $[Region], moved : Boolean) extends ForcedAction with Soft
-case class UndimensionedSelectAction(self : Faction, destinations : $[Region], uc : UnitClass, r : Region) extends BaseFactionAction(g => Undimensioned.full + " move unit", self.styled(uc) + " from " + r) with Soft
-case class UndimensionedAction(self : Faction, destinations : $[Region], uc : UnitClass, r : Region, dest : Region) extends BaseFactionAction(g => Undimensioned.full + " move " + self.styled(uc) + " from " + r + " to", implicit g => dest + self.iced(dest))
+case class UndimensionedSelectAction(self : Faction, destinations : $[Region], uc : UnitClass, r : Region) extends BaseFactionAction(g => "" + Undimensioned + " move unit", uc.styled(self) + " from " + r) with Soft
+case class UndimensionedAction(self : Faction, destinations : $[Region], uc : UnitClass, r : Region, dest : Region) extends BaseFactionAction(g => "" + Undimensioned + " move " + uc.styled(self) + " from " + r + " to", implicit g => dest + self.iced(dest))
 case class UndimensionedDoneAction(self : Faction) extends BaseFactionAction(None, "Done")
 case class UndimensionedCancelAction(self : Faction, destinations : $[Region]) extends BaseFactionAction(None, "Cancel") with Cancel
 
@@ -58,7 +58,7 @@ object NeutralSpellbooksExpansion extends Expansion {
             if (sb.is[NeutralSpellbook])
                 game.neutralSpellbooks :+= sb
 
-            self.log("discarded", sb.full)
+            self.log("discarded", sb)
 
             self.ignorePerInstant :+= sb
 
@@ -92,7 +92,7 @@ object NeutralSpellbooksExpansion extends Expansion {
 
         case UndimensionedAction(self, destinations, uc, o, r) =>
             if (self.units.onMap.tag(Moved).none) {
-                self.log("units are", Undimensioned.full)
+                self.log("units are", Undimensioned)
                 self.power -= 2
             }
 
@@ -102,7 +102,7 @@ object NeutralSpellbooksExpansion extends Expansion {
             u.region = r
             u.add(Moved)
 
-            log(self.styled(uc), "from", o, "is now in", r)
+            log(uc.styled(self), "from", o, "is now in", r)
 
             UndimensionedContinueAction(self, destinations, true)
 

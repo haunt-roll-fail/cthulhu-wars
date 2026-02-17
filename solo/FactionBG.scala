@@ -72,29 +72,29 @@ case object BG extends Faction { f =>
 case class BloodSacrificeDoomAction(self : BG) extends OptionFactionAction(BloodSacrifice) with DoomQuestion with Soft with PowerNeutral
 case class BloodSacrificeAction(self : BG, r : Region, u : UnitRef) extends ForcedAction
 
-case class EliminateTwoCultistsMainAction(self : BG) extends OptionFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook") with MainQuestion with Soft
-case class EliminateTwoCultistsAction(self : BG, a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " for a spellbook", implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
+case class EliminateTwoCultistsMainAction(self : BG) extends OptionFactionAction("Eliminate two " + Cultist.plural.styled(self) + " for a spellbook") with MainQuestion with Soft
+case class EliminateTwoCultistsAction(self : BG, a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + Cultist.plural.styled(self) + " for a spellbook", implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
 
-case class AwakenEliminateTwoCultistsAction(self : BG, uc : UnitClass, l : $[Region], a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + self.styled(Cultist.plural) + " to awaken " + self.styled(uc), implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
+case class AwakenEliminateTwoCultistsAction(self : BG, uc : UnitClass, l : $[Region], a : UnitRef, b : UnitRef) extends BaseFactionAction("Eliminate two " + Cultist.plural.styled(self) + " to awaken " + uc.styled(self), implicit g => (a.region == b.region).?("Two from " + a.region)|("From " + a.region + " and " + b.region))
 
-case class AvatarMainAction(self : BG, o : Region, l : $[Region]) extends OptionFactionAction(self.styled(Avatar)) with MainQuestion with Soft
-case class AvatarAction(self : BG, o : Region, r : Region, f : Faction) extends BaseFactionAction(g => self.styled(Avatar), implicit g => "" + f + " in " + r + self.iced(r))
+case class AvatarMainAction(self : BG, o : Region, l : $[Region]) extends OptionFactionAction(Avatar) with MainQuestion with Soft
+case class AvatarAction(self : BG, o : Region, r : Region, f : Faction) extends BaseFactionAction(Avatar, implicit g => "" + f + " in " + r + self.iced(r))
 case class AvatarReplacementAction(self : Faction, f : BG, r : Region, o : Region, u : UnitRef) extends ForcedAction
 
-case class GhrothMainAction(self : BG) extends OptionFactionAction(self.styled(Ghroth)) with MainQuestion
+case class GhrothMainAction(self : BG) extends OptionFactionAction(Ghroth) with MainQuestion
 case class GhrothRollAction(f : BG, x : Int) extends ForcedAction
 case class GhrothAction(f : BG, x : Int) extends ForcedAction
 case class GhrothContinueAction(f : BG, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
 case class GhrothAskAction(f : BG, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
-    g => f.styled(Ghroth) + " demand " + x.styled("power") + " Cultists<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
+    g => "" + Ghroth + " demand " + x.styled("power") + " Cultists<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
     (n < 0).?("Refuse to negotiate").|((x == n + offers./(_.n).sum).?("Offer".styled("highlight")).|("Offer") + " " + (n > 0).?(n.styled("power") + (x == n + offers./(_.n).sum).?((" Cultist" + (n > 1).??("s")).styled("highlight")).|((" Cultist" + (n > 1).??("s")))).|((x == n + offers./(_.n).sum).?("0 Cultists".styled("highlight")).|("0 Cultists")))
 )
 case class GhrothSplitAction(self : BG, x : Int, factions : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions.mkString(" and "))
-case class GhrothSplitNumAction(self : BG, x : Int, factions : $[Faction], full : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions./(f => "" + f + (full.%(_ == f).num > 0).??(f.styled(" (" + full.%(_ == f).num + ")"))).mkString(", "))
+case class GhrothSplitNumAction(self : BG, x : Int, factions : $[Faction], full : $[Faction]) extends BaseFactionAction((x > 1).?("Eliminate " + x.styled("hightlight") + " Cultists from").|("Eliminate a Cultist from"), factions./(f => "" + f + (full.%(_ == f).num > 0).??((" (" + full.%(_ == f).num + ")").styled(f))).mkString(", "))
 case class GhrothEliminateAction(f : BG, l : $[Faction]) extends ForcedAction
-case class GhrothTargetAction(self : Faction, u : UnitRef, f : BG, l : $[Faction]) extends ForcedAction // BaseFactionAction((factions.%(_ == self).num > 1).?("Eliminate " + factions.%(_ == self).num.styled("hightlight") + " Cultists").|("Eliminate a Cultist"), self.styled(uc) + " in " + r)
-case class GhrothFactionAction(self : BG, f : Faction) extends BaseFactionAction("Place " + Acolyte.name, f.styled(Acolyte))
-case class GhrothPlaceAction(self : BG, f : Faction, r : Region) extends BaseFactionAction("Place " + f.styled(Acolyte) + " in", r)
+case class GhrothTargetAction(self : Faction, u : UnitRef, f : BG, l : $[Faction]) extends ForcedAction
+case class GhrothFactionAction(self : BG, f : Faction) extends BaseFactionAction("Place " + Acolyte.name, Acolyte.styled(f))
+case class GhrothPlaceAction(self : BG, f : Faction, r : Region) extends BaseFactionAction("Place " + Acolyte.styled(f) + " in", r)
 
 
 object BGExpansion extends Expansion {
@@ -269,13 +269,13 @@ object BGExpansion extends Expansion {
         // GHROTH
         case GhrothMainAction(self) =>
             self.power -= 2
-            RollD6("Roll for " + self.styled(Ghroth), x => GhrothRollAction(self, x))
+            RollD6("Roll for " + Ghroth, x => GhrothRollAction(self, x))
 
         case GhrothRollAction(f, x) =>
             var b = f.all(Fungi)./(_.region).distinct.num
 
             if (x > b) {
-                f.log("failed", Ghroth.full, "with roll of", ("[" + x.styled("power") + "]"))
+                f.log("failed", Ghroth, "with roll of", ("[" + x.styled("power") + "]"))
 
                 val fs = factions.%(_.pool(Acolyte).any)
                 if (fs.any)
@@ -286,7 +286,7 @@ object BGExpansion extends Expansion {
                 }
             }
             else {
-                f.log("used", Ghroth.full, "and rolled", ("[" + x.styled("power") + "]"))
+                f.log("used", Ghroth, "and rolled", ("[" + x.styled("power") + "]"))
 
                 val n = f.enemies./~(_.cultists.onMap).num
                 if (n <= x) {
@@ -407,7 +407,7 @@ object BGExpansion extends Expansion {
 
         case GhrothPlaceAction(self, f, r) =>
             f.place(Acolyte, r)
-            log(f.styled(Acolyte), "was placed in", r)
+            log(Acolyte.styled(f), "was placed in", r)
             EndAction(self)
 
         // ...

@@ -1053,7 +1053,7 @@ object CthulhuWarsSolo {
                 val current = game.factions.starting.has(f)
 
                 val name = div("name")("" + f + "")
-                val nameS = div("name")(f.styled(f.short) + "")
+                val nameS = div("name")(f.short.styled(f) + "")
                 val power = div()(f.hibernating.?(("" + f.power + " Power").styled("hibernate")).|((f.power > 0).?(f.power.power).|("0 Power")))
                 val powerS = div()(f.hibernating.?(("" + f.power + "P").styled("hibernate")).|((f.power > 0).?(("" + f.power + "P").styled("power")).|("0P")))
                 val doom = div()(("" + f.doom + " Doom").styled("doom") + f.es.any.?(" + " + (f.es.num == 1).?("ES").|("" + f.es.num + " ES").styled("es")).|(""))
@@ -1061,7 +1061,7 @@ object CthulhuWarsSolo {
                 val doomS = div()(("" + f.doom + "D").styled("doom") + f.es.any.?("+" + ("" + f.es.num + "ES").styled("es")).|(""))
 
                 val sb = f.spellbooks./{ sb =>
-                    val full = sb.full
+                    val full = sb.elem
                     val s = sb.name.replace("\\", "\\\\").replace("'", "&#39") // "
                     val d = s"""<div class='spellbook'
                         onclick='event.stopPropagation(); onExternalClick("${f.short}", "${s}")'
@@ -1070,7 +1070,7 @@ object CthulhuWarsSolo {
                         >${full}</div>"""
                     f.can(sb).?(d).|(d.styled("used"))
                 }.mkString("") +
-                (1.to(6 - f.spellbooks.num - f.unfulfilled.num).toList./(x => f.styled("?")))./(div("spellbook", f.style + "-background")).mkString("") +
+                (1.to(6 - f.spellbooks.num - f.unfulfilled.num)./(x => "?".styled(f)))./(div("spellbook", f.style + "-background")).mkString("") +
                 f.unfulfilled./{ r =>
                     val s = r.text.replace("\\", "\\\\") // "
                     val d = s"""<div class='spellbook'
@@ -1965,11 +1965,11 @@ object CthulhuWarsSolo {
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
-                        .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + IceAge + " affects " + Lethargy + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
-                        .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + OW + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL))
-                        .$("Variants" -> (DemandSacrifice.full + " requires " + SL.styled(Tsathoggua) + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + DemandSacrifice + " requires " + Tsathoggua + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
                     $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
                     $("Done" -> "Start game".styled("power")),
                     nn => {
@@ -2141,11 +2141,11 @@ object CthulhuWarsSolo {
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
-                        .$("Variants" -> (IceAge.full + " affects " + Lethargy.full + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + IceAge + " affects " + Lethargy + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
-                        .$("Variants" -> (OW.full + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + OW + " needs 10 Gates in 4-Player (" + setup.get(Opener4P10Gates).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL))
-                        .$("Variants" -> (DemandSacrifice.full + " requires " + SL.styled(Tsathoggua) + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
+                        .$("Variants" -> ("" + DemandSacrifice + " requires " + Tsathoggua + " (" + setup.get(DemandTsathoggua).?("yes").|("no").hl + ")")) ++
                     $("Map" -> ("Map Configuration (" + setup.options.of[MapOption].lastOption.?(_.toString.hl) + ")")) ++
                     $("Options" -> ("Dice rolls (" + setup.dice.?("auto").|("manual").hl + ")")) ++
                     $("Options" -> ("Elder Signs (" + setup.es.?("auto").|("manual").hl + ")")) ++

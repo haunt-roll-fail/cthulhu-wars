@@ -62,8 +62,8 @@ case object SL extends Faction { f =>
 
 
 case class DeathFromBelowDoomAction(self : SL) extends OptionFactionAction(DeathFromBelow) with DoomQuestion with Soft with PowerNeutral
-case class DeathFromBelowSelectMonsterAction(self : SL, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc))
-case class DeathFromBelowAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, self.styled(uc) + " in " + r)
+case class DeathFromBelowSelectMonsterAction(self : SL, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, uc.styled(self))
+case class DeathFromBelowAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, uc.styled(self) + " in " + r)
 
 case class LethargyMainAction(self : SL) extends OptionFactionAction(Lethargy) with MainQuestion with PowerNeutral
 
@@ -75,18 +75,18 @@ case class Pay3EverybodyGains1MainAction(self : SL) extends OptionFactionAction(
 
 case class CaptureMonsterMainAction(self : SL) extends OptionFactionAction(CaptureMonster) with MainQuestion with Soft
 case class CaptureMonsterAction(self : SL, r : Region, f : Faction) extends BaseFactionAction(CaptureMonster, "Capture " + f + " Monster in " + r)
-case class CaptureMonsterUnitAction(f : SL, r : Region, self : Faction, uc : UnitClass) extends BaseFactionAction(CaptureMonster.full + " in " + r, self.styled(uc))
+case class CaptureMonsterUnitAction(f : SL, r : Region, self : Faction, uc : UnitClass) extends BaseFactionAction("" + CaptureMonster + " in " + r, uc.styled(self))
 
 case class AncientSorceryMainAction(self : SL) extends OptionFactionAction(AncientSorcery) with MainQuestion with Soft
 case class AncientSorceryAction(self : SL, a : Spellbook) extends BaseFactionAction(AncientSorcery, a) with Soft
-case class AncientSorceryUnitAction(self : SL, a : Spellbook, r : Region, uc : UnitClass) extends BaseFactionAction("Access " + a.full + " with", self.styled(uc) + " from " + r)
+case class AncientSorceryUnitAction(self : SL, a : Spellbook, r : Region, uc : UnitClass) extends BaseFactionAction("Access " + a + " with", uc.styled(self) + " from " + r)
 case class AncientSorceryDoomAction(self : SL) extends OptionFactionAction(AncientSorcery) with DoomQuestion with Soft
 case class AncientSorceryPlaceAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction("Place " + uc + " in", r)
 
 case class CursedSlumberSaveMainAction(self : SL) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
-case class CursedSlumberSaveAction(self : SL, r : Region) extends BaseFactionAction("Move gate to " + CursedSlumber.full + " from", r)
+case class CursedSlumberSaveAction(self : SL, r : Region) extends BaseFactionAction("Move gate to " + CursedSlumber + " from", r)
 case class CursedSlumberLoadMainAction(self : SL, l : $[Region]) extends OptionFactionAction(CursedSlumber) with MainQuestion with Soft
-case class CursedSlumberLoadAction(self : SL, r : Region) extends BaseFactionAction("Move gate from " + CursedSlumber.full + " to", implicit g => r + self.iced(r))
+case class CursedSlumberLoadAction(self : SL, r : Region) extends BaseFactionAction("Move gate from " + CursedSlumber + " to", implicit g => r + self.iced(r))
 
 
 object SLExpansion extends Expansion {
@@ -201,7 +201,7 @@ object SLExpansion extends Expansion {
         // AWAKEN
         case AwakenedAction(self, Tsathoggua, r, cost) =>
             if (self.has(Immortal)) {
-                self.log("gained", 1.es, "as", Immortal.full)
+                self.log("gained", 1.es, "as", Immortal)
                 self.takeES(1)
             }
 
@@ -228,7 +228,7 @@ object SLExpansion extends Expansion {
 
         case DeathFromBelowAction(self, r, uc) =>
             self.place(uc, r)
-            self.log("placed", uc, "in", r, "with", DeathFromBelow.full)
+            self.log("placed", uc, "in", r, "with", DeathFromBelow)
             self.oncePerTurn :+= DeathFromBelow
             CheckSpellbooksAction(DoomAction(self))
 
@@ -294,7 +294,7 @@ object SLExpansion extends Expansion {
             self.power -= 1
             self.at(r).one(uc).region = SL.sorcery
             self.borrowed :+= a
-            self.log("sent", uc, "from", r, "to access", a.full)
+            self.log("sent", uc, "from", r, "to access", a)
             EndAction(self)
 
         case AncientSorceryDoomAction(self) =>
@@ -303,7 +303,7 @@ object SLExpansion extends Expansion {
         case AncientSorceryPlaceAction(self, r, uc) =>
             self.at(SL.sorcery).one(uc).region = r
             self.power += 1
-            self.log("placed", uc, "in", r, "with", AncientSorcery.full, "and gained", 1.power)
+            self.log("placed", uc, "in", r, "with", AncientSorcery, "and gained", 1.power)
             CheckSpellbooksAction(DoomAction(self))
 
         // CURSED SLUMBER
@@ -320,7 +320,7 @@ object SLExpansion extends Expansion {
 
             self.at(r).%(_.onGate).only.region = SL.slumber
 
-            self.log("moved gate from", r, "to", CursedSlumber.full)
+            self.log("moved gate from", r, "to", CursedSlumber)
 
             EndAction(self)
 
@@ -339,7 +339,7 @@ object SLExpansion extends Expansion {
             if (self.at(SL.slumber, Cultist).any)
                 self.at(SL.slumber).one(Cultist).region = r
 
-            self.log("moved gate from", CursedSlumber.full, "to", r)
+            self.log("moved gate from", CursedSlumber, "to", r)
 
             EndAction(self)
 

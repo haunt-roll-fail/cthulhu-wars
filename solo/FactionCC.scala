@@ -58,13 +58,13 @@ case object CC extends Faction { f =>
 }
 
 
-case class ThousandFormsMainAction(self : CC) extends OptionFactionAction(self.styled(ThousandForms)) with MainQuestion
+case class ThousandFormsMainAction(self : CC) extends OptionFactionAction(ThousandForms) with MainQuestion
 case class ThousandFormsRollAction(f : CC, x : Int) extends ForcedAction
 
 case class ThousandFormsAction(f : CC, x : Int) extends ForcedAction
 case class ThousandFormsContinueAction(f : CC, x : Int, offers : $[Offer], forum : $[Faction], time : Int) extends ForcedAction
 case class ThousandFormsAskAction(f : CC, x : Int, offers : $[Offer], forum : $[Faction], time : Int, self : Faction, n : Int) extends BaseFactionAction(
-    g => f.styled(ThousandForms) + " demand " + x.power + "<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
+    g => "" + ThousandForms + " demand " + x.power + "<br/>" + offers./(o => "" + o.f + " offers " + (o.n > 0).?(o.n.styled("power")).|("none")).mkString("<br/>") + "<hr/>" + self,
     (n < 0).?("Refuse to negotiate").|((x == n + offers./(_.n).sum).?("Offer".styled("highlight")).|("Offer") + " " + (n > 0).?(n.styled("power") + (x == n + offers./(_.n).sum).?(" Power".styled("highlight")).|(" Power")).|((x == n + offers./(_.n).sum).?("0 Power".styled("highlight")).|("0 Power")))
 )
 
@@ -163,10 +163,10 @@ object CCExpansion extends Expansion {
         // 1000F
         case ThousandFormsMainAction(self) =>
             self.oncePerTurn +:= ThousandForms
-            RollD6("Roll for " + ThousandForms.full, x => ThousandFormsRollAction(self, x))
+            RollD6("Roll for " + ThousandForms, x => ThousandFormsRollAction(self, x))
 
         case ThousandFormsRollAction(f, x) =>
-            f.log("used", ThousandForms.full, "and rolled", ("[" + x.styled("power") + "]"))
+            f.log("used", ThousandForms, "and rolled", ("[" + x.styled("power") + "]"))
             log("Other factions were to lose", x.power)
             Force(ThousandFormsAction(f, x))
 

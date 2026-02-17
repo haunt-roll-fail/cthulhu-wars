@@ -60,29 +60,29 @@ case object OW extends Faction { f =>
 }
 
 
-case class BeyondOneMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(self.styled(BeyondOne)) with MainQuestion with Soft
-case class BeyondOneUnitAction(self : Faction, o : Region, uc : UnitClass) extends BaseFactionAction(self.styled(BeyondOne), self.styled(uc) + " from " + o) with Soft
-case class BeyondOneAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(self.styled(BeyondOne) + " from " + o + " with " + self.styled(uc) + " to", implicit g => r + self.iced(r))
+case class BeyondOneMainAction(self : Faction, l : $[Region]) extends OptionFactionAction(BeyondOne.styled(self)) with MainQuestion with Soft
+case class BeyondOneUnitAction(self : Faction, o : Region, uc : UnitClass) extends BaseFactionAction(BeyondOne.styled(self), uc.styled(self) + " from " + o) with Soft
+case class BeyondOneAction(self : Faction, o : Region, uc : UnitClass, r : Region) extends BaseFactionAction(BeyondOne.styled(self) + " from " + o + " with " + uc.styled(self) + " to", implicit g => r + self.iced(r))
 
-case class DreadCurseMainAction(self : OW, n : Int, l : $[Region]) extends OptionFactionAction(self.styled(DreadCurse)) with MainQuestion with Soft
-case class DreadCurseAction(self : OW, n : Int, r : Region) extends BaseFactionAction(self.styled(DreadCurse), implicit g => r + self.iced(r))
+case class DreadCurseMainAction(self : OW, n : Int, l : $[Region]) extends OptionFactionAction(DreadCurse) with MainQuestion with Soft
+case class DreadCurseAction(self : OW, n : Int, r : Region) extends BaseFactionAction(DreadCurse, implicit g => r + self.iced(r))
 case class DreadCurseRollAction(f : OW, r : Region, x : $[BattleRoll]) extends ForcedAction
-case class DreadCurseSplitAction(self : OW, r : Region, x : $[BattleRoll], e : $[Faction], k : $[Faction], p : $[Faction]) extends BaseFactionAction(self.styled(DreadCurse) + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
-case class DreadCurseAssignAction(f : OW, r : Region, e : $[Faction], k : $[Faction], p : $[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, self.styled(uc))
-case class DreadCurseRetreatAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, self.styled(uc))
-case class DreadCurseRetreatToAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + f.styled(uc) + " from " + r + " to", d)
+case class DreadCurseSplitAction(self : OW, r : Region, x : $[BattleRoll], e : $[Faction], k : $[Faction], p : $[Faction]) extends BaseFactionAction("" + DreadCurse + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
+case class DreadCurseAssignAction(f : OW, r : Region, e : $[Faction], k : $[Faction], p : $[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, uc.styled(self))
+case class DreadCurseRetreatAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, uc.styled(self))
+case class DreadCurseRetreatToAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + uc.styled(f) + " from " + r + " to", d)
 
-case class DragonDescendingDoomAction(self : OW, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending.full) with DoomQuestion
+case class DragonDescendingDoomAction(self : OW, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending) with DoomQuestion
 
 case class DragonAscendingCommandsAction(self : OW, then : ForcedAction) extends ForcedAction
 
-case class DragonAscendingMainAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with MainQuestion with Soft
-case class DragonAscendingDoomAction(self : OW) extends OptionFactionAction(self.styled(DragonAscending)) with DoomQuestion with Soft
+case class DragonAscendingMainAction(self : OW) extends OptionFactionAction(DragonAscending) with MainQuestion with Soft
+case class DragonAscendingDoomAction(self : OW) extends OptionFactionAction(DragonAscending) with DoomQuestion with Soft
 
 case class DragonAscendingOutOfTurnAction(self : OW) extends BaseFactionAction(DragonAscending, implicit g => "Rise to " + factions./(_.power).max.power) with Soft
 
 case class DragonAscendingPromptAction(self : OW, e : Faction, then : ForcedAction) extends ForcedAction with Soft
-case class DragonAscendingAction(self : OW, f : |[Faction], reason : |[String], n : Int, then : ForcedAction) extends BaseFactionAction(self.styled(DragonAscending) + reason./(r => " before " + f./("" + _ + " ").|("") + r).|(""), "Rise to " + n.power)
+case class DragonAscendingAction(self : OW, f : |[Faction], reason : |[String], n : Int, then : ForcedAction) extends BaseFactionAction("" + DragonAscending + reason./(r => " before " + f./("" + _ + " ").|("") + r).|(""), "Rise to " + n.power)
 case class DragonAscendingAskAction(self : OW, f : |[Faction], reason : String, then : ForcedAction) extends ForcedAction
 case class DragonAscendingInstantAction(then : ForcedAction) extends ForcedAction
 case class DragonAscendingUpAction(reason : String, then : ForcedAction) extends ForcedAction
@@ -230,7 +230,7 @@ object OWExpansion extends Expansion {
                 f.at(o).%(_.onGate).only.region = r
             }
             self.at(o).one(uc).region = r
-            self.log("moved gate with", self.styled(uc), "from", o, "to", r)
+            self.log("moved gate with", uc.styled(self), "from", o, "to", r)
             EndAction(self)
 
         // DREAD CURSE
@@ -240,8 +240,8 @@ object OWExpansion extends Expansion {
         case DreadCurseAction(self, n, r) =>
             self.power -= 2
             self.payTax(r)
-            self.log("sent", self.styled(DreadCurse), "to", r)
-            RollBattle(self, self.styled(DreadCurse), n, x => DreadCurseRollAction(self, r, x))
+            self.log("sent", DreadCurse, "to", r)
+            RollBattle(self, "" + DreadCurse, n, x => DreadCurseRollAction(self, r, x))
 
         case DreadCurseRollAction(self, r, x) =>
             self.log("rolled", x.mkString(" "))
@@ -307,7 +307,7 @@ object OWExpansion extends Expansion {
                                 if (f.upgrades.has(Interdimensional).not && f.has(Daoloth)) {
                                     f.upgrades :+= Interdimensional
 
-                                    log(f, "gained", f.styled(Interdimensional), "for", f.styled(Daoloth))
+                                    log(f, "gained", Interdimensional.styled(f), "for", Daoloth.styled(f))
                                 }
                             }
                     }
@@ -350,7 +350,7 @@ object OWExpansion extends Expansion {
         // DRAGON DESCENDING
         case DragonDescendingDoomAction(self, cost) =>
             self.oncePerGame :+= DragonDescending
-            self.log("used", DragonDescending.full)
+            self.log("used", DragonDescending)
             Force(RitualAction(self, cost, 2))
 
         // DRAGON ASCENDING
@@ -409,7 +409,7 @@ object OWExpansion extends Expansion {
 
             factions.foreach(_.ignorePerInstant = $)
 
-            self.log("used", DragonAscending.full, "and rose to", p.power)
+            self.log("used", DragonAscending, "and rose to", p.power)
 
             self.plans = self.plans.notOf[DragonAscendingPlan]
             self.commands = self.commands.notOf[DragonAscendingPlan]
