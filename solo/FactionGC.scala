@@ -135,7 +135,7 @@ object GCExpansion extends Expansion {
                     + DreamsMainAction(f, l)
                 }
 
-            if (f.has(Submerge) && f.has(Cthulhu) && f.goo(Cthulhu).region.glyph == Ocean)
+            if (f.has(Submerge) && f.has(Cthulhu) && f.goo(Cthulhu).region.glyph == Ocean && f.power >= 1)
                 + SubmergeMainAction(f, f.goo(Cthulhu).region)
 
             if (f.at(GC.deep).any)
