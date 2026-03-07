@@ -59,6 +59,7 @@ case object AssignAttackerKills extends BattlePhase
 case object AllKillsAssignedPhase extends BattlePhase
 case object HarbingerKillPhase extends BattlePhase
 case object EternalKillPhase extends BattlePhase
+case object CosmicRulerPhase extends BattlePhase
 case object EliminatePhase extends BattlePhase
 case object BerserkergangPhase extends BattlePhase
 case object UnholyGroundPhase extends BattlePhase
@@ -573,7 +574,13 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     log(u, "had its strength at", 4.str, "while attacking")
                 }
 
+                if (attacker.forces.%(_.uclass == AvatarSynthesis).any)
+                    log(AvatarSynthesis.styled(DS), "Azathoth die", "[" + DS.azathothDieRoll.styled("doom") + "]", "— strength", DS.azathothDieRoll.max(1).str)
+
                 log(defender, "defended with", defender.forces./(_.short).mkString(", "), "" + defender.str.str)
+
+                if (defender.forces.%(_.uclass == AvatarSynthesis).any)
+                    log(AvatarSynthesis.styled(DS), "Azathoth die", "[" + DS.azathothDieRoll.styled("doom") + "]", "— strength", DS.azathothDieRoll.max(1).str)
 
                 jump(AttackerPreBattle)
 
@@ -678,6 +685,26 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     }
                 }
 
+                jump(CosmicRulerPhase)
+
+            case CosmicRulerPhase =>
+                if (sides.has(DS)) {
+                    val killedAvatars = DS.forces.%(u => u.goo && u.health == Killed)
+                    if (killedAvatars.any) {
+                        // Exclude already-killed/eliminated units — a GOO sacrificed in a prior CR trigger
+                        // this same battle is no longer Alive and must not be offered again
+                        val sacrificeOptions = DS.units.goos.%(o => killedAvatars.has(o).not && o.health == Alive)
+                        if (sacrificeOptions.any) {
+                            val options = killedAvatars./~(saved =>
+                                sacrificeOptions./(sacrificed =>
+                                    CosmicRulerSacrificeAction(DS, saved, sacrificed)
+                                        .as("Eliminate", sacrificed)(CosmicRuler.styled(DS), "save", saved, "from", "Kill".styled("kill"))
+                                )
+                            )
+                            return Ask(DS).list(options).skip(CosmicRulerDeclineAction(DS))
+                        }
+                    }
+                }
                 jump(EliminatePhase)
 
             case EliminatePhase =>
@@ -984,6 +1011,16 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             Ask(self).each(l)(r => RetreatUnitAction(self, u, r).as(r)("Retreat", u, "to"))
 
         case EliminateNoWayAction(self, u) =>
+            if (self == DS && u.goo) {
+                val sacrificeOptions = DS.units.goos.%(o => o != u && o.health == Alive)
+                if (sacrificeOptions.any) {
+                    val options = sacrificeOptions./(sacrificed =>
+                        CosmicRulerSacrificeAction(DS, u, sacrificed)
+                            .as("Eliminate", sacrificed)(CosmicRuler.styled(DS), "save", u, "from elimination")
+                    )
+                    return Ask(DS).list(options).skip(CosmicRulerDeclineNoWayAction(DS, u))
+                }
+            }
             if (self.tag(Emissary) && u.uclass == Nyarlathotep) {
                 self.log("had nowhere to retreat but", u, "remained as an", Emissary)
             }
@@ -992,6 +1029,15 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                 self.log("had nowhere to retreat and eliminated", u)
             }
+            self.forces.foreach(_.health = Alive)
+            proceed()
+
+        case CosmicRulerDeclineAction(_) =>
+            jump(EliminatePhase)
+
+        case CosmicRulerDeclineNoWayAction(self, u) =>
+            eliminate(u)
+            self.log("had nowhere to retreat and eliminated", u)
             self.forces.foreach(_.health = Alive)
             proceed()
 

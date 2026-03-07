@@ -115,7 +115,9 @@ class Serialize(val game : Game) {
 
             parse(sss, main(_)) match {
                 case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
-                case Parsed.Failure(label, index, extra) => throw new Error(s + "\n" + label + " " + index + " " + extra)
+                case Parsed.Failure(label, index, extra) =>
+                    println(s"[Serialize] Parse failure: $label at $index: $extra")
+                    CommentAction(s"Parse error: $label at $index")
             }
         }
     }
@@ -147,7 +149,7 @@ class Serialize(val game : Game) {
 }
 
 object Serialize {
-    val factions = $(GC, CC, BG, YS, SL, WW, OW, AN) ++ $(NeutralAbhoth)
+    val factions = $(GC, CC, BG, YS, SL, WW, OW, AN, DS) ++ $(NeutralAbhoth)
 
     val loyaltyCards = $(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard, ByatisCard, AbhothCard, DaolothCard, NyogthaCard)
 

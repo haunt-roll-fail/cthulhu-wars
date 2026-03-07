@@ -455,6 +455,56 @@ object Overlays {
         case $("AN", Consecration.name) => spellbook(Consecration.name, "Doom Phase", "When you perform a Ritual of Annihilation, gain <span style=es>1 Elder Sign</span> if at least one Cathedral is in play. If all four Cathedrals are in play, gain <span style=es>2 Elder Signs</span> instead.")
         case $("AN", WorshipServices.name) => spellbook(WorshipServices.name, "Gather Power Phase", "Gain 1 Power for each Cathedral that shares an Area with an enemy Gate. Those enemies each gain 1 Power.")
 
+            case $("DS") => faction(DS, "info:ds-background", Psychosis, "Ongoing", "Psychosis (Action: Cost 0): You must have an Acolyte in your pool. Select an area that has no units from any faction. Place an acolyte from your pool there. During each Doom phase, flip ALL your face-down faction spellbooks face-up again.",
+                $(Consummation), $(                
+                (Acolyte,       6, "1", "0", ""),
+                (LarvaThesis,   3, "1", "0", s"<div class=p>${combat} 2 if Avatar Thesis is in play.</div>"),
+                (LarvaAntithesis, 3, "1", "0", s"<div class=p>${combat} 2 if Avatar Antithesis is in play.</div>"),
+                (LarvaSynthesis, 3, "1", "0", s"<div class=p>${combat} 2 if Avatar Synthesis is in play.</div>"),
+                (ChaosGate, 1, "n/a", "n/a", s"<div class=p>Spellbook: ${reference(DS, ChaosGateSB)}</div>"),
+                (AvatarThesis, 1, "?", "?", s"""
+                    <div class=p>${cost("How to Awaken Avatar Thesis:")}</div>
+                    <div class=p>${cost("1)")} Set the Azathoth marker on the Doom track on any desired spot from 0 to 8.</div>
+                    <div class=p>${cost("2)")} Pay Power equal to the Azathoth marker's setting.</div>
+                    <div class=p>${cost("3)")} Each other player gains 1 Power OR choose an enemy player to gain 2 Power.</div>
+                    <div class=p>${combat} Equals the Azathoth marker's position.</div>
+                    <div class=p>Spellbooks: ${reference(DS, UndirectedEnergy)}</div>
+                """),
+                (AvatarAntithesis, 1, "?", "?", s"""
+                    <div class=p>${cost("How to Awaken Avatar Antithesis:")}</div>
+                    <div class=p>${cost("1)")} Avatar Thesis must have been Awakened (it need not be in play).</div>
+                    <div class=p>${cost("2)")} Pay Power equal to 8 minus the Azathoth marker's setting.</div>
+                    <div class=p>${cost("3)")} Each other player gains 1 Doom OR choose an enemy player who gains an Elder Sign.</div>
+                    <div class=p>${combat} Equals 8 minus the Azathoth marker's position.</div>
+                    <div class=p>Spellbooks: ${reference(DS, FiendishGrowth)}</div>
+                """),
+                (AvatarSynthesis, 1, "8", "?", s"""
+                    <div class=p>${cost(s"How to Awaken ${AvatarSynthesis.name}:")}</div>
+                    <div class=p>${cost("1)")} Both ${AvatarThesis.name} and ${AvatarAntithesis.name} must have been Awakened (they need not be in play).</div>      
+                    <div class=p>${cost("2)")} Pay ${power(8)}.</div>
+                    <div class=p>${cost("3)")} Roll the Azathoth die. All enemies have 2 minutes to decide how to collectively lose that much Power and/or Doom, if they cannot agree then you win the game. In a 2-3 player game halve the die roll result (rounded up).</div>
+                    <div class=p>${combat} First roll the Azathoth die, then roll that many combat dice.</div>
+                    <div class=p>${ref(CosmicRuler)} ${cost("(Post-Battle):")} When any Avatar is choosen to recieve a Kill or Elimination, instead you can Eliminate another Avatar in its stead, from anywhere on the map.</div>
+                """),
+            )
+        )
+
+            case $("DS", OneLarvaEach.text) => requirement("You have one of each Larva type in play.")
+            case $("DS", AbandonedGateGP.text) => requirement("An abandoned Gate is on the Map during Gather Power Phase.")
+            case $("DS", PowerDoomOffer.text) => requirement("During any Doom Phase, you declare that each other player chooses whether to receive 1 Power or 1 Doom. You gain everything they gain.")
+            case $("DS", AwakenAvatarThesis.text) => requirement("Awaken Avatar Thesis.")
+            case $("DS", AwakenAvatarAntithesis.text) => requirement("Awaken Avatar Antithesis.")
+            case $("DS", AwakenAvatarSynthesis.text) => requirement("Awaken Avatar Synthesis.")
+
+            case $("DS", Psychosis.name) => spellbook(Psychosis.name, "Action: Cost 0", "You must have an Acolyte in your pool. Select an area that has no units from any faction. Place an acolyte from your pool there. During each Doom phase, flip ALL your face-down faction spellbooks face-up again.")
+            case $("DS", CosmicRuler.name) => spellbook(CosmicRuler.name, "Post-Battle", "When any Avatar is choosen to recieve a Kill or Elimination, instead you can Eliminate another Avatar in its stead, from anywhere on the map.")
+            case $("DS", AnimateMatter.name) => spellbook(AnimateMatter.name, "Action: Cost 1", "Flip this Spellbook face down. Move a controlled Chaos Gate from its Area to an adjacent Area, taking its Cultist along. You cannot move the Gate to another player’s Start Area. If the new Area has an existing physical Gate, replace that Gate with the Chaos Gate.")
+            case $("DS", ChaosGateSB.name) => spellbook(ChaosGateSB.name, "Action: Cost 1", "Flip this Spellbook face down, then place a Chaos Gate in any area without a Gate.")
+            case $("DS", Consummation.name) => spellbook(Consummation.name, "Action: Cost 1", "Flip this spellbook face-down. Then flip one of your face-down faction spellbooks face-up again, permitting its re-use this turn.")
+            case $("DS", FiendishGrowth.name) => spellbook(FiendishGrowth.name, "Action: Cost 1", "Flip this spellbook face down if Avatar Antithesis is in play. Place 1 free Monster or Acolyte from your pool in Avatar Antithesis' Area per Faction with Units in that Area, including yours.")
+            case $("DS", Traitors.name) => spellbook(Traitors.name, "Action: Cost 1", "Flip this Spellbook face down. Replace your controlled Chaos Gate with a Normal Gate, and replace its Controlling Cultist with another player's Cultist from his Pool. Your cultist returns to your Pool. If you have no other Units in the Area, gain an Elder Sign.")
+            case $("DS", UndirectedEnergy.name) => spellbook(UndirectedEnergy.name, "Action: Cost 1", "Flip this spellbook face-down if Avatar Thesis is in play. Gain 1 Power per faction with units in Avatar Thesis' area, including yours.")
+
 
         case $(_, MaoCeremony.name) => spellbook(MaoCeremony.name, "Ongoing", "At the end of Gather Power, after Power has been added (i.e., before Determine First Player), you may choose to sacrifice 1 or more of your own Cultists, adding 1 Power apiece to your total.")
         case $(_, Recriminations.name) => spellbook(Recriminations.name, "Action: Cost 1", "Remove any spellbook (including this one) from your Faction Card and replace it with another available spellbook.")

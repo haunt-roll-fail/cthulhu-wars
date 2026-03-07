@@ -195,6 +195,9 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
                 case AN =>
                     allies.goos.any && game.cathedrals.contains(r) && AN.has(UnholyGround) |=> -50000 -> "unholy ground with goo"
                     AN.has(Extinction) && foes.num == 1 && foes(Yothan).any && ((rha && self.power > 1) || (ith && allies.num >= 3 && ownStr >= 6) || (allies.goos.none && ownStr >= 6)) |=> 1000 -> "attack lone extinct yothan"
+
+                case DS =>
+                    0 -> "todo"
             }
         }
 
@@ -256,6 +259,36 @@ class GameEvaluationWW(implicit game : Game) extends GameEvaluation(WW)(game) {
 
             case NeutralMonstersAction(_, _) =>
                 true |=> -100000 -> "don't obtain loyalty cards (for now)"
+
+            // Azathoth Synthesis bidding — never let DS win; prefer power, fall back to doom
+            case AzathothSynthesisPowerAskAction(_, x, offers, forum, time, _, p) =>
+                val gap = x - offers./(_.n).sum
+                val panic = time <= forum.num
+                p == -1 && gap <= 0  |=>   2000 -> "target met skip"
+                p == -1 && gap > 0   |=> -50000 -> "refuse lets DS win"
+                p == 0 && !panic     |=> (5*5*5*5*5*5 * math.random()).round.toInt -> "wait for others"
+                p == 0 && panic      |=>  -8000 -> "panic must contribute"
+                p == 1               |=> (2*5*5*5*5*5 * math.random()).round.toInt -> "pay 1"
+                p == 2               |=> (2*2*5*5*5*5 * math.random()).round.toInt -> "pay 2"
+                p == 3               |=> (2*2*2*5*5*5 * math.random()).round.toInt -> "pay 3"
+                p == 4               |=> (2*2*2*2*5*5 * math.random()).round.toInt -> "pay 4"
+                p == 5               |=> (2*2*2*2*2*5 * math.random()).round.toInt -> "pay 5"
+                p >= 6               |=> (2*2*2*2*2*2 * math.random()).round.toInt -> "pay 6+"
+                p >= gap && panic    |=>  10000 -> "meet gap in panic"
+            case AzathothSynthesisDoomAskAction(_, x, offers, forum, time, _, p, d) =>
+                val gap = x - offers./(_.n).sum - p
+                val panic = time <= forum.num
+                d == -1 && gap <= 0  |=>   2000 -> "target met skip"
+                d == -1 && gap > 0   |=> -50000 -> "refuse lets DS win"
+                d == 0 && !panic     |=> (5*5*5*5*5*5 * math.random()).round.toInt -> "wait for others"
+                d == 0 && panic      |=>  -8000 -> "panic must contribute"
+                d == 1               |=> (2*5*5*5*5*5 * math.random()).round.toInt -> "pay 1"
+                d == 2               |=> (2*2*5*5*5*5 * math.random()).round.toInt -> "pay 2"
+                d == 3               |=> (2*2*2*5*5*5 * math.random()).round.toInt -> "pay 3"
+                d == 4               |=> (2*2*2*2*5*5 * math.random()).round.toInt -> "pay 4"
+                d == 5               |=> (2*2*2*2*2*5 * math.random()).round.toInt -> "pay 5"
+                d >= 6               |=> (2*2*2*2*2*2 * math.random()).round.toInt -> "pay 6+"
+                d >= gap && panic    |=>  10000 -> "meet gap in panic"
 
             case DoomDoneAction(_) =>
                 true |=> 10 -> "doom done"

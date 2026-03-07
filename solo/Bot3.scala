@@ -49,6 +49,7 @@ case class Bot3(faction : Faction) {
             def gate = game.gates.has(r)
             def ownGate = self.gates.has(r)
             def enemyGate = others.%(_.gates.has(r)).any
+            def chaosGate = DS.chaosGateRegions.has(r)
             def freeGate = gate && !ownGate && !enemyGate
             def controllers : $[UnitFigure] = (ownGate || enemyGate).??(owner.at(r).%(_.canControlGate))
             def owner = game.factions.%(_.gates.has(r)).single.get
@@ -489,8 +490,8 @@ case class Bot3(faction : Faction) {
 
                     u.monsterly && o.allies.none && d.foes.goos.any |=> 100 -> "alone vs goo"
 
-                    u.canControlGate && !u.gateKeeper && d.freeGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 500 -> "ic free gate"
-                    u.monsterly && !d.foes.goos.any && d.freeGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && power > 1 |=> 500 -> "ic free gate"
+                    u.canControlGate && !u.gateKeeper && d.freeGate && !d.chaosGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.none |=> 500 -> "ic free gate"
+                    u.monsterly && !d.foes.goos.any && d.freeGate && !d.chaosGate && self.gates.num < self.allInPlay.%(_.canControlGate).num && d.capturers.any && power > 1 |=> 500 -> "ic free gate"
 
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 1 |=> -1000 -> "why move if can summon for same"
                     d.ownGate && canSummon(u.uclass) && self.summonCost(u.uclass, d) == 2 |=> -500 -> "why move if can summon for almost same"
@@ -606,7 +607,7 @@ case class Bot3(faction : Faction) {
                     self == GC && r.glyph == Ocean |=> 250 -> "cthulhu likes ocean gates"
 
                 case RecruitAction(_, Acolyte, r) =>
-                    r.freeGate && r.foes.goos.none && (r.foes.monsterly.none || r.allies.goos.any || r.allies.monsterly.any) |=> 800 -> "free gate"
+                    r.freeGate && !r.chaosGate && r.foes.goos.none && (r.foes.monsterly.none || r.allies.goos.any || r.allies.monsterly.any) |=> 800 -> "free gate"
                     r.foes.goos.any && r.allies.goos.none |=> -500 -> "recruit to capture"
                     r.allies.cultists.num == 1 |=> 200 -> "a cultist needs a friend"
                     r.allies.cultists.num == 2 |=> 100 -> "two cultists needs a friend"
