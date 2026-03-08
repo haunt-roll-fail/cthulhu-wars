@@ -154,7 +154,7 @@ object DSExpansion extends Expansion {
         case MainAction(f : DS.type) =>
             implicit val asking = Asking(f)
 
-            if (f.pool.cultists.any && areas.nex.%(r => game.factions.%(_.at(r).any).none).any)
+            if (f.power >= 1 && f.pool.%(_.uclass == Acolyte).any && areas.nex.%(r => game.factions.%(_.at(r).any).none).any)
                 + PsychosisAction(f)
 
             game.moves(f)
@@ -178,7 +178,7 @@ object DSExpansion extends Expansion {
             if (f.can(ChaosGateSB) && f.power >= 1 && DS.chaosGateRegions.num < 3 && areas.nex.%(r => game.gates.has(r).not).%(r => f.at(r).%(_.canControlGate).any).any)
                 + ChaosGateSBAction(f)
 
-            if (f.can(AnimateMatter) && DS.chaosGateRegions.any) {
+            if (f.power >= 1 && f.can(AnimateMatter) && DS.chaosGateRegions.any) {
                 val allStarts = game.factions.%(fac => game.starting.contains(fac))./(fac => game.starting(fac))
                 val validGates = DS.chaosGateRegions.distinct.%(cgr =>
                     DS.gates.has(cgr) &&
@@ -192,13 +192,13 @@ object DSExpansion extends Expansion {
             if (f.can(UndirectedEnergy) && f.all(AvatarThesis).any && f.power >= 1)
                 + UndirectedEnergyAction(f)
 
-            if (f.can(Consummation) && f.oncePerTurn.any)
+            if (f.power >= 1 && f.can(Consummation) && f.oncePerTurn.any)
                 + ConsummationAction(f)
 
             if (f.can(FiendishGrowth) && f.all(AvatarAntithesis).any && f.power >= 1 && (f.pool.monsters ++ f.pool.cultists).any)
                 + FiendishGrowthAction(f)
 
-            if (f.can(Traitors) && DS.chaosGateRegions.%(r => DS.gates.has(r)).any && f.enemies.%(_.pool.cultists.any).any)
+            if (f.power >= 1 && f.can(Traitors) && DS.chaosGateRegions.%(r => DS.gates.has(r)).any && f.enemies.%(_.pool.cultists.any).any)
                 + TraitorsAction(f)
 
             game.neutralSpellbooks(f)
@@ -289,9 +289,6 @@ object DSExpansion extends Expansion {
         case FiendishGrowthAction(self) =>
             val r = self.all(AvatarAntithesis).head.region
             val n = game.factions.%(_.at(r).any).num
-            self.power -= 1
-            self.oncePerTurn :+= FiendishGrowth
-            self.log("used", FiendishGrowth, "in", r, ",", n, "factions present")
             Force(FiendishGrowthPlaceAction(self, r, n))
 
         case FiendishGrowthPlaceAction(self, r, n) =>
@@ -303,6 +300,11 @@ object DSExpansion extends Expansion {
                 EndAction(self)
 
         case FiendishGrowthPlaceUnitAction(self, r, uc, n) =>
+            if (self.oncePerTurn.has(FiendishGrowth).not) {
+                self.power -= 1
+                self.oncePerTurn :+= FiendishGrowth
+                self.log("used", FiendishGrowth.styled(self), "in", r, ",", n, "factions present")
+            }
             self.place(uc, r)
             self.log("placed", uc.styled(self), "in", r, "with", FiendishGrowth)
             Force(FiendishGrowthPlaceAction(self, r, n - 1))
@@ -407,11 +409,15 @@ object DSExpansion extends Expansion {
             Ask(self).list(empty./(r => PsychosisPlaceAction(self, r))).cancel
 
         case PsychosisPlaceAction(self, r) =>
-            if (DS.cultists.none)
-                game.starting = game.starting + (DS -> r)
-            self.place(Acolyte, r)
-            self.log("used", Psychosis.styled(self), "placing an Acolyte in", r)
-            EndAction(self)
+            if (self.pool.%(_.uclass == Acolyte).none)
+                EndAction(self)
+            else {
+                if (DS.cultists.none)
+                    game.starting = game.starting + (DS -> r)
+                self.place(Acolyte, r)
+                self.log("used", Psychosis.styled(self), "placing an Acolyte in", r)
+                EndAction(self)
+            }
 
         // CHAOS GATE SPELLBOOK
         case ChaosGateSBAction(self) =>
@@ -450,6 +456,7 @@ object DSExpansion extends Expansion {
             Ask(self).list(dests./(r => AnimateMatterMoveAction(self, from, r))).cancel
 
         case AnimateMatterMoveAction(self, from, to) =>
+            self.power -= 1
             // Move the keeper cultist to the new area
             val keeper = DS.at(from).%(_.onGate)
             keeper.foreach { u => u.onGate = false; u.region = to }
@@ -482,6 +489,7 @@ object DSExpansion extends Expansion {
             Ask(self).list(self.oncePerTurn./(sb => ConsummationUnflipAction(self, sb))).cancel
 
         case ConsummationUnflipAction(self, sb) =>
+            self.power -= 1
             self.oncePerTurn :-= sb
             self.oncePerTurn :+= Consummation
             self.log("used", Consummation.styled(self), "to unflip", sb.styled(self))
@@ -503,7 +511,7 @@ object DSExpansion extends Expansion {
                     self.log("gained", doomCount.doom, "from", PowerDoomOffer)
                 }
                 self.satisfy(PowerDoomOffer, "Doom Phase Power/Doom giveaway")
-                EndAction(self)
+                Force(DoomAction(self))
             } else {
                 val target = remaining.head
                 Ask(target)
@@ -531,6 +539,7 @@ object DSExpansion extends Expansion {
             Ask(self).list(targets./(e => TraitorsFactionAction(self, r, e)))
 
         case TraitorsFactionAction(self, r, target) =>
+            self.power -= 1
             val acolyte = self.at(r).one(Acolyte)
             game.eliminate(acolyte)
             DS.chaosGateRegions = DS.chaosGateRegions.%(c => c != r)

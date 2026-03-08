@@ -715,7 +715,7 @@ object CthulhuWarsSolo {
                     case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
                     case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
                     case AN => Processing(|("#47a5bc"), |("#333333"), None)
-                    case DS => Processing(|("#8B4513"), None, |("#3d2b1b"))
+                    case DS => Processing(|("#2E0018"), None, |("#150008"))
                     case _  => defaultProcessing
                 }
 
