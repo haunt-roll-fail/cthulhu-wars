@@ -612,11 +612,24 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                 jump(PostRoll)
 
-            case PostRoll =>
-                postroll(attacker)
-                postroll(defender)
+           case PostRoll =>
+    postroll(attacker)
+    postroll(defender)
 
-                jump(AssignDefenderKills)
+    // VOONITH - Vicious
+    sides.foreach { s =>
+        val vooniths = s.forces.%(_.uclass == Voonith).num
+        if (vooniths > 0) {
+            val kills = s.rolls.count(_ == Kill)
+            val extra = max(0, vooniths - kills)
+            if (extra > 0) {
+                s.rolls ++= extra.times(Kill)
+                log(Voonith.styled(s), "Vicious added", extra, "Kill".s(extra).styled("kill"))
+            }
+        }
+    }
+
+    jump(AssignDefenderKills)
 
             case AssignDefenderKills =>
                 assignKills(defender, AssignAttackerKills)
