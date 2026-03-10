@@ -801,6 +801,8 @@ object CthulhuWarsSolo {
                                           else DrawRect("n-voonith", |(tint), x - 22, y - 52, 45, 57)
                     case DimensionalShamblerUnit => if (region != null) DrawRect("n-dimensional-shambler", |(tint), x - 35, y - 75, 70, 85)
                                                     else DrawRect("n-dimensional-shambler", |(tint), x - 29, y - 60, 58, 70)
+                    case Gnorri            => if (region != null) DrawRect("n-gnorri", |(tint), x - 50, y - 90, 100, 100)
+                                              else DrawRect("n-gnorri", |(tint), x - 30, y - 54, 60, 60)
                     case Byatis        => DrawRect("n-byatis", |(tint), x - 47, y - 90, 95, 90)
                     case Abhoth        => DrawRect("n-abhoth", |(tint), x - 47, y - 110, 95, 120)
                     case Filth         => DrawRect("n-filth", |(tint), x - 20, y - 20, 40, 40)
@@ -815,6 +817,7 @@ object CthulhuWarsSolo {
                     case StarVampireIcon  => DrawRect("star-vampire-icon", None, x - 17, y - 55, 50, 50)
                     case VoonithIcon      => DrawRect("voonith-icon", None, x - 17, y - 55, 50, 50)
                     case DimensionalShamblerIcon => DrawRect("dimensional-shambler-icon", None, x - 17, y - 55, 50, 50)
+                    case GnorriIcon        => DrawRect("gnorri-icon", None, x - 17, y - 55, 50, 50)
                     case ByatisIcon       => DrawRect("byatis-icon", None, x - 17, y - 55, 50, 50)
                     case AbhothIcon       => DrawRect("abhoth-icon", None, x - 17, y - 55, 50, 50)
                     case DaolothIcon      => DrawRect("daoloth-icon", None, x - 17, y - 55, 50, 50)
@@ -1200,7 +1203,8 @@ object CthulhuWarsSolo {
                         case StarVampire => 12
                         case Voonith =>     13
                         case DimensionalShamblerUnit => 14
-case Filth => 15
+                        case Gnorri =>          15
+case Filth => 16
                     })
 
                     while (draws.num - 1 < sortedDeep.num) {
@@ -1234,6 +1238,7 @@ case Filth => 15
                             case (Tulzscha, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 52 + last.x, last.y)
                             case (Tulzscha, Voonith) => DrawItem(null, f, Voonith, Alive, $, 33 + last.x, last.y)
                             case (Tulzscha, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 52 + last.x, last.y)
+                            case (Tulzscha, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 43 + last.x, last.y)
                             case (Tulzscha, Filth) => DrawItem(null, f, Filth, Alive, $, 37 + last.x, last.y - 15)
 
                             case (Cthulhu, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 75 + last.x, 6 + last.y)
@@ -1347,6 +1352,7 @@ case Filth => 15
                             case (Shantak, Voonith) => DrawItem(null, f, Voonith, Alive, $, 45 + last.x, last.y)
                             case (StarVampire, Voonith) => DrawItem(null, f, Voonith, Alive, $, 42 + last.x, last.y)
                             case (Voonith, Voonith) => DrawItem(null, f, Voonith, Alive, $, 42 + last.x, last.y)
+                            case (Voonith, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 46 + last.x, last.y)
 
 case (Cthulhu, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 79 + last.x, 6 + last.y)
 case (Abhoth, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 63 + last.x, last.y)
@@ -1364,6 +1370,23 @@ case (Shantak, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShambler
 case (StarVampire, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 65 + last.x, last.y)
 case (Voonith, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 42 + last.x, last.y)
 case (DimensionalShamblerUnit, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 65 + last.x, last.y)
+                            case (Cthulhu, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 64 + last.x, 6 + last.y)
+                            case (Abhoth, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 52 + last.x, last.y)
+                            case (Daoloth, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 63 + last.x, last.y)
+                            case (Nyogtha, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 56 + last.x, last.y)
+                            case (Starspawn, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 50 + last.x, last.y)
+                            case (Shoggoth, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 48 + last.x, last.y)
+                            case (DeepOne, Gnorri) if last.health == Alive => DrawItem(null, f, Gnorri, Alive, $, 41 + last.x, last.y)
+                            case (DeepOne, Gnorri) if last.health == Pained => DrawItem(null, f, Gnorri, Alive, $, 41 + last.x, last.y + 31)
+                            case (Acolyte, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 42 + last.x, last.y)
+                            case (HighPriest, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 48 + last.x, last.y)
+                            case (Ghast, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 43 + last.x, last.y)
+                            case (Gug, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 52 + last.x, last.y)
+                            case (Shantak, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 57 + last.x, last.y)
+                            case (StarVampire, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 53 + last.x, last.y)
+                            case (DimensionalShamblerUnit, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 53 + last.x, last.y)
+                            case (Gnorri, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 58 + last.x, last.y)
+                            case (Gnorri, Filth) => DrawItem(null, f, Filth, Alive, $, 37 + last.x, last.y - 15)
                             case (Cthulhu, Filth) => DrawItem(null, f, Filth, Alive, $, 62 + last.x, last.y - 10)
                             case (Abhoth, Filth) => DrawItem(null, f, Filth, Alive, $, 50 + last.x, last.y - 15)
                             case (Daoloth, Filth) => DrawItem(null, f, Filth, Alive, $, 70 + last.x, last.y - 15)
@@ -2043,6 +2066,8 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                         .$("Variants" -> ("Use " + VoonithCard.short + " (" + setup.get(UseVoonith).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + DimensionalShamblerCard.short + " (" + setup.get(UseDimensionalShamblers).?("yes").|("no").hl + ")")) ++
+                    (setup.options.has(NeutralMonsters))
+                        .$("Variants" -> ("Use " + GnorriCard.short + " (" + setup.get(UseGnorri).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
@@ -2098,7 +2123,7 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             setup.toggle(NeutralMonsters)
 
                             if (setup.options.has(NeutralMonsters))
-                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire, UseVoonith, UseDimensionalShamblers)
+                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire, UseVoonith, UseDimensionalShamblers, UseGnorri)
                             else
                                 setup.options = setup.options.notOf[NeutralMonsterOption]
 
@@ -2133,6 +2158,11 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseDimensionalShamblers)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseGnorri)
                                 setupQuestions()
                             }
 
@@ -2241,6 +2271,8 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                         .$("Variants" -> ("Use " + VoonithCard.short + " (" + setup.get(UseVoonith).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(NeutralMonsters))
                         .$("Variants" -> ("Use " + DimensionalShamblerCard.short + " (" + setup.get(UseDimensionalShamblers).?("yes").|("no").hl + ")")) ++
+                    (setup.options.has(NeutralMonsters))
+                        .$("Variants" -> ("Use " + GnorriCard.short + " (" + setup.get(UseGnorri).?("yes").|("no").hl + ")")) ++
                     $("Variants" -> ("Independent Great Old Ones (" + setup.get(IGOOs).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + ByatisCard.short + " (" + setup.get(UseByatis).?("yes").|("no").hl + ")")) ++
@@ -2299,7 +2331,7 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             setup.toggle(NeutralMonsters)
 
                             if (setup.options.has(NeutralMonsters))
-                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire, UseVoonith, UseDimensionalShamblers)
+                                setup.options ++= $(UseGhast, UseGug, UseShantak, UseStarVampire, UseVoonith, UseDimensionalShamblers, UseGnorri)
                             else
                                 setup.options = setup.options.notOf[NeutralMonsterOption]
 
@@ -2334,6 +2366,11 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseDimensionalShamblers)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseGnorri)
                                 setupQuestions()
                             }
                         }
