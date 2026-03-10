@@ -15,6 +15,9 @@ case object AbhothIcon extends UnitClass(Abhoth.name + " Icon", Token, 0)
 case object DaolothIcon extends UnitClass(Daoloth.name + " Icon", Token, 0)
 case object NyogthaIcon extends UnitClass(Nyogtha.name + " Icon", Token, 0)
 
+case object TulzschaCard extends IGOOLoyaltyCard(TulzschaIcon, Tulzscha, power = 4, combat = 1)
+case object TulzschaIcon extends UnitClass(Tulzscha.name + " Icon", Token, 0)
+
 case object Byatis extends UnitClass("Byatis", GOO, 4) with IGOO {
     override def canMove(u : UnitFigure)(implicit game : Game) = false
     override def canBeMoved(u : UnitFigure)(implicit game : Game) = false
@@ -23,6 +26,7 @@ case object Byatis extends UnitClass("Byatis", GOO, 4) with IGOO {
 case object Abhoth extends UnitClass("Abhoth", GOO, 4) with IGOO
 case object Daoloth extends UnitClass("Daoloth", GOO, 6) with IGOO
 case object Nyogtha extends UnitClass("Nyogtha", GOO, 6) with IGOO
+case object Tulzscha extends UnitClass("Tulzscha", GOO, 4) with IGOO
 
 case object Filth extends UnitClass("Filth", Monster, 1) {
     override def canMove(u : UnitFigure)(implicit game : Game) = false
@@ -47,7 +51,11 @@ case object Interdimensional extends NeutralSpellbook("Interdimensional")
 case object FromBelow extends NeutralSpellbook("From Below")
 case object NyogthaPrimed extends NeutralSpellbook("Nyogtha Primed")
 case object NyogthaMourning extends NeutralSpellbook("Nyogtha Mourning")
+case object TulzschaRitualBypass extends NeutralSpellbook("Tulzscha Ritual Bypass")
 case object NightmareWeb extends NeutralSpellbook("Nightmare Web")
+
+// Tulzscha
+case object CeremonyOfAnnihilation extends NeutralSpellbook("Ceremony of Annihilation")
 
 
 trait NeutralFaction extends Faction
@@ -86,6 +94,13 @@ case class FilthAction(self : Faction, r : Region) extends BaseFactionAction(g =
 case class NightmareWebMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Awaken " + Nyogtha.styled(self) + " with " + NightmareWeb.styled(self)) with MainQuestion with Soft
 case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAction(g => "Awaken " + Nyogtha.styled(self) + g.forNPowerWithTax(r, self, 2) + " in", implicit g => r + self.iced(r))
 
+case class TulzschaGivePowerMainAction(self : Faction) extends OptionFactionAction("Give each enemy 2 Power (Tulzscha SBR)".styled(self)) with MainQuestion with Soft
+case class TulzschaGivePowerAction(self : Faction) extends BaseFactionAction(g => "Give each enemy 2 Power for " + Tulzscha.styled(self) + " Spellbook Requirement", g => "Give 2 Power")
+case class TulzschaBypassRitualAction(self : Faction, cost : Int, k : Int) extends OptionFactionAction(g => "Perform " + "Ritual of Annihilation".styled("doom") + " for " + cost.power) with DoomQuestion
+case class CeremonyOfAnnihilationChoiceAction(self : Faction) extends OptionFactionAction(
+    g => "Use " + CeremonyOfAnnihilation.styled(self) + " (earn " + g.ritualCost.power + ", no Doom/ES)"
+) with DoomQuestion with Soft
+
 
 object IGOOsExpansion extends Expansion {
     def checkAbhothSpellbook()(implicit game : Game) {
@@ -118,9 +133,32 @@ object IGOOsExpansion extends Expansion {
         }
     }
 
+    def checkTulzschaUndyingFlame()(implicit game : Game) {
+        if (game.tulzschaFlameTurn >= game.turn) return
+        game.tulzschaFlameTurn = game.turn
+        factions.foreach { f =>
+            if (f.has(Tulzscha)) {
+                val others = factions.but(f)
+                if (others.exists(_.doom > f.doom)) {
+                    f.doom += 1
+                    f.log(Tulzscha.styled(f), "gained 1 Doom from", "Undying Flame".styled(f))
+                }
+                if (others.exists(o => (o.es.num + o.revealed.num) > (f.es.num + f.revealed.num))) {
+                    f.takeES(1)
+                    f.log(Tulzscha.styled(f), "gained 1 Elder Sign from", "Undying Flame".styled(f))
+                }
+                if (others.exists(_.power > f.power)) {
+                    f.power += 1
+                    f.log(Tulzscha.styled(f), "gained 1 Power from", "Undying Flame".styled(f))
+                }
+            }
+        }
+    }
+
     override def triggers()(implicit game : Game) {
         checkAbhothSpellbook()
         checkInterdimensional()
+        checkTulzschaUndyingFlame()
     }
 
     override def eliminate(u : UnitFigure)(implicit game : Game) {
@@ -162,6 +200,13 @@ object IGOOsExpansion extends Expansion {
                 f.upgrades :-= NightmareWeb
                 f.loyaltyCards :-= NyogthaCard
                 game.loyaltyCards :+= NyogthaCard
+
+
+            case Tulzscha =>
+                f.units :-= u
+                f.upgrades :-= CeremonyOfAnnihilation
+                f.loyaltyCards :-= TulzschaCard
+                game.loyaltyCards :+= TulzschaCard
 
             case _ =>
         }
@@ -208,6 +253,8 @@ object IGOOsExpansion extends Expansion {
 
                 case Daoloth =>
                     self.upgrades :+= CosmicUnity
+
+                case Tulzscha =>
 
                 case Nyogtha =>
                     self.units :+= new UnitFigure(self, lc.unit, 2, r)
@@ -272,6 +319,45 @@ object IGOOsExpansion extends Expansion {
             ny.region = r
 
             self.log("awakened", Nyogtha.styled(self), "in", r, "with", NightmareWeb.styled(self))
+
+            EndAction(self)
+
+        // TULZSCHA - Ceremony of Annihilation ritual intercept
+        case RitualAction(self, cost, k) if self.has(Tulzscha) && self.upgrades.has(CeremonyOfAnnihilation) && self.oncePerAction.has(TulzschaRitualBypass).not =>
+            Ask(self)
+                .add(CeremonyOfAnnihilationChoiceAction(self))
+                .add(TulzschaBypassRitualAction(self, cost, k))
+                .cancel
+
+        case CeremonyOfAnnihilationChoiceAction(self) =>
+            val earned = game.ritualCost
+            self.power += earned
+            if (game.ritualTrack(game.ritualMarker) != 999)
+                game.ritualMarker += 1
+            game.showROAT()
+            self.acted = true
+            self.satisfy(PerformRitual, "Perform Ritual of Annihilation")
+            self.log("used", CeremonyOfAnnihilation.styled(self), "and earned", earned.power, "(no Doom or Elder Signs)")
+            CheckSpellbooksAction(DoomAction(self))
+
+        case TulzschaBypassRitualAction(self, cost, k) =>
+            self.oncePerAction :+= TulzschaRitualBypass
+            Force(RitualAction(self, cost, k))
+
+        // TULZSCHA
+        case TulzschaGivePowerMainAction(self) =>
+            Ask(self).add(TulzschaGivePowerAction(self)).cancel
+
+        case TulzschaGivePowerAction(self) =>
+            self.enemies.foreach { f =>
+                f.power += 2
+                log(f, "gained 2 Power from", Tulzscha.styled(self), "Spellbook Requirement")
+            }
+
+            if (self.upgrades.has(CeremonyOfAnnihilation).not) {
+                self.upgrades :+= CeremonyOfAnnihilation
+                self.log("gained", CeremonyOfAnnihilation.styled(self), "for", Tulzscha.styled(self))
+            }
 
             EndAction(self)
 
