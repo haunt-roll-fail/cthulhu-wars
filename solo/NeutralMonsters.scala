@@ -34,6 +34,10 @@ case object DimensionalShamblerUnit extends UnitClass("Dimensional Shambler", Mo
 }
 case object DimensionalShamblerHold extends UnitClass("Dimensional Shambler (Hold)", Token, 0)
 
+case object GnorriCard extends NeutralMonsterLoyaltyCard(GnorriIcon, Gnorri, cost = 3, quantity = 3, combat = 2)
+case object GnorriIcon extends UnitClass(Gnorri.name + " Icon", Token, 0)
+case object Gnorri extends UnitClass("Gnorri", Monster, 2) with NeutralMonster
+
 
 case class LoyaltyCardDoomAction(self : Faction) extends OptionFactionAction("Obtain " + "Loyalty Card".styled("nt")) with DoomQuestion with Soft with PowerNeutral
 case class NeutralMonstersAction(self : Faction, lc : NeutralMonsterLoyaltyCard) extends BaseFactionAction(g => "Obtain " + "Loyalty Card".styled("nt"), {

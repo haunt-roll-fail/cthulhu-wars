@@ -279,6 +279,7 @@ trait Faction { f =>
         units(StarVampire).num * 1 +
  	units(Voonith).num * 1 +
     units(DimensionalShamblerUnit).num * 2 +
+        units(Gnorri).num * 2 +
         units(Byatis).not(Zeroed).num * 4 +
         units(Abhoth).not(Zeroed).num * f.all(Filth).num +
         units(Daoloth).not(Zeroed).num * 0 +
@@ -776,6 +777,7 @@ case object UseShantak extends LoyaltyCardGameOption(ShantakCard) with NeutralMo
 case object UseStarVampire extends LoyaltyCardGameOption(StarVampireCard) with NeutralMonsterOption
 case object UseVoonith extends LoyaltyCardGameOption(VoonithCard) with NeutralMonsterOption
 case object UseDimensionalShamblers extends LoyaltyCardGameOption(DimensionalShamblerCard) with NeutralMonsterOption
+case object UseGnorri extends LoyaltyCardGameOption(GnorriCard) with NeutralMonsterOption
 
 sealed trait IGOOOption extends LoyaltyCardGameOption
 case object UseByatis extends LoyaltyCardGameOption(ByatisCard) with IGOOOption
@@ -808,6 +810,7 @@ object GameOptions {
         UseStarVampire,
 	UseVoonith,
         UseDimensionalShamblers,
+        UseGnorri,
         UseByatis,
         UseAbhoth,
         UseDaoloth,
@@ -1599,6 +1602,17 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
                 f.doom += valid.num
                 f.log("got", valid.num.doom)
+
+                if (f.loyaltyCards.has(GnorriCard)) {
+                    val gnorriCount = f.all(Gnorri).num
+                    if (gnorriCount >= 3) {
+                        f.doom += 2
+                        f.log("gained", 2.doom, "from", "Grottos".styled("neutral"), "(3 Gnorri in play)")
+                    } else if (gnorriCount >= 2) {
+                        f.doom += 1
+                        f.log("gained", 1.doom, "from", "Grottos".styled("neutral"), "(2 Gnorri in play)")
+                    }
+                }
 
                 if (f.has(Byatis)) {
                     val r = f.goo(Byatis).region
