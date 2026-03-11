@@ -481,6 +481,7 @@ object Overlays {
         case $("Daoloth", spellbook : Boolean) => loyaltyCardIGOO(DaolothCard.name, "" + DaolothCard.cost, "" + DaolothCard.combat, spellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 6 Power, and place Daoloth in the Area containing the Gate.", "Cosmic Unity", "Pre-Battle", "In a Battle involving Daoloth, choose one enemy Great Old One. It rolls no Combat dice (it still gets its Battle Ability, if any).", "A Great Old One is Killed (anywhere on the map)", "Interdimensional", "Ongoing", "When Daoloth enters an Area without a Gate, immediately place a Gate there.")
         case $("Nyogtha", spellbook : Boolean) => loyaltyCardIGOO(NyogthaCard.name, "" + NyogthaCard.cost, "4 if Nyogtha's Faction declared the Battle, 1 if not.", spellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 6 Power, and place all Nyogtha Units from your Pool to the Area containing the Gate.", "From Below", "Ongoing", "Nyogtha is two Units. Any Common Action involving one of these Units can be applied simultaneously to the other as part of the same Action and at no extra cost. When one Nyogtha Unit Moves, so may the other. When one Captures a Cultist, so may the other. If Battle is declared in one's Area, you can also declare a Battle in the other's Area, for free. You only lose this Loyalty Card if both Nyogtha Units have been Killed.", "Nyogtha survives a Battle against an enemy Great Old One", "Nightmare Web", "Ongoing", "If one of the Nyogtha Units is in your pool, you can Awaken it for 2 Power, placing it in any Area in which you have at least one Unit.")
         case $("Tulzscha", spellbook : Boolean) => loyaltyCardIGOO(TulzschaCard.name, "" + TulzschaCard.power, "" + TulzschaCard.combat, spellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 4 Power, and place Tulzscha in the Area containing the Gate.", "Undying Flame", "Gather Power Phase", "At the end of the Gather Power Phase: gain 1 Doom if any Faction has more Doom than you; gain 1 Elder Sign if any Faction has more Elder Signs than you; gain 1 Power if any Faction has more Power than you.", "As an Action, each enemy Faction gains 2 Power.", "Ceremony of Annihilation", "Doom Phase", "When you perform a Ritual of Annihilation, you may choose to pay nothing and instead EARN Power equal to the current Ritual marker position, then advance the marker 1 step. You earn no extra Doom or Elder Signs.")
+        case $("Y'Golonac", spellbook : Boolean) => loyaltyCardIGOO(YgolonacCard.name, "" + YgolonacCard.power, "" + YgolonacCard.combat, spellbook, "1. Your Controlled Gate is in an Area with your Great Old One.<br>2. Pay 2 Power, place Y'Golonac in the Area containing the Gate.", "Orifices", "Post-Battle", "If Y'Golonac is Killed in a Battle, select a surviving enemy Terror, Monster, or Cultist. Replace it with Y'Golonac, then give Y'Golonac's Loyalty Card to that player. If no enemies survived, Y'Golonac dies normally (placing this Loyalty Card in the general Pool).", "You have just received Y'Golonac as a result of his Orifices ability.", "The Revelations", "Doom Phase", "Every player except you gets 1 Elder Sign. This is not optional.")
 
 
         case _ =>
@@ -512,7 +513,7 @@ object Overlays {
                     </td>
                     <td>
                         <div class="h1 black-border" style="margin-right: -3ex; margin-left: -3ex; "><span class="h2 abaddon nt">${name}<sup><span class="deh3 nt">(${quantity.toString})</span></sup></span></div>
-                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace(" ", "-"))}">
+                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace("'", "").replace(" ", "-"))}">
                         <div>&nbsp;</div>
                         <div>
                             <span class="cost-color black-border">Cost: ${cost.toString}</span>
@@ -562,7 +563,7 @@ object Overlays {
                     <td></td>
                     <td>
                         <div class="h1 black-border" style="margin-right: -3ex; margin-left: -3ex; "><span class="h2 abaddon nt">${name}</span></div>
-                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace(" ", "-"))}">
+                        <img class="img" src="${imageSource("info:" + "n-" + name.toLowerCase.replace("'", "").replace(" ", "-"))}">
                         <div>&nbsp;</div>
                         <div>
                             <span class="cost-color black-border">Cost: ${cost}</span>

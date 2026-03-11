@@ -59,6 +59,7 @@ case object AssignAttackerKills extends BattlePhase
 case object AllKillsAssignedPhase extends BattlePhase
 case object HarbingerKillPhase extends BattlePhase
 case object EternalKillPhase extends BattlePhase
+case object YgolonacOrificesPhase extends BattlePhase
 case object EliminatePhase extends BattlePhase
 case object BerserkergangPhase extends BattlePhase
 case object UnholyGroundPhase extends BattlePhase
@@ -688,6 +689,18 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                             return Ask(s).each(rt)(u => EternalPayAction(s, u, Kill).as("Pay", 1.power, "for", Eternal)("Save", u, "from", Kill)).skip(BattleDoneAction(s))
                         }
+                    }
+                }
+
+                jump(YgolonacOrificesPhase)
+
+            case YgolonacOrificesPhase =>
+                sides.foreach { s =>
+                    val killed = s.forces(Ygolonac).%(_.health == Killed)
+                    if (killed.any) {
+                        val targets = s.opponent.forces.%(u => u.health != Killed && (u.uclass.utype == Terror || u.uclass.utype == Monster || u.uclass.utype == Cultist))
+                        if (targets.any)
+                            return Ask(s).each(targets.sortA)(t => YgolonacOrificesAction(s, t).as(t)(Ygolonac, "Orifices")).skip(BattleProceedAction(EliminatePhase))
                     }
                 }
 

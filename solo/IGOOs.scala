@@ -18,6 +18,9 @@ case object NyogthaIcon extends UnitClass(Nyogtha.name + " Icon", Token, 0)
 case object TulzschaCard extends IGOOLoyaltyCard(TulzschaIcon, Tulzscha, power = 4, combat = 1)
 case object TulzschaIcon extends UnitClass(Tulzscha.name + " Icon", Token, 0)
 
+case object YgolonacCard extends IGOOLoyaltyCard(YgolonacIcon, Ygolonac, power = 2, combat = 1)
+case object YgolonacIcon extends UnitClass(Ygolonac.name + " Icon", Token, 0)
+
 case object Byatis extends UnitClass("Byatis", GOO, 4) with IGOO {
     override def canMove(u : UnitFigure)(implicit game : Game) = false
     override def canBeMoved(u : UnitFigure)(implicit game : Game) = false
@@ -27,6 +30,7 @@ case object Abhoth extends UnitClass("Abhoth", GOO, 4) with IGOO
 case object Daoloth extends UnitClass("Daoloth", GOO, 6) with IGOO
 case object Nyogtha extends UnitClass("Nyogtha", GOO, 6) with IGOO
 case object Tulzscha extends UnitClass("Tulzscha", GOO, 4) with IGOO
+case object Ygolonac extends UnitClass("Y'Golonac", GOO, 2) with IGOO
 
 case object Filth extends UnitClass("Filth", Monster, 1) {
     override def canMove(u : UnitFigure)(implicit game : Game) = false
@@ -56,6 +60,9 @@ case object NightmareWeb extends NeutralSpellbook("Nightmare Web")
 
 // Tulzscha
 case object CeremonyOfAnnihilation extends NeutralSpellbook("Ceremony of Annihilation")
+
+// Y'Golonac
+case object TheRevelations extends NeutralSpellbook("The Revelations")
 
 
 trait NeutralFaction extends Faction
@@ -93,6 +100,8 @@ case class FilthAction(self : Faction, r : Region) extends BaseFactionAction(g =
 
 case class NightmareWebMainAction(self : Faction, l : $[Region]) extends OptionFactionAction("Awaken " + Nyogtha.styled(self) + " with " + NightmareWeb.styled(self)) with MainQuestion with Soft
 case class NightmareWebAction(self : Faction, r : Region) extends BaseFactionAction(g => "Awaken " + Nyogtha.styled(self) + g.forNPowerWithTax(r, self, 2) + " in", implicit g => r + self.iced(r))
+
+case class YgolonacOrificesAction(self : Faction, target : UnitRef) extends ForcedAction
 
 case class TulzschaGivePowerMainAction(self : Faction) extends OptionFactionAction("Give each enemy 2 Power (Tulzscha SBR)".styled(self)) with MainQuestion with Soft
 case class TulzschaGivePowerAction(self : Faction) extends BaseFactionAction(g => "Give each enemy 2 Power for " + Tulzscha.styled(self) + " Spellbook Requirement", g => "Give 2 Power")
@@ -208,6 +217,14 @@ object IGOOsExpansion extends Expansion {
                 f.loyaltyCards :-= TulzschaCard
                 game.loyaltyCards :+= TulzschaCard
 
+            case Ygolonac =>
+                f.units :-= u
+                f.upgrades :-= TheRevelations
+                if (f.loyaltyCards.has(YgolonacCard)) {
+                    f.loyaltyCards :-= YgolonacCard
+                    game.loyaltyCards :+= YgolonacCard
+                }
+
             case _ =>
         }
     }
@@ -321,6 +338,40 @@ object IGOOsExpansion extends Expansion {
             self.log("awakened", Nyogtha.styled(self), "in", r, "with", NightmareWeb.styled(self))
 
             EndAction(self)
+
+        // Y'GOLONAC - Orifices
+        case YgolonacOrificesAction(self, target) =>
+            val targetFaction = target.faction
+            val region = target.region
+
+            // Eliminate the replaced unit (exempt from battle forces first)
+            val targetFigure = game.unit(target)
+            game.battle.foreach(_.exempt(targetFigure))
+            game.eliminate(targetFigure)
+
+            // Place Y'Golonac in the target's region under the new owner
+            val newYg = new UnitFigure(targetFaction, Ygolonac, 1, region)
+            targetFaction.units :+= newYg
+
+            // Transfer loyalty card
+            self.loyaltyCards :-= YgolonacCard
+            targetFaction.loyaltyCards :+= YgolonacCard
+
+            // Transfer spellbook if already earned
+            if (self.upgrades.has(TheRevelations)) {
+                self.upgrades :-= TheRevelations
+                targetFaction.upgrades :+= TheRevelations
+            }
+
+            // Receiving Y'Golonac via Orifices satisfies the spellbook requirement
+            if (targetFaction.upgrades.has(TheRevelations).not) {
+                targetFaction.upgrades :+= TheRevelations
+                targetFaction.log("gained", TheRevelations.styled(targetFaction), "for receiving", Ygolonac.styled(targetFaction))
+            }
+
+            self.log(Ygolonac.styled(self), "used Orifices:", Ygolonac, "now belongs to", targetFaction)
+
+            BattleProceedAction(EliminatePhase)
 
         // TULZSCHA - Ceremony of Annihilation ritual intercept
         case RitualAction(self, cost, k) if self.has(Tulzscha) && self.upgrades.has(CeremonyOfAnnihilation) && self.oncePerAction.has(TulzschaRitualBypass).not =>
