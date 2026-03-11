@@ -280,6 +280,7 @@ trait Faction { f =>
  	units(Voonith).num * 1 +
     units(DimensionalShamblerUnit).num * 2 +
         units(Gnorri).num * 2 +
+        units(Ygolonac).not(Zeroed).num * 1 +
         units(Byatis).not(Zeroed).num * 4 +
         units(Abhoth).not(Zeroed).num * f.all(Filth).num +
         units(Daoloth).not(Zeroed).num * 0 +
@@ -785,6 +786,7 @@ case object UseAbhoth extends LoyaltyCardGameOption(AbhothCard) with IGOOOption
 case object UseDaoloth extends LoyaltyCardGameOption(DaolothCard) with IGOOOption
 case object UseNyogtha extends LoyaltyCardGameOption(NyogthaCard) with IGOOOption
 case object UseTulzscha extends LoyaltyCardGameOption(TulzschaCard)
+case object UseYgolonac extends LoyaltyCardGameOption(YgolonacCard) with IGOOOption
 
 case class PlayerCount(n : Int) extends GameOption
 
@@ -816,6 +818,7 @@ object GameOptions {
         UseDaoloth,
         UseNyogtha,
         UseTulzscha,
+        UseYgolonac,
         PlayerCount(3),
         PlayerCount(4),
         PlayerCount(5),
@@ -1619,6 +1622,13 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                     if (factionlike.but(f).exists(_.present(r)).not) {
                         f.log("gained", 1.es, "from", Byatis.styled(f), "and", ToadOfBerkeley)
                         f.takeES(1)
+                    }
+                }
+
+                if (f.upgrades.has(TheRevelations)) {
+                    f.enemies.foreach { e =>
+                        e.takeES(1)
+                        e.log("gained", 1.es, "from", TheRevelations.styled(f))
                     }
                 }
             }

@@ -803,6 +803,7 @@ object CthulhuWarsSolo {
                                                     else DrawRect("n-dimensional-shambler", |(tint), x - 29, y - 60, 58, 70)
                     case Gnorri            => if (region != null) DrawRect("n-gnorri", |(tint), x - 50, y - 90, 100, 100)
                                               else DrawRect("n-gnorri", |(tint), x - 30, y - 54, 60, 60)
+                    case Ygolonac      => DrawRect("n-ygolonac", |(tint), x - 37, y - 90, 75, 100)
                     case Byatis        => DrawRect("n-byatis", |(tint), x - 47, y - 90, 95, 90)
                     case Abhoth        => DrawRect("n-abhoth", |(tint), x - 47, y - 110, 95, 120)
                     case Filth         => DrawRect("n-filth", |(tint), x - 20, y - 20, 40, 40)
@@ -818,6 +819,7 @@ object CthulhuWarsSolo {
                     case VoonithIcon      => DrawRect("voonith-icon", None, x - 17, y - 55, 50, 50)
                     case DimensionalShamblerIcon => DrawRect("dimensional-shambler-icon", None, x - 17, y - 55, 50, 50)
                     case GnorriIcon        => DrawRect("gnorri-icon", None, x - 17, y - 55, 50, 50)
+                    case YgolonacIcon      => DrawRect("ygolonac-icon", None, x - 17, y - 55, 50, 50)
                     case ByatisIcon       => DrawRect("byatis-icon", None, x - 17, y - 55, 50, 50)
                     case AbhothIcon       => DrawRect("abhoth-icon", None, x - 17, y - 55, 50, 50)
                     case DaolothIcon      => DrawRect("daoloth-icon", None, x - 17, y - 55, 50, 50)
@@ -1104,6 +1106,7 @@ object CthulhuWarsSolo {
                         case DaolothCard => |(f.upgrades.has(Interdimensional))
                         case NyogthaCard => |(f.upgrades.has(NightmareWeb))
                         case TulzschaCard => |(f.upgrades.has(CeremonyOfAnnihilation))
+                        case YgolonacCard => |(f.upgrades.has(TheRevelations))
                         case _ => None
                     }
 
@@ -1114,13 +1117,13 @@ object CthulhuWarsSolo {
                     }
 
                     val d = DrawItem(null, f, lc.icon, Alive, $, 0, 0)
-                    val unitName = lc.name.replace("\\", "\\\\").replace("\"", "&quot;")
+                    val unitName = lc.name.replace("\\", "\\\\").replace("\"", "&quot;").replace("'", "&#39;")
                     val factionShort = f.short.replace("\"", "&quot;")
 
                     val right = baseRightOffset + i * iconSpacing
 
                     s"""<img class='loyalty-card-icon'
-                        src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace(" ", "-"))}'
+                        src='${Overlays.imageSource("info:" + "n-" + lc.name.toLowerCase.replace("'", "").replace(" ", "-"))}'
                         style='right:${right/12.0}vh; right:${right/12.0}dvh;'
                         onclick='event.stopPropagation(); onExternalClick("${unitName}"${sb})'
                         onpointerover='event.stopPropagation(); onExternalOver("${unitName}"${sb})'
@@ -1193,18 +1196,19 @@ object CthulhuWarsSolo {
                         case Nyogtha =>      3
                         case Tulzscha =>     4
                         case Starspawn =>    4
-                        case Shoggoth =>     5
-                        case DeepOne =>      6
-                        case Acolyte =>      7
-                        case HighPriest =>   8
-                        case Ghast =>        9
-                        case Gug =>         10
-                        case Shantak =>     11
-                        case StarVampire => 12
-                        case Voonith =>     13
-                        case DimensionalShamblerUnit => 14
-                        case Gnorri =>          15
-case Filth => 16
+                        case Ygolonac =>     5
+                        case Shoggoth =>     6
+                        case DeepOne =>      7
+                        case Acolyte =>      8
+                        case HighPriest =>   9
+                        case Ghast =>       10
+                        case Gug =>         11
+                        case Shantak =>     12
+                        case StarVampire => 13
+                        case Voonith =>     14
+                        case DimensionalShamblerUnit => 15
+                        case Gnorri =>      16
+case Filth => 17
                     })
 
                     while (draws.num - 1 < sortedDeep.num) {
@@ -1238,6 +1242,7 @@ case Filth => 16
                             case (Tulzscha, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 52 + last.x, last.y)
                             case (Tulzscha, Voonith) => DrawItem(null, f, Voonith, Alive, $, 33 + last.x, last.y)
                             case (Tulzscha, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 52 + last.x, last.y)
+                            case (Tulzscha, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 55 + last.x, last.y)
                             case (Tulzscha, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 43 + last.x, last.y)
                             case (Tulzscha, Filth) => DrawItem(null, f, Filth, Alive, $, 37 + last.x, last.y - 15)
 
@@ -1246,6 +1251,25 @@ case Filth => 16
                             case (Daoloth, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 82 + last.x, last.y)
                             case (Nyogtha, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 77 + last.x, last.y)
                             case (Starspawn, Starspawn) => DrawItem(null, f, Starspawn, Alive, $, 70 + last.x, last.y)
+                            case (Starspawn, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 62 + last.x, last.y)
+
+                            case (Cthulhu, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 75 + last.x, 6 + last.y)
+                            case (Abhoth, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 63 + last.x, last.y)
+                            case (Daoloth, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 75 + last.x, last.y)
+                            case (Nyogtha, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 67 + last.x, last.y)
+                            case (Ygolonac, Ygolonac) => DrawItem(null, f, Ygolonac, Alive, $, 65 + last.x, last.y)
+                            case (Ygolonac, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 63 + last.x, last.y)
+                            case (Ygolonac, DeepOne) => DrawItem(null, f, DeepOne, Alive, $, 52 + last.x, last.y)
+                            case (Ygolonac, Acolyte) => DrawItem(null, f, Acolyte, Alive, $, 50 + last.x, last.y)
+                            case (Ygolonac, HighPriest) => DrawItem(null, f, HighPriest, Alive, $, 62 + last.x, last.y)
+                            case (Ygolonac, Ghast) => DrawItem(null, f, Ghast, Alive, $, 52 + last.x, last.y)
+                            case (Ygolonac, Gug) => DrawItem(null, f, Gug, Alive, $, 66 + last.x, last.y)
+                            case (Ygolonac, Shantak) => DrawItem(null, f, Shantak, Alive, $, 62 + last.x, last.y)
+                            case (Ygolonac, StarVampire) => DrawItem(null, f, StarVampire, Alive, $, 62 + last.x, last.y)
+                            case (Ygolonac, Voonith) => DrawItem(null, f, Voonith, Alive, $, 43 + last.x, last.y)
+                            case (Ygolonac, DimensionalShamblerUnit) => DrawItem(null, f, DimensionalShamblerUnit, Alive, $, 62 + last.x, last.y)
+                            case (Ygolonac, Gnorri) => DrawItem(null, f, Gnorri, Alive, $, 55 + last.x, last.y)
+                            case (Ygolonac, Filth) => DrawItem(null, f, Filth, Alive, $, 42 + last.x, last.y - 15)
 
                             case (Cthulhu, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 76 + last.x, 6 + last.y)
                             case (Abhoth, Shoggoth) => DrawItem(null, f, Shoggoth, Alive, $, 65 + last.x, last.y)
@@ -2079,6 +2103,8 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + TulzschaCard.short + " (" + setup.get(UseTulzscha).?("yes").|("no").hl + ")")) ++
+                    (setup.options.has(IGOOs))
+                        .$("Variants" -> ("Use " + YgolonacCard.short + " (" + setup.get(UseYgolonac).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> ("" + IceAge + " affects " + Lethargy + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
@@ -2172,7 +2198,7 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             setup.toggle(IGOOs)
 
                             if (setup.options.has(IGOOs))
-                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha, UseTulzscha)
+                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha, UseTulzscha, UseYgolonac)
                             else
                                 setup.options = setup.options.notOf[IGOOOption]
 
@@ -2202,6 +2228,11 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseTulzscha)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseYgolonac)
                                 setupQuestions()
                             }
                         }
@@ -2284,6 +2315,8 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                         .$("Variants" -> ("Use " + NyogthaCard.short + " (" + setup.get(UseNyogtha).?("yes").|("no").hl + ")")) ++
                     (setup.options.has(IGOOs))
                         .$("Variants" -> ("Use " + TulzschaCard.short + " (" + setup.get(UseTulzscha).?("yes").|("no").hl + ")")) ++
+                    (setup.options.has(IGOOs))
+                        .$("Variants" -> ("Use " + YgolonacCard.short + " (" + setup.get(UseYgolonac).?("yes").|("no").hl + ")")) ++
                     (factions.has(SL) && factions.has(WW))
                         .$("Variants" -> ("" + IceAge + " affects " + Lethargy + " (" + setup.get(IceAgeAffectsLethargy).?("yes").|("no").hl + ")")) ++
                     (factions.has(OW) && factions.num == 4)
@@ -2379,7 +2412,7 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             setup.toggle(IGOOs)
 
                             if (setup.options.has(IGOOs))
-                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha, UseTulzscha)
+                                setup.options ++= $(UseByatis, UseAbhoth, UseDaoloth, UseNyogtha, UseTulzscha, UseYgolonac)
                             else
                                 setup.options = setup.options.notOf[IGOOOption]
 
@@ -2409,6 +2442,11 @@ case (DimensionalShamblerUnit, Filth) => DrawItem(null, f, Filth, Alive, $, 53 +
                             n -= 1
                             if (n == 0) {
                                 setup.toggle(UseTulzscha)
+                                setupQuestions()
+                            }
+                            n -= 1
+                            if (n == 0) {
+                                setup.toggle(UseYgolonac)
                                 setupQuestions()
                             }
                         }
