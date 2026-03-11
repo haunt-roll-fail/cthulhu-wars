@@ -29,7 +29,7 @@ case object AwakenAvatarAntithesis extends Requirement("Awaken Avatar Antithesis
 case object AwakenAvatarSynthesis extends Requirement("Awaken Avatar Synthesis")
 
 // Avatar Thesis awakening: pick azathoth track value (cost 0-8), then distribute power
-case class UndirectedEnergyAction(self : Faction) extends OptionFactionAction(UndirectedEnergy.styled(self)) with MainQuestion with Soft
+case class UndirectedEnergyAction(self : Faction) extends OptionFactionAction(UndirectedEnergy.styled(self)) with MainQuestion
 
 case class ChaosGateSBAction(self : Faction) extends OptionFactionAction(ChaosGateSB.styled(self)) with MainQuestion with Soft
 case class ChaosGateSBPlaceAction(self : Faction, r : Region) extends BaseFactionAction("Place Chaos Gate in", r)
@@ -37,9 +37,9 @@ case class ChaosGateSBPlaceAction(self : Faction, r : Region) extends BaseFactio
 case class ConsummationAction(self : Faction) extends OptionFactionAction(Consummation.styled(self)) with MainQuestion with Soft
 case class ConsummationUnflipAction(self : Faction, sb : Spellbook) extends BaseFactionAction("Unflip", sb.styled(self))
 
-case class CosmicRulerSacrificeAction(self : Faction, saved : UnitFigure, sacrificed : UnitFigure) extends ForcedAction
+case class CosmicRulerSacrificeAction(self : Faction, saved : UnitRef, sacrificed : UnitRef) extends ForcedAction
 case class CosmicRulerDeclineAction(self : Faction) extends ForcedAction
-case class CosmicRulerDeclineNoWayAction(self : Faction, u : UnitFigure) extends ForcedAction
+case class CosmicRulerDeclineNoWayAction(self : Faction, u : UnitRef) extends ForcedAction
 
 case class PowerDoomOfferAction(self : Faction) extends BaseFactionAction("Doom phase", "Power/Doom offer")
 case class PowerDoomOfferChoiceAction(self : Faction, remaining : $[Faction], powerCount : Int, doomCount : Int) extends ForcedAction
@@ -55,7 +55,7 @@ case class AnimateMatterMoveAction(self : Faction, from : Region, to : Region) e
 
 case class TraitorsAction(self : Faction) extends OptionFactionAction(Traitors.styled(self)) with MainQuestion with Soft
 case class TraitorsChaosGateAction(self : Faction, r : Region) extends BaseFactionAction("Convert Chaos Gate in", r)
-case class TraitorsFactionAction(self : Faction, r : Region, target : Faction) extends BaseFactionAction(implicit g => "Place " + target + " Acolyte in", r)
+case class TraitorsFactionAction(self : Faction, r : Region, target : Faction, uc : UnitClass) extends BaseFactionAction(implicit g => "Place " + target + " " + uc + " in", r)
 
 case class FiendishGrowthAction(self : Faction) extends OptionFactionAction(FiendishGrowth.styled(self)) with MainQuestion with Soft
 case class FiendishGrowthPlaceAction(self : Faction, r : Region, n : Int) extends ForcedAction
@@ -324,10 +324,13 @@ object DSExpansion extends Expansion {
         case AzathothSynthesisRollAction(self) =>
             val x = randomInRange(3, 8)
             DS.azathothDieRoll = x
+            val demand = if (game.factions.num <= 3) (x + 1) / 2 else x
             log("The Blind Idiot God".styled(DS), "has opened its eye")
             self.log("rolled the Azathoth die", "[" + x.styled("doom") + "]")
-            log("Other factions must collectively offer", "[" + x.styled("doom") + "]", "Power/Doom or", DS, "wins")
-            Force(AzathothSynthesisContinueAction(self, x, $, self.enemies.%(e => e.power + e.doom > 0), self.enemies.%(e => e.power + e.doom > 0).num * 6))
+            if (demand != x)
+                log("Halved to", "[" + demand.styled("doom") + "]", "for", game.factions.num + "-player game")
+            log("Other factions must collectively offer", "[" + demand.styled("doom") + "]", "Power/Doom or", DS, "wins")
+            Force(AzathothSynthesisContinueAction(self, demand, $, self.enemies.%(e => e.power + e.doom > 0), self.enemies.%(e => e.power + e.doom > 0).num * 6))
 
         case AzathothSynthesisContinueAction(ds, x, xoffers, xforum, xtime) =>
             var offers = xoffers
@@ -535,19 +538,19 @@ object DSExpansion extends Expansion {
             Ask(self).list(valid./(r => TraitorsChaosGateAction(self, r))).cancel
 
         case TraitorsChaosGateAction(self, r) =>
-            val targets = self.enemies.%(_.pool.cultists.any)
-            Ask(self).list(targets./(e => TraitorsFactionAction(self, r, e)))
+            val targets = self.enemies./~(e => e.pool.cultists./(_.uclass).distinct./(uc => TraitorsFactionAction(self, r, e, uc)))
+            Ask(self).list(targets)
 
-        case TraitorsFactionAction(self, r, target) =>
+        case TraitorsFactionAction(self, r, target, uc) =>
             self.power -= 1
             val acolyte = self.at(r).one(Acolyte)
             game.eliminate(acolyte)
             DS.chaosGateRegions = DS.chaosGateRegions.%(c => c != r)
             DS.gates = DS.gates.%(c => c != r)
-            target.place(Acolyte, r)
+            target.place(uc, r)
             game.checkGatesGained(target)
             self.log("used", Traitors.styled(self), "converting Chaos Gate in", r)
-            target.log("gained an Acolyte in", r, "from", Traitors.styled(self))
+            target.log("gained", uc.styled(target), "in", r, "from", Traitors.styled(self))
             if (self.at(r).none) {
                 self.takeES(1)
                 self.log("gained", 1.es, "from", Traitors.styled(self))

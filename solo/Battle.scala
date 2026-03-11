@@ -693,7 +693,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (killedAvatars.any) {
                         // Exclude already-killed/eliminated units — a GOO sacrificed in a prior CR trigger
                         // this same battle is no longer Alive and must not be offered again
-                        val sacrificeOptions = DS.units.goos.%(o => killedAvatars.has(o).not && o.health == Alive)
+                        val sacrificeOptions = DS.goos.%(o => killedAvatars.has(o).not && o.health == Alive)
                         if (sacrificeOptions.any) {
                             val options = killedAvatars./~(saved =>
                                 sacrificeOptions./(sacrificed =>
@@ -1012,7 +1012,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
         case EliminateNoWayAction(self, u) =>
             if (self == DS && u.goo) {
-                val sacrificeOptions = DS.units.goos.%(o => o != u && o.health == Alive)
+                val sacrificeOptions = DS.goos.%(o => o.ref != u && o.health == Alive)
                 if (sacrificeOptions.any) {
                     val options = sacrificeOptions./(sacrificed =>
                         CosmicRulerSacrificeAction(DS, u, sacrificed)

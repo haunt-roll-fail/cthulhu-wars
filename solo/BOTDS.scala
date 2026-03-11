@@ -232,7 +232,7 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             // ---- TRAITORS: which faction to give the gate to ----
             // Avoid giving a gate to factions near winning — extra power income accelerates their ritual.
             // Exception: if AnimateMatter can immediately reclaim the donated gate, the doom risk evaporates.
-            case TraitorsFactionAction(_, r, target) =>
+            case TraitorsFactionAction(_, r, target, _) =>
                 val animateMatterCombo = can(AnimateMatter) &&
                     DS.chaosGateRegions.%(c => c != r && game.board.connected(c).has(r)).any
                 target.power == 0                                     |=> 2000 -> "traitors enemy no power"
