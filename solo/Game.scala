@@ -78,6 +78,12 @@ case class Sorcery(faction : Faction) extends FactionRegion {
     val name = "Ancient Sorcery"
 }
 
+case class ShamblerHold(faction : Faction) extends FactionRegion {
+    val glyph = Pool
+    val id = "ShamblerHold"
+    val name = faction.name + " Shambler Hold"
+}
+
 case class Extinct(faction : Faction) extends FactionRegion {
     val glyph = Extinct
     val id = "???"
@@ -271,6 +277,10 @@ trait Faction { f =>
         units(Gug).num * 3 +
         units(Shantak).num * 2 +
         units(StarVampire).num * 1 +
+ 	units(Voonith).num * 1 +
+    units(DimensionalShamblerUnit).num * 2 +
+        units(Gnorri).num * 2 +
+        units(Ygolonac).not(Zeroed).num * 1 +
         units(Byatis).not(Zeroed).num * 4 +
         units(Abhoth).not(Zeroed).num * f.all(Filth).num +
         units(Daoloth).not(Zeroed).num * 0 +
@@ -766,12 +776,17 @@ case object UseGhast extends LoyaltyCardGameOption(GhastCard) with NeutralMonste
 case object UseGug extends LoyaltyCardGameOption(GugCard) with NeutralMonsterOption
 case object UseShantak extends LoyaltyCardGameOption(ShantakCard) with NeutralMonsterOption
 case object UseStarVampire extends LoyaltyCardGameOption(StarVampireCard) with NeutralMonsterOption
+case object UseVoonith extends LoyaltyCardGameOption(VoonithCard) with NeutralMonsterOption
+case object UseDimensionalShamblers extends LoyaltyCardGameOption(DimensionalShamblerCard) with NeutralMonsterOption
+case object UseGnorri extends LoyaltyCardGameOption(GnorriCard) with NeutralMonsterOption
 
 sealed trait IGOOOption extends LoyaltyCardGameOption
 case object UseByatis extends LoyaltyCardGameOption(ByatisCard) with IGOOOption
 case object UseAbhoth extends LoyaltyCardGameOption(AbhothCard) with IGOOOption
 case object UseDaoloth extends LoyaltyCardGameOption(DaolothCard) with IGOOOption
 case object UseNyogtha extends LoyaltyCardGameOption(NyogthaCard) with IGOOOption
+case object UseTulzscha extends LoyaltyCardGameOption(TulzschaCard)
+case object UseYgolonac extends LoyaltyCardGameOption(YgolonacCard) with IGOOOption
 
 case class PlayerCount(n : Int) extends GameOption
 
@@ -795,10 +810,15 @@ object GameOptions {
         UseGug,
         UseShantak,
         UseStarVampire,
+	UseVoonith,
+        UseDimensionalShamblers,
+        UseGnorri,
         UseByatis,
         UseAbhoth,
         UseDaoloth,
         UseNyogtha,
+        UseTulzscha,
+        UseYgolonac,
         PlayerCount(3),
         PlayerCount(4),
         PlayerCount(5),
@@ -994,6 +1014,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     var queue : $[Battle] = $
     var anyIceAge : Boolean = false
     var lastDaolothRegion : |[Region] = None
+    var tulzschaFlameTurn : Int = 1
     var neutralSpellbooks : $[Spellbook] = options.contains(NeutralSpellbooks).$(MaoCeremony, Recriminations, Shriveling, StarsAreRight, UmrAtTawil, Undimensioned)
     var loyaltyCards : $[LoyaltyCard] = options.of[LoyaltyCardGameOption]./(_.lc)
 
@@ -1281,6 +1302,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 + FilthMainAction(f, l)
             }
         }
+
+        if (f.loyaltyCards.has(DimensionalShamblerCard) && f.units.%(_.uclass == DimensionalShamblerUnit).num < DimensionalShamblerCard.quantity && f.power >= f.summonCost(DimensionalShamblerUnit, f.reserve))
+            + ShamblerSummonMainAction(f)
     }
 
     def awakens(f : Faction)(implicit w : AskWrapper) {
@@ -1302,6 +1326,10 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             areas.nex.%(f.affords(2)).%(f.present).some.foreach { l =>
                 + NightmareWebMainAction(f, l)
             }
+        }
+
+        if (f.has(Tulzscha) && f.upgrades.has(CeremonyOfAnnihilation).not) {
+            + TulzschaGivePowerMainAction(f)
         }
 
         if (f.has(GodOfForgetfulness) && f.has(Byatis)) {
@@ -1578,11 +1606,29 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 f.doom += valid.num
                 f.log("got", valid.num.doom)
 
+                if (f.loyaltyCards.has(GnorriCard)) {
+                    val gnorriCount = f.all(Gnorri).num
+                    if (gnorriCount >= 3) {
+                        f.doom += 2
+                        f.log("gained", 2.doom, "from", "Grottos".styled("neutral"), "(3 Gnorri in play)")
+                    } else if (gnorriCount >= 2) {
+                        f.doom += 1
+                        f.log("gained", 1.doom, "from", "Grottos".styled("neutral"), "(2 Gnorri in play)")
+                    }
+                }
+
                 if (f.has(Byatis)) {
                     val r = f.goo(Byatis).region
                     if (factionlike.but(f).exists(_.present(r)).not) {
                         f.log("gained", 1.es, "from", Byatis.styled(f), "and", ToadOfBerkeley)
                         f.takeES(1)
+                    }
+                }
+
+                if (f.upgrades.has(TheRevelations)) {
+                    f.enemies.foreach { e =>
+                        e.takeES(1)
+                        e.log("gained", 1.es, "from", TheRevelations.styled(f))
                     }
                 }
             }
@@ -1979,6 +2025,28 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 if (f.can(DragonAscending) && f.enemies.exists(_.power > f.power))
                     if (factions./(_.power).max - f.power >= f.commands.of[DragonAscendingPower].single./(_.power).|(1))
                         + DragonAscendingPromptAction(f.sure[OW], e, PreMainAction(e)).as("Rise to", factions./(_.power).max.power)(DragonAscending)
+
+                if (f.loyaltyCards.has(DimensionalShamblerCard) && f.at(ShamblerHold(f), DimensionalShamblerUnit).any) {
+                    var reasons = f.commands.has(ShamblerPrompt).$("always prompted")
+
+                    if (f.commands.has(ShamblerThreatOfCapture) && canAct)
+                        areas.%(r => e.canCapture(r)(f)).some./{ l =>
+                            reasons :+= "" + e + " might capture " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f.commands.has(ShamblerThreatOfAttackOnGate) && canBattle)
+                        f.gates.%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) * 3 / 4 + 1 >= f.at(r).num).some./{ l =>
+                            reasons :+= "" + e + " might attack the gate " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (f.commands.has(ShamblerThreatOfAttackOnGOO) && canBattle)
+                        f.onMap(GOO)./(_.region).%(r => canBattleIn(r) && e.canAttack(r)(f) && e.strength(e.at(r), f) / 2 + 1 > f.at(r).notGOOs.not(Yothan).not(HighPriest).num).some./{ l =>
+                            reasons :+= "GOO might be in danger from " + e + " " + ("in " + l.mkString(", ")).inline
+                        }
+
+                    if (reasons.any)
+                        + ShamblerDeployPromptAction(f, PreMainAction(e)).as(DimensionalShamblerUnit.styled(f), "to Map")(DimensionalShamblerCard, reasons./("<br/>(" + _ + ")").mkString(""))
+                }
 
                 |(asking.ask).%(_.actions.%!(_.isInfo).any)./(_.add(NeedOk).add(OutOfTurnRefresh(PreMainAction(e))).add(SacrificeHighPriestAllowedAction).group(" ").skip(PreActionPromptsAction(e, l.but(f))))
             }

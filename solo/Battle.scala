@@ -59,6 +59,7 @@ case object AssignAttackerKills extends BattlePhase
 case object AllKillsAssignedPhase extends BattlePhase
 case object HarbingerKillPhase extends BattlePhase
 case object EternalKillPhase extends BattlePhase
+case object YgolonacOrificesPhase extends BattlePhase
 case object EliminatePhase extends BattlePhase
 case object BerserkergangPhase extends BattlePhase
 case object UnholyGroundPhase extends BattlePhase
@@ -612,11 +613,24 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                 jump(PostRoll)
 
-            case PostRoll =>
-                postroll(attacker)
-                postroll(defender)
+           case PostRoll =>
+    postroll(attacker)
+    postroll(defender)
 
-                jump(AssignDefenderKills)
+    // VOONITH - Vicious
+    sides.foreach { s =>
+        val vooniths = s.forces.%(_.uclass == Voonith).num
+        if (vooniths > 0) {
+            val kills = s.rolls.count(_ == Kill)
+            val extra = max(0, vooniths - kills)
+            if (extra > 0) {
+                s.rolls ++= extra.times(Kill)
+                log(Voonith.styled(s), "Vicious added", extra, "Kill".s(extra).styled("kill"))
+            }
+        }
+    }
+
+    jump(AssignDefenderKills)
 
             case AssignDefenderKills =>
                 assignKills(defender, AssignAttackerKills)
@@ -675,6 +689,18 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                             return Ask(s).each(rt)(u => EternalPayAction(s, u, Kill).as("Pay", 1.power, "for", Eternal)("Save", u, "from", Kill)).skip(BattleDoneAction(s))
                         }
+                    }
+                }
+
+                jump(YgolonacOrificesPhase)
+
+            case YgolonacOrificesPhase =>
+                sides.foreach { s =>
+                    val killed = s.forces(Ygolonac).%(_.health == Killed)
+                    if (killed.any) {
+                        val targets = s.opponent.forces.%(u => u.health != Killed && (u.uclass.utype == Terror || u.uclass.utype == Monster || u.uclass.utype == Cultist))
+                        if (targets.any)
+                            return Ask(s).each(targets.sortA)(t => YgolonacOrificesAction(s, t).as(t)(Ygolonac, "Orifices")).skip(BattleProceedAction(EliminatePhase))
                     }
                 }
 
