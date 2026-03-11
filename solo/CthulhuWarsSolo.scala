@@ -715,7 +715,7 @@ object CthulhuWarsSolo {
                     case SL => Processing(|("#db6a33"), |("#4a1a1a"), None)
                     case OW => Processing(|("#6c4296"), None, |("#4c4c4c"))
                     case AN => Processing(|("#47a5bc"), |("#333333"), None)
-                    case DS => Processing(|("#2E0018"), None, |("#150008"))
+                    case DS => Processing(|("#3A2825"), None, |("#120E0C"))
                     case _  => defaultProcessing
                 }
 
@@ -744,7 +744,7 @@ object CthulhuWarsSolo {
                             case WW => DrawRect("ww-high-priest", None, x - 35, y - 60, 70, 67)
                             case OW => DrawRect("ow-high-priest", None, x - 35, y - 60, 70, 66) // Left to do
                             case AN => DrawRect("an-high-priest", None, x - 35, y - 60, 70, 66) // Left to do
-                            case DS => DrawRect("ds-high-priest", |(Processing(|("#8B4513"), None, |("#281508"))), x - 35, y - 60, 70, 66)
+                            case DS => DrawRect("ds-high-priest", None, x - 35, y - 60, 70, 66)
                         }
 
                         case FactionGlyph => faction match {
@@ -801,9 +801,9 @@ object CthulhuWarsSolo {
                         case LarvaThesis      => DrawRect("ds-larva-thesis", None, x - 37, y - 46, 73, 52)
                         case LarvaAntithesis  => DrawRect("ds-larva-antithesis", None, x - 46, y - 61, 92, 68)
                         case LarvaSynthesis   => DrawRect("ds-larva-synthesis", None, x - 39, y - 87, 78, 95, rotation = 5.0)
-                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 82, y - 101, 164, 108)
-                        case AvatarAntithesis => DrawRect("ds-avatar-antithesis", None, x - 82, y - 115, 164, 122)
-                        case AvatarSynthesis  => DrawRect("ds-avatar-synthesis", None, x - 70, y - 180, 141, 187, rotation = 10.0)
+                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 82, y - 91, 164, 108)
+                        case AvatarAntithesis => DrawRect("ds-avatar-antithesis", None, x - 82, y - 105, 164, 122)
+                        case AvatarSynthesis  => DrawRect("ds-avatar-synthesis", None, x - 70, y - 170, 141, 187, rotation = 10.0)
 
                         case DesecrationToken => DrawRect("ys-desecration", None, x - 20, y - 20, 41, 40)
                         case IceAgeToken      => DrawRect("ww-ice-age", None, x - 44, y - 67, 91, 75)

@@ -127,8 +127,10 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 true                                                           |=> 100 -> "place chaos gate"
                 true                                                           |=> distanceFromEnemies(r) -> "remote chaos gate"
                 r.near.%(_.foes.any).any                                       |=> -200 -> "enemy nearby"
-                // Aggressive: adjacent to an enemy gate = can use AnimateMatter to destroy it
-                r.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).any  |=> 800 -> "adjacent to enemy gate for animate"
+                // Prefer isolated placement: not adjacent to any enemy gate keeps the gate safer
+                r.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).none |=> 800 -> "isolated from enemy gates safe placement"
+                // Secondary: adjacent to an enemy gate is good for AnimateMatter setup
+                r.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).any  |=> 300 -> "adjacent to enemy gate for animate"
                 // Don't place into immediate GOO threat with lone keeper
                 enemyGooThreat(r) && loneKeeperIn(r)                           |=> -600 -> "goo threat on lone keeper"
 
@@ -162,6 +164,8 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 DS.chaosGateRegions.num == 0 |=> 7000 -> "place first chaos gate urgent"
                 DS.chaosGateRegions.num == 1 |=> 4000 -> "place second chaos gate"
                 DS.chaosGateRegions.num == 2 |=> 1500 -> "place third chaos gate"
+                // Once-per-phase guarantee: first chaos gate placement each phase beats Thesis awakening near capture
+                self.oncePerTurn.has(ChaosGateSB).not && DS.chaosGateRegions.num < 3 |=> 1500 -> "first chaos gate this phase priority"
                 // Bonus when Consummation can immediately unflip for a second use this turn
                 can(Consummation)                      |=> 600  -> "consummation combo available bonus"
                 // After Traitors, DS traded a chaos gate for an Elder Sign — push to rebuild immediately
@@ -407,6 +411,7 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             // ---- SUMMON LARVAE ----
             // Priority: get one of each type first (satisfies OneLarvaEach + enables all awakenings)
             case SummonAction(_, LarvaThesis, r) =>
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 // Strong bonus when this type is completely missing from map
                 self.all(LarvaThesis).none                                                  |=> 1500 -> "no thesis on map"
@@ -424,23 +429,29 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 // Don't summon a second LarvaThesis unless the existing one is under GOO threat
                 // (spare is only needed if the on-map copy could be eliminated)
                 self.all(LarvaThesis).any && self.all(LarvaThesis).%(u => !enemyGooThreat(u.region)).any |=> -2000 -> "one safe larva thesis is enough"
+                // Fallback defense: reinforce a threatened lone-keeper chaos gate when Traitors/AnimateMatter aren't available
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
                 turn1PsychosisFirst                                                         |=> -5000 -> "turn1 psychosis first not larva"
 
             case SummonAction(_, LarvaAntithesis, r) =>
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 self.all(LarvaAntithesis).none                                              |=> 1500 -> "no antithesis on map"
                 self.all(LarvaAntithesis).any && self.all(LarvaThesis).none                 |=> -2000 -> "have antithesis need thesis first"
                 self.all(LarvaAntithesis).any && self.all(LarvaSynthesis).none              |=> -2000 -> "have antithesis need synthesis first"
                 r.allies.goos.any                                                           |=> 300  -> "summon near goo"
                 r.ownGate                                                                   |=> 200  -> "summon at gate"
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
 
             case SummonAction(_, LarvaSynthesis, r) =>
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 self.all(LarvaSynthesis).none                                               |=> 1500 -> "no synthesis on map"
                 self.all(LarvaSynthesis).any && self.all(LarvaThesis).none                  |=> -2000 -> "have synthesis need thesis first"
                 self.all(LarvaSynthesis).any && self.all(LarvaAntithesis).none              |=> -2000 -> "have synthesis need antithesis first"
                 r.allies.goos.any                                                           |=> 300  -> "summon near goo"
                 r.ownGate                                                                   |=> 200  -> "summon at gate"
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
 
             // ---- AWAKEN GOOs ----
             case AwakenAction(_, AvatarThesis, r, _) =>
