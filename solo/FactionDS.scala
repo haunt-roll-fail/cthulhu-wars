@@ -175,7 +175,7 @@ object DSExpansion extends Expansion {
 
             game.independents(f)
 
-            if (f.can(ChaosGateSB) && f.power >= 1 && DS.chaosGateRegions.num < 3 && areas.nex.%(r => game.gates.has(r).not).%(r => f.at(r).%(_.canControlGate).any).any)
+            if (f.can(ChaosGateSB) && f.power >= 1 && DS.chaosGateRegions.num < 3 && areas.nex.%(r => game.gates.has(r).not).any)
                 + ChaosGateSBAction(f)
 
             if (f.power >= 1 && f.can(AnimateMatter) && DS.chaosGateRegions.any) {
@@ -293,7 +293,7 @@ object DSExpansion extends Expansion {
 
         case FiendishGrowthPlaceAction(self, r, n) =>
             val us = (self.pool.monsters ++ self.pool.cultists)./(_.uclass).distinct
-                .%(uc => self.all(uc).num < self.allUnits.count(uc))
+                .%(uc => self.all(uc).num < self.units./(_.uclass).count(uc))
             if (n > 0 && us.any)
                 Ask(self).each(us)(uc => FiendishGrowthPlaceUnitAction(self, r, uc, n))
             else
@@ -424,7 +424,7 @@ object DSExpansion extends Expansion {
 
         // CHAOS GATE SPELLBOOK
         case ChaosGateSBAction(self) =>
-            val valid = areas.nex.%(r => game.gates.has(r).not).%(r => self.at(r).%(_.canControlGate).any)
+            val valid = areas.nex.%(r => game.gates.has(r).not)
             Ask(self).list(valid./(r => ChaosGateSBPlaceAction(self, r))).cancel
 
         case ChaosGateSBPlaceAction(self, r) =>

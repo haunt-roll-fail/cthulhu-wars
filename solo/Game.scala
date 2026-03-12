@@ -1279,7 +1279,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def summons(f : Faction)(implicit w : AskWrapper) {
-        f.pool.monsterly.sortP./(_.uclass).distinct.%(_.canBeSummoned(f)).%(uc => f.all(uc).num < f.allUnits.count(uc)).foreach { uc =>
+        f.pool.monsterly.sortP./(_.uclass).distinct.%(_.canBeSummoned(f)).%(uc => f.all(uc).num < f.units./(_.uclass).count(uc)).foreach { uc =>
             areas.nex.%(r => f.affords(f.summonCost(uc, r))(r)).%(f.canAccessGate).some.foreach { l =>
                 + SummonMainAction(f, uc, l)
             }
