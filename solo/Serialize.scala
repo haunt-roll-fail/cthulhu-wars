@@ -24,6 +24,7 @@ class Serialize(val game : Game) {
         case br : BattleRoll => className(br)
         case bf : BattlePhase => className(bf)
         case o : Offer => write(o.f) + "->" + write(o.n)
+        case o : AzathothOffer => "AzathothOffer(" + o.productIterator.$./(write).mkString(", ") + ")"
         case a : Action => className(a) + a.productIterator.$.some./(_./(write).mkString("(", ", ", ")")).|("")
         case es : ElderSign => "$" + es.value
 
@@ -115,7 +116,9 @@ class Serialize(val game : Game) {
 
             parse(sss, main(_)) match {
                 case Parsed.Success(a, _) => parseExpr(a).asInstanceOf[Action]
-                case Parsed.Failure(label, index, extra) => throw new Error(s + "\n" + label + " " + index + " " + extra)
+                case Parsed.Failure(label, index, extra) =>
+                    println(s"[Serialize] Parse failure: $label at $index: $extra")
+                    CommentAction(s"Parse error: $label at $index")
             }
         }
     }
@@ -140,6 +143,7 @@ class Serialize(val game : Game) {
         case ESome(e) => Some(parseExpr(e))
         case ENone => None
         case EList(l) => l.map(parseExpr)
+        case EApply("AzathothOffer", ps) => AzathothOffer(parseExpr(ps(0)).asInstanceOf[Faction], parseExpr(ps(1)).asInstanceOf[Int], parseExpr(ps(2)).asInstanceOf[Int])
         case EApply(f, params) => params.none.?(parseSymbol(f).get).|(parseActionConstructor(f, params.num).|!("unknown class " + f).apply(params.map(parseExpr)))
     }
 
@@ -147,7 +151,7 @@ class Serialize(val game : Game) {
 }
 
 object Serialize {
-    val factions = $(GC, CC, BG, YS, SL, WW, OW, AN) ++ $(NeutralAbhoth)
+    val factions = $(GC, CC, BG, YS, SL, WW, OW, AN, DS) ++ $(NeutralAbhoth)
 
     val loyaltyCards = $(GhastCard, GugCard, ShantakCard, StarVampireCard, HighPriestCard, ByatisCard, AbhothCard, DaolothCard, NyogthaCard)
 

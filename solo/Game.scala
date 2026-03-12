@@ -965,6 +965,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             case WW => $(WWExpansion)
             case OW => $(OWExpansion)
             case AN => $(ANExpansion)
+            case DS => $(DSExpansion)
         } ++
         options.has(NeutralSpellbooks).$(NeutralSpellbooksExpansion) ++
         options.of[NeutralMonsterOption].any.$(NeutralMonstersExpansion) ++
@@ -982,12 +983,18 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     var turn = 1
     var round = 1
     var doomPhase = false
+    var gatherPowerPhase = false
     var factions : $[Faction] = $
     var first : Faction = setup.first
     var gates : $[Region] = $
     def allGates = gates ++ factions./~(_.unitGate)./(_.region)
     var cathedrals : $[Region] = $
     var desecrated : $[Region] = $
+
+    // DS singleton vars must be reset here so undo replay (which creates a new Game) starts clean
+    DS.chaosGateRegions = $
+    DS.azathothTrack = 0
+    DS.azathothDieRoll = 0
     var ritualMarker = 0
     var battle : |[Battle] = None
     var nexed : $[Region] = $
@@ -1141,17 +1148,19 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         gates.nex.foreach { r =>
             if (self.abandoned.has(r).not) {
-                if (factions.%(_.gates.has(r)).none) {
-                    self.at(r).%(_.canControlGate).sortBy(_.uclass @@ {
-                        case DarkYoung => 1
-                        case Acolyte => 2
-                        case HighPriest => 3
-                    }).starting.foreach { u =>
-                        self.gates :+= r
-                        u.onGate = true
+                if (DS.chaosGateRegions.has(r).not || self == DS) {
+                    if (factions.%(_.gates.has(r)).none) {
+                        self.at(r).%(_.canControlGate).sortBy(_.uclass @@ {
+                            case DarkYoung => 1
+                            case Acolyte => 2
+                            case HighPriest => 3
+                        }).starting.foreach { u =>
+                            self.gates :+= r
+                            u.onGate = true
 
-                        if (self.oncePerAction.has(UmrAtTawil).not)
-                            self.log("gained control of the gate in", r)
+                            if (self.oncePerAction.has(UmrAtTawil).not)
+                                self.log("gained control of the gate in", r)
+                        }
                     }
                 }
             }
@@ -1229,7 +1238,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def controls(f : Faction)(implicit w : AskWrapper) {
-        if (gates.nex.exists(r => factions.%(_.gates.has(r)).none && f.at(r).exists(_.canControlGate))
+        if (gates.nex.%(r => DS.chaosGateRegions.has(r).not || f == DS).exists(r => factions.%(_.gates.has(r)).none && f.at(r).exists(_.canControlGate))
             || f.gates.nex.exists(r => f.at(r).%(_.canControlGate)./(_.uclass).distinct.diff(f.commands.has(HighPriestGatesSkip).$(HighPriest)).num > 1)
             || (f.commands.has(GateDiplomacyPrompt) && f.gates.nex.any)
         )
@@ -1270,7 +1279,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
     }
 
     def summons(f : Faction)(implicit w : AskWrapper) {
-        f.pool.monsterly.sortP./(_.uclass).distinct.%(_.canBeSummoned(f)).foreach { uc =>
+        f.pool.monsterly.sortP./(_.uclass).distinct.%(_.canBeSummoned(f)).%(uc => f.all(uc).num < f.units./(_.uclass).count(uc)).foreach { uc =>
             areas.nex.%(r => f.affords(f.summonCost(uc, r))(r)).%(f.canAccessGate).some.foreach { l =>
                 + SummonMainAction(f, uc, l)
             }
@@ -1519,7 +1528,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                 f.active = true
             }
 
+            gatherPowerPhase = true
             triggers()
+            gatherPowerPhase = false
 
             AfterPowerGatherAction // Then(...)
 
@@ -2117,7 +2128,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         // CONTROL
         case AdjustGateControlAction(f, changed, then) =>
             Ask(f)
-                .some(areas.%(r => f.gates.has(r) || abandonedGates.has(r))) { r =>
+                .some(areas.%(r => f.gates.has(r) || (abandonedGates.has(r) && (DS.chaosGateRegions.has(r).not || f == DS)))) { r =>
                     val l = f.at(r).%(_.canControlGate).sortBy(_.onGate.not).distinctBy(_.uclass)
                     val g = $[Any](f.gates.has(r).not.?("Abandoned gate").|("Gate"), "in", r)
 

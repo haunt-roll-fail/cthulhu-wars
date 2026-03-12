@@ -328,6 +328,17 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
             else
                 1
 
+        case DS =>
+            var p = f.power
+
+            if (f.has(AvatarSynthesis))
+                p += 8
+
+            if (p < 6)
+                0
+            else
+                1
+
     }))) >= 30 * 3
 
     def eval(a : Action) : $[Evaluation]

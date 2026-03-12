@@ -63,6 +63,7 @@ object EarthMap3 extends Board {
         case YS => $(Europe)
         case SL => $(NorthAmerica)
         case WW => $(ArcticOcean, Antarctica)
+        case DS => $()
         case OW => regions
         case AN => nonFactionRegions
     }
@@ -154,6 +155,13 @@ object EarthMap4v35 extends Board {
         case YS => $(Europe)
         case SL => $(NorthAmerica)
         case WW => $(ArcticOcean, Antarctica)
+        case GC => List(SouthPacific)
+        case CC => List(SouthAsia)
+        case BG => List(WestAfrica)
+        case YS => List(Europe)
+        case SL => List(NorthAmerica)
+        case WW => List(ArcticOcean, Antarctica)
+        case DS => $()
         case OW => regions
         case AN => nonFactionRegions
     }
@@ -249,6 +257,13 @@ object EarthMap4v53 extends Board {
         case YS => $(Europe)
         case SL => $(NorthAmericaWest)
         case WW => $(ArcticOcean, Antarctica)
+        case GC => List(SouthPacific)
+        case CC => List(Asia)
+        case BG => List(Africa)
+        case YS => List(Europe)
+        case SL => List(NorthAmericaWest)
+        case WW => List(ArcticOcean, Antarctica)
+        case DS => $()
         case OW => regions
         case AN => nonFactionRegions
     }
@@ -353,6 +368,7 @@ object EarthMap5 extends Board {
         case SL => $(NorthAmericaWest)
         case WW => $(ArcticOcean, Antarctica)
         case OW => regions
+        case DS => $()        
         case AN => nonFactionRegions
     }
 
@@ -465,6 +481,13 @@ object EarthMap6 extends Board {
         case YS => $(Europe)
         case SL => $(NorthAmericaWest)
         case WW => $(ArcticOcean, MountainsOfMadness)
+        case GC => List(SouthPacific)
+        case CC => List(SouthAsia)
+        case BG => List(WestAfrica)
+        case YS => List(Europe)
+        case SL => List(NorthAmericaWest)
+        case WW => List(ArcticOcean, MountainsOfMadness)
+        case DS => $()        
         case OW => regions
         case AN => nonFactionRegions
     }
