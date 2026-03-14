@@ -379,6 +379,7 @@ case class Ask(faction : Faction, actions : $[Action] = $) extends Continue {
     def skipIf(c : Boolean)(a : ForcedAction) = c.?(add(a.as("Skip"))).|(this)
     def cancel = add(CancelAction)
     def cancelIf(c : Boolean) = c.?(add(CancelAction)).|(this)
+    def bail(c : Continue) = actions.none.?(c).|(this)
 }
 
 case object StartContinue extends Continue
@@ -1868,6 +1869,12 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                             reasons :+= "" + e + " might take the gate" + " " + ("in " + l.mkString(", ")).inline
                         }
 
+                    if (f.commands.has(UnspeakableOathThreatOfAttackOnGate) && canBattle)
+                        if (e.has(BeyondOne))
+                            f.gates.intersect(areas).%(r => f.at(r).goos.none && e.at(r).%(_.uclass.cost >= 3).any).some./{ l =>
+                                reasons :+= "" + e + " might " + BeyondOne + " " + ("from " + l.mkString(", ")).inline
+                            }
+
                     if (f.commands.has(UnspeakableOathThreatOfGhroth))
                         if (e == BG && e.has(Ghroth) && e.power >= 2 && e.all(Fungi)./(_.region).distinct.num > f.acolytes.%!(_.onGate).num && f.acolytes.%(_.onGate).any)
                             reasons :+= "" + e + " might " + Ghroth + " an " + Acolyte.styled(f) + " on the Gate"
@@ -1882,7 +1889,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                             reasons :+= "" + e + " might whisk away the gate " + ("from " + game.starting(f)).inline
 
                     if (f == GC && canAct)
-                        if (e == OW && f.at(game.starting(f)).goos.none && e.at(game.starting(f)).%(_.uclass.cost >= 3).any)
+                        if (e.has(BeyondOne) && f.at(game.starting(f)).goos.none && e.at(game.starting(f)).%(_.uclass.cost >= 3).any)
                             reasons :+= "" + e + " might whisk away the gate " + ("from " + game.starting(f)).inline
 
                     if (f.commands.has(UnspeakableOathThreatOfAttackOnGOO) && canBattle)

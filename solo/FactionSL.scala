@@ -62,7 +62,7 @@ case object SL extends Faction { f =>
 
 
 case class DeathFromBelowDoomAction(self : SL) extends OptionFactionAction(DeathFromBelow) with DoomQuestion with Soft with PowerNeutral
-case class DeathFromBelowSelectMonsterAction(self : SL, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, uc.styled(self))
+case class DeathFromBelowSelectMonsterAction(self : SL, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, uc.styled(self)) with Soft
 case class DeathFromBelowAction(self : SL, r : Region, uc : UnitClass) extends BaseFactionAction(DeathFromBelow, uc.styled(self) + " in " + r)
 
 case class LethargyMainAction(self : SL) extends OptionFactionAction(Lethargy) with MainQuestion with PowerNeutral
@@ -216,12 +216,7 @@ object SLExpansion extends Expansion {
             val minCost = unitClasses.map(_.cost).min
             val ucs = unitClasses.filter(_.cost == minCost).distinct
 
-            if (ucs.num == 1) {
-                Ask(self).each(areas.%(r => self.at(r).any).some.|(areas))(r => DeathFromBelowAction(self, r, ucs.first)).cancel
-            }
-            else {
-                Ask(self).each(ucs)(uc => DeathFromBelowSelectMonsterAction(self, uc)).cancel
-            }
+            Ask(self).each(ucs)(uc => DeathFromBelowSelectMonsterAction(self, uc)).cancelIf(ucs.num > 1)
 
         case DeathFromBelowSelectMonsterAction(self, uc) =>
             Ask(self).each(areas.%(r => self.at(r).any).some.|(areas))(r => DeathFromBelowAction(self, r, uc)).cancel

@@ -439,6 +439,9 @@ object CthulhuWarsSolo {
                 "Maw",
                 "Void",
                 "Blood",
+                "Oblivion",
+                "Nothingness",
+                "Lunacy",
             ).sortBy(_ => math.random())
             val c = $("for", "against", "versus", "through", "and", "of", "in", "as").sortBy(_ => math.random())
             n.head + " " + c.head + " " + n.last

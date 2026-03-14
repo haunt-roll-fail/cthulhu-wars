@@ -726,7 +726,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(UnholyGround)) {
                         s.remove(UnholyGround)
 
-                        if (s.opponent.forces.goos.any && game.cathedrals.has(arena))
+                        if (game.cathedrals.has(arena))
                             return Ask(s).each(game.cathedrals)(r => UnholyGroundAction(s, s.opponent, r).as(r)("Remove a cathedral with", UnholyGround)).skip(BattleDoneAction(s))
                     }
                 }
@@ -1185,7 +1185,9 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             self.add(UnholyGround)
             game.cathedrals :-= cr
             log("Cathedral".styled(self), "in", cr, "was removed with", UnholyGround)
-            Ask(o).each(o.forces.goos.distinctBy(_.uclass))(u => UnholyGroundEliminateAction(o, self, u).as(u)(UnholyGround, "eliminates in", arena))
+            Ask(o)
+                .each(o.forces.goos.distinctBy(_.uclass))(u => UnholyGroundEliminateAction(o, self, u).as(u)(UnholyGround, "eliminates in", arena))
+                .bail(Then(BattleDoneAction(self)))
 
         case UnholyGroundEliminateAction(self, f, u) =>
             if (u.uclass == Nyogtha && self.all(Nyogtha).num > 1) {

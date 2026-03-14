@@ -279,7 +279,7 @@ object ANExpansion extends Expansion {
             Ask(self).each(areas.but(o))(r => DematerializationToRegionAction(self, o, r)).cancel
 
         case DematerializationToRegionAction(self, o, d) =>
-            Ask(self).each(self.at(o).%(_.canMove))(u => DematerializationMoveUnitAction(self, o, d, u.uclass)).cancel
+            Ask(self).each(self.at(o).%(_.canBeMoved))(u => DematerializationMoveUnitAction(self, o, d, u.uclass)).cancel
 
         case DematerializationMoveUnitAction(self, o, d, uc) =>
             val u = self.at(o).one(uc)

@@ -68,8 +68,11 @@ case class DreadCurseMainAction(self : OW, n : Int, l : $[Region]) extends Optio
 case class DreadCurseAction(self : OW, n : Int, r : Region) extends BaseFactionAction(DreadCurse, implicit g => r + self.iced(r))
 case class DreadCurseRollAction(f : OW, r : Region, x : $[BattleRoll]) extends ForcedAction
 case class DreadCurseSplitAction(self : OW, r : Region, x : $[BattleRoll], e : $[Faction], k : $[Faction], p : $[Faction]) extends BaseFactionAction("" + DreadCurse + " in " + r + "<br/>" + x.any.?(x.mkString(" ")).|("None"), e.%(f => k.count(f) + p.count(f) > 0)./(f => "" + f + " - " + (k.count(f).times(Kill) ++ p.count(f).times(Pain)).mkString(" ")).mkString("<br/>"))
+// TODO UnitRef
 case class DreadCurseAssignAction(f : OW, r : Region, e : $[Faction], k : $[Faction], p : $[Faction], self : Faction, s : BattleRoll, uc : UnitClass) extends BaseFactionAction("Assign " + s + " in " + r, uc.styled(self))
+// TODO UnitRef
 case class DreadCurseRetreatAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass) extends BaseFactionAction("Retreat from " + r, uc.styled(self))
+// TODO UnitRef
 case class DreadCurseRetreatToAction(self : OW, r : Region, e : $[Faction], f : Faction, uc : UnitClass, d : Region) extends BaseFactionAction("Retreat " + uc.styled(f) + " from " + r + " to", d)
 
 case class DragonDescendingDoomAction(self : OW, n : Int) extends OptionFactionAction("Ritual with " + DragonDescending) with DoomQuestion
@@ -324,7 +327,7 @@ object OWExpansion extends Expansion {
             }
 
         case DreadCurseAssignAction(f, r, e, k, p, self, s, uc) =>
-            val u = self.at(r, uc).%(_.health == Alive).first
+            val u = self.at(r, uc).%(_.health == Alive).sortP.first
             u.health = (s == Kill).?(Killed).|(Pained)
             Ask(f).add(DreadCurseSplitAction(f, r, $, e, k, p))
 
@@ -332,7 +335,7 @@ object OWExpansion extends Expansion {
             Ask(self).each(r.connected)(d => DreadCurseRetreatToAction(self, r, e, f, uc, d))
 
         case DreadCurseRetreatToAction(self, r, e, f, uc, d) =>
-            val u = f.at(r, uc).%(_.health == Pained).first
+            val u = f.at(r, uc).%(_.health == Pained).sortP.first
             u.region = d
             u.onGate = false
             u.health = Alive
