@@ -175,7 +175,7 @@ object DSExpansion extends Expansion {
 
             game.independents(f)
 
-            if (f.can(ChaosGateSB) && f.power >= 1 && DS.chaosGateRegions.num < 3 && areas.nex.%(r => game.gates.has(r).not).any)
+            if (f.can(ChaosGateSB) && f.power >= 1 && DS.chaosGateRegions.num < 3 && areas.nex.%(r => game.gates.has(r).not && DS.at(r).%(_.canControlGate).any).any)
                 + ChaosGateSBAction(f)
 
             if (f.power >= 1 && f.can(AnimateMatter) && DS.chaosGateRegions.any) {
@@ -325,7 +325,6 @@ object DSExpansion extends Expansion {
             val x = randomInRange(3, 8)
             DS.azathothDieRoll = x
             val demand = if (game.factions.num <= 3) (x + 1) / 2 else x
-            log("The Blind Idiot God".styled(DS), "has opened its eye")
             self.log("rolled the Azathoth die", "[" + x.styled("doom") + "]")
             if (demand != x)
                 log("Halved to", "[" + demand.styled("doom") + "]", "for", game.factions.num + "-player game")
@@ -424,7 +423,7 @@ object DSExpansion extends Expansion {
 
         // CHAOS GATE SPELLBOOK
         case ChaosGateSBAction(self) =>
-            val valid = areas.nex.%(r => game.gates.has(r).not)
+            val valid = areas.nex.%(r => game.gates.has(r).not && DS.at(r).%(_.canControlGate).any)
             Ask(self).list(valid./(r => ChaosGateSBPlaceAction(self, r))).cancel
 
         case ChaosGateSBPlaceAction(self, r) =>
@@ -500,7 +499,7 @@ object DSExpansion extends Expansion {
 
         // POWER/DOOM OFFER
         case PowerDoomOfferAction(self) =>
-            self.log("offers each faction their choice of", 1.power, "Power or", 1.doom, "Doom")
+            self.log("offers each faction their choice of", 1.power, "or", 1.doom)
             Force(PowerDoomOfferChoiceAction(self, self.enemies, 0, 0))
 
         case PowerDoomOfferChoiceAction(self, remaining, powerCount, doomCount) =>
@@ -514,7 +513,7 @@ object DSExpansion extends Expansion {
                     self.log("gained", doomCount.doom, "from", PowerDoomOffer)
                 }
                 self.satisfy(PowerDoomOffer, "Doom Phase Power/Doom giveaway")
-                Force(DoomAction(self))
+                CheckSpellbooksAction(DoomAction(self))
             } else {
                 val target = remaining.head
                 Ask(target)

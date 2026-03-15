@@ -20,8 +20,8 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
         def enemyGooThreat(r : Region) : Boolean =
             (r.foes.goos ++ r.near./~(_.foes.goos)).%(_.faction.power > 0).any
 
-        // True if DS has only the lone keeper acolyte in r (no monsters, no GOOs)
-        def loneKeeperIn(r : Region) : Boolean =
+        // True if DS has only a lone cultist acolyte in r (no monsters, no GOOs)
+        def loneCultistIn(r : Region) : Boolean =
             DS.at(r).%(_.canControlGate).num == 1 && DS.at(r).monsterly.none && DS.at(r).goos.none
 
         // How many factions (including DS) are present in r
@@ -65,20 +65,30 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             }
 
             // ---- RITUAL ----
-            // DS with all 3 avatars has allSB — at that point every ritual is good because
-            // Elder Signs are hard to earn otherwise (mainly Traitors). 2 gates = 6 power for
-            // 2 doom + 3 ES is excellent; even 1 gate pays off in the ES engine.
+            // Ritual conditions based on avatar count and gate count:
+            //   3 avatars + 2+ gates  — ritual eagerly (good ES engine)
+            //   2 avatars + 2+ gates  — ritual ok
+            //   2-3 avatars near 30   — ritual regardless of gate count
+            //   0-1 avatars           — avoid ritual (not set up yet)
             case RitualAction(_, cost, _) =>
+                val avatarsInPlay = $(AvatarThesis, AvatarAntithesis, AvatarSynthesis).%(uc => self.all(uc).any).num
+                val enoughGates = self.gates.num >= 2
                 instantDeathNow                                                               |=> 10000 -> "instant death now"
                 instantDeathNext && allSB && others.all(!_.allSB)                            |=> 10000 -> "ritual if ID next and all SB"
                 instantDeathNext && !allSB && others.%(_.allSB).any                          |=> -1000 -> "dont ritual if ID next and not all SB"
                 allSB && realDoom + maxDoomGain >= 30                                        |=> 1100  -> "can break 30 all SB"
                 !allSB && self.doom + self.gates.num >= 30                                   |=> -5000 -> "will break 30 but not all SB"
-                !allSB && self.doom + self.gates.num < 30 && realDoom + maxDoomGain >= 29    |=> 700   -> "come near 30"
-                // Once allSB, every ritual yields ES — ritual becomes a reliable ES engine
-                allSB                                                                        |=> 1200  -> "all SB ritual earns ES"
-                allSB && cost * 2 <= power                                                   |=> 400   -> "all SB cheap ritual bonus"
-                numSB >= 5 && cost * 2 <= power                                              |=> 800   -> "5 SB cheap ritual"
+                // Near 30 with 2+ avatars: ritual regardless of gate count
+                avatarsInPlay >= 2 && realDoom + maxDoomGain >= 29                           |=> 1500  -> "near 30 with 2+ avatars ritual"
+                // 3 avatars + 2+ gates: reliable ES engine
+                avatarsInPlay == 3 && enoughGates                                            |=> 1200  -> "all avatars 2+ gates ritual"
+                avatarsInPlay == 3 && enoughGates && cost * 2 <= power                       |=> 400   -> "all avatars 2+ gates cheap bonus"
+                // 2 avatars + 2+ gates: acceptable
+                avatarsInPlay == 2 && enoughGates                                            |=> 700   -> "2 avatars 2+ gates ritual ok"
+                // 2+ avatars but not enough gates: hold off
+                avatarsInPlay >= 2 && !enoughGates                                           |=> -600  -> "not enough gates hold off"
+                // 0-1 avatars: avoid ritual — not set up yet
+                avatarsInPlay < 2                                                             |=> -2000 -> "not enough avatars avoid ritual"
                 numSB >= 2 && aprxDoomGain / cost > 1                                        |=> 600   -> "sweet deal"
                 numSB >= 3 && aprxDoomGain / cost > 0.75                                     |=> 400   -> "ok deal"
                 !allSB                                                                        |=> -1000 -> "spellbooks first"
@@ -112,7 +122,7 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             case PsychosisPlaceAction(_, r) =>
                 val hasFreeAcolyteForChaosGate = areas.nex.%(re => game.gates.has(re).not).%(re => self.at(re).%(_.canControlGate).any).any
                 true                                                                                                             |=> 900  -> "psychosis place"
-                true                                                                                                             |=> distanceFromEnemies(r) -> "remote"
+                true                                                                                                             |=> distanceFromEnemies(r) * 100 -> "remote"
                 r.near.%(_.foes.any).any                                                                                         |=> -300 -> "enemy nearby"
                 r.foes.any                                                                                                       |=> -500 -> "enemy present"
                 // Retake an abandoned/free gate immediately via Psychosis — beats larva summon and most other actions
@@ -122,17 +132,19 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 // In turn 1, bias hard toward spreading out over all 6 spots before anything else
                 turn1PsychosisFirst                                                                                              |=> 3000 -> "turn1 psychosis first"
 
-            // ---- CHAOS GATE PLACEMENT: prefer remote; bonus for adjacent to enemy gate ----
+            // ---- CHAOS GATE PLACEMENT: prefer remote, safe cultist ----
             case ChaosGateSBPlaceAction(_, r) =>
                 true                                                           |=> 100 -> "place chaos gate"
-                true                                                           |=> distanceFromEnemies(r) -> "remote chaos gate"
+                true                                                           |=> distanceFromEnemies(r) * 100 -> "remote chaos gate"
                 r.near.%(_.foes.any).any                                       |=> -200 -> "enemy nearby"
+                // Cultist at this region is safe to control the gate (no active capturers)
+                r.capturers.%(_.power > 0).none                                |=> 400 -> "cultist safe to control gate"
                 // Prefer isolated placement: not adjacent to any enemy gate keeps the gate safer
                 r.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).none |=> 800 -> "isolated from enemy gates safe placement"
                 // Secondary: adjacent to an enemy gate is good for AnimateMatter setup
                 r.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).any  |=> 300 -> "adjacent to enemy gate for animate"
-                // Don't place into immediate GOO threat with lone keeper
-                enemyGooThreat(r) && loneKeeperIn(r)                           |=> -600 -> "goo threat on lone keeper"
+                // Don't place into immediate GOO threat with lone cultist
+                enemyGooThreat(r) && loneCultistIn(r)                           |=> -600 -> "goo threat on lone cultist"
 
             // ---- ANIMATE MATTER SOURCE: prefer the gate best positioned to reach a good destination ----
             // Destination quality is already judged by AnimateMatterMoveAction scoring;
@@ -140,8 +152,8 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             case AnimateMatterFromAction(_, from) =>
                 // Primary: this gate is adjacent to an enemy gate we can destroy
                 from.near.%(n => n.enemyGate && !DS.chaosGateRegions.has(n)).any |=> 2000 -> "from gate adjacent to enemy gate"
-                // Defensive: move a gate that has a lone keeper under GOO threat
-                enemyGooThreat(from) && loneKeeperIn(from)                        |=> 1500 -> "escape goo threat from here"
+                // Defensive: move a gate that has a lone cultist under GOO threat
+                enemyGooThreat(from) && loneCultistIn(from)                        |=> 1500 -> "escape goo threat from here"
 
             // ---- ANIMATE MATTER: almost always used to destroy an enemy gate ----
             case AnimateMatterMoveAction(_, from, to) =>
@@ -150,22 +162,25 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 // Core use: destroy an enemy-controlled gate
                 to.enemyGate                                                    |=> 2000  -> "destroy enemy gate"
                 to.enemyGate && to.owner.power == 0                             |=> 1000  -> "destroy gate enemy no power bonus"
-                // Defensive exception: escape GOO threat on lone keeper
-                enemyGooThreat(from) && loneKeeperIn(from)                     |=> 1500  -> "escape goo threat"
+                // Defensive exception: escape GOO threat on lone cultist
+                enemyGooThreat(from) && loneCultistIn(from)                     |=> 1500  -> "escape goo threat"
                 // Penalise moving into a threatened destination — active GOO kills the keeper outright
                 to.foes.goos.active.any                                         |=> -2500 -> "active goo at destination keeper dies"
                 enemyGooThreat(to) && !to.foes.goos.active.any                 |=> -1500 -> "goo threat at destination risky"
 
             // ---- CHAOS GATE SB ACTION: place a chaos gate (costs 1 power, much cheaper than regular gate) ----
-            // Scores are set high to guarantee at least 1 chaos gate per action phase.
+            // Goal: use this at least once per turn whenever possible, ideally when an enemy is out of power.
             // 0 gates: beats Thesis awaken (5100) and larva setup chains (5200) to ensure it always happens.
             // After Traitors: DS traded a gate for an Elder Sign — urgently rebuild.
             case ChaosGateSBAction(_) =>
+                val enemyExhausted = others.%(_.power == 0).any
                 DS.chaosGateRegions.num == 0 |=> 7000 -> "place first chaos gate urgent"
-                DS.chaosGateRegions.num == 1 |=> 4000 -> "place second chaos gate"
-                DS.chaosGateRegions.num == 2 |=> 1500 -> "place third chaos gate"
-                // Once-per-phase guarantee: first chaos gate placement each phase beats Thesis awakening near capture
-                self.oncePerTurn.has(ChaosGateSB).not && DS.chaosGateRegions.num < 3 |=> 1500 -> "first chaos gate this phase priority"
+                DS.chaosGateRegions.num == 1 |=> 5000 -> "place second chaos gate"
+                DS.chaosGateRegions.num == 2 |=> 2500 -> "place third chaos gate"
+                // Once-per-turn guarantee: first placement each turn is high priority
+                self.oncePerTurn.has(ChaosGateSB).not && DS.chaosGateRegions.num < 3 |=> 2500 -> "first chaos gate this turn priority"
+                // Safe window: an enemy is out of power, good time to expand
+                enemyExhausted && DS.chaosGateRegions.num < 3 |=> 800 -> "enemy exhausted safe to place"
                 // Bonus when Consummation can immediately unflip for a second use this turn
                 can(Consummation)                      |=> 600  -> "consummation combo available bonus"
                 // After Traitors, DS traded a chaos gate for an Elder Sign — push to rebuild immediately
@@ -182,8 +197,8 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                     areas.nex.%(r => game.gates.has(r).not).%(r => self.at(r).%(_.canControlGate).any).any
                 val hasEnergyTarget = canUnflip.has(UndirectedEnergy) &&
                     self.all(AvatarThesis).any && factionsPresent(self.all(AvatarThesis).head.region) >= 2
-                hasCGTarget                              |=> 900 -> "consummation reuse chaos gate"
-                hasEnergyTarget && !hasCGTarget          |=> 500 -> "consummation reuse undirected energy contested"
+                hasCGTarget                              |=> 1500 -> "consummation reuse chaos gate"
+                hasEnergyTarget && !hasCGTarget          |=> 500  -> "consummation reuse undirected energy contested"
                 !hasCGTarget && !hasEnergyTarget         |=> -200 -> "nothing good to unflip"
 
             // ---- CONSUMMATION UNFLIP: which spellbook to restore ----
@@ -218,13 +233,24 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             case CosmicRulerDeclineNoWayAction(_, _) =>
                 true |=> 0 -> "decline cosmic ruler no way"
 
+            // ---- TRAITORS: whether to use the spellbook at all ----
+            // Primary use: lone cultist at a chaos gate — convert it to gain an Elder Sign cleanly.
+            // Strongest when the lone cultist is under active GOO threat (escape + ES in one action).
+            // Don't use Traitors when all chaos gates have real defenders — the gate is worth keeping.
+            case TraitorsAction(_) =>
+                val loneKeeperGates   = DS.chaosGateRegions.%(loneCultistIn)
+                val threatenedGates   = loneKeeperGates.%(enemyGooThreat)
+                threatenedGates.any                         |=> 2000 -> "traitors escape goo threat and gain elder sign"
+                loneKeeperGates.any && threatenedGates.none |=>  600 -> "traitors lone cultist elder sign"
+                loneKeeperGates.none                        |=> -800 -> "no lone cultist dont waste traitors"
+
             // ---- TRAITORS SOURCE GATE: which chaos gate to use Traitors from ----
             // Lone keeper: DS gains an Elder Sign and the acolyte returns to pool for future Psychosis
             // GOO threat: Traitors is a clean defensive exit — convert the threatened gate rather than lose it
             // Animate Matter combo: prefer a gate adjacent to another DS chaos gate so AnimateMatter can
             // immediately reclaim it on the next action (Traitors donates, AnimateMatter destroys)
             case TraitorsChaosGateAction(_, r) =>
-                loneKeeperIn(r)      |=> 1500 -> "traitors lone keeper gains elder sign"
+                loneCultistIn(r)      |=> 1500 -> "traitors lone cultist gains elder sign"
                 enemyGooThreat(r)    |=> 1000 -> "traitors defensive exit from goo threat"
                 // Combo: another DS chaos gate is adjacent — can immediately reclaim with AnimateMatter
                 can(AnimateMatter) && DS.chaosGateRegions.%(c => c != r && game.board.connected(c).has(r)).any |=> 800 -> "traitors animate matter combo setup"
@@ -237,25 +263,27 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                     DS.chaosGateRegions.%(c => c != r && game.board.connected(c).has(r)).any
                 target.power == 0                                     |=> 2000 -> "traitors enemy no power"
                 target.power == 1                                     |=> 500  -> "traitors enemy low power"
-                loneKeeperIn(r)                                       |=> 800  -> "will gain elder sign"
+                loneCultistIn(r)                                       |=> 800  -> "will gain elder sign"
                 enemyGooThreat(r)                                     |=> 1200 -> "defensive traitors goo threat"
                 target.power >= 5                                     |=> -800 -> "traitors gives too much power"
                 target.aprxDoom >= 25 && !animateMatterCombo          |=> -1500 -> "traitors near-win enemy dangerous"
                 target.aprxDoom >= 20 && !animateMatterCombo          |=> -500  -> "traitors high doom caution"
                 target.aprxDoom >= 20 && animateMatterCombo           |=> 600   -> "traitors animate matter reclaim cancels doom risk"
 
-            // ---- AVATAR THESIS AWAKENING COST: prefer low track ----
+            // ---- AVATAR THESIS AWAKENING COST: prefer low track, but track 4 vs heavy combat ----
             // Thesis is the most expendable GOO (re-awakens for 0 via Cosmic Ruler), so never overpay.
-            // Against combat-heavy factions (GC/CC/WW) keep it cheap; against lighter lineups track 3-4 is ok.
+            // Exception: vs CC/GC/WW, Thesis needs combat dice to fight back — track 4 is the sweet spot.
             case DSAvatarThesisCostAction(_, r, track) =>
+                val heavyCombat = others.%(f => f == GC || f == CC || f == WW).any
                 val combatFactions = others.%(f => f == GC || f == BG || f == CC || f == WW || f == SL).any
-                track == 0                          |=> 2000 -> "track 0 best free"
+                track == 0 && !heavyCombat          |=> 2000 -> "track 0 best free"
+                track == 0 && heavyCombat           |=> 500  -> "track 0 thesis has no dice vs heavy combat"
                 track == 1                          |=> 1500 -> "track 1 good"
                 track == 2                          |=> 1000 -> "track 2 ok"
                 track == 3 && !combatFactions       |=> 600  -> "track 3 ok no combat factions"
-                track == 3 && combatFactions        |=> 200  -> "track 3 cautious combat factions present"
-                track == 4 && !combatFactions       |=> 300  -> "track 4 acceptable no combat factions"
-                track == 4 && combatFactions        |=> -300 -> "track 4 avoid combat factions present"
+                track == 3 && combatFactions        |=> 400  -> "track 3 ok combat factions"
+                track == 4 && heavyCombat           |=> 2200 -> "track 4 thesis fights back vs heavy combat"
+                track == 4 && !heavyCombat          |=> 300  -> "track 4 acceptable no heavy combat"
                 track >= 5                          |=> -1000 -> "track too high never"
                 // Prefer awakening where thesis can capture an enemy gate next action
                 val nearCapture = r.near.%(n => n.enemyGate && n.foes.goos.none && n.foes.%(_.canControlGate).num == 1)
@@ -411,7 +439,7 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
             // ---- SUMMON LARVAE ----
             // Priority: get one of each type first (satisfies OneLarvaEach + enables all awakenings)
             case SummonAction(_, LarvaThesis, r) =>
-                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneCultistIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 // Strong bonus when this type is completely missing from map
                 self.all(LarvaThesis).none                                                  |=> 1500 -> "no thesis on map"
@@ -430,46 +458,50 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 // (spare is only needed if the on-map copy could be eliminated)
                 self.all(LarvaThesis).any && self.all(LarvaThesis).%(u => !enemyGooThreat(u.region)).any |=> -2000 -> "one safe larva thesis is enough"
                 // Fallback defense: reinforce a threatened lone-keeper chaos gate when Traitors/AnimateMatter aren't available
-                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone cultist chaos gate"
                 turn1PsychosisFirst                                                         |=> -5000 -> "turn1 psychosis first not larva"
 
             case SummonAction(_, LarvaAntithesis, r) =>
-                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneCultistIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 self.all(LarvaAntithesis).none                                              |=> 1500 -> "no antithesis on map"
                 self.all(LarvaAntithesis).any && self.all(LarvaThesis).none                 |=> -2000 -> "have antithesis need thesis first"
                 self.all(LarvaAntithesis).any && self.all(LarvaSynthesis).none              |=> -2000 -> "have antithesis need synthesis first"
                 r.allies.goos.any                                                           |=> 300  -> "summon near goo"
                 r.ownGate                                                                   |=> 200  -> "summon at gate"
-                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone cultist chaos gate"
 
             case SummonAction(_, LarvaSynthesis, r) =>
-                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneKeeperIn(cgr) && enemyGooThreat(cgr))
+                val threatenedLoneCG = DS.chaosGateRegions.%(cgr => loneCultistIn(cgr) && enemyGooThreat(cgr))
                 need(OneLarvaEach)                                                          |=> 1500 -> "need larva for sb"
                 self.all(LarvaSynthesis).none                                               |=> 1500 -> "no synthesis on map"
                 self.all(LarvaSynthesis).any && self.all(LarvaThesis).none                  |=> -2000 -> "have synthesis need thesis first"
                 self.all(LarvaSynthesis).any && self.all(LarvaAntithesis).none              |=> -2000 -> "have synthesis need antithesis first"
                 r.allies.goos.any                                                           |=> 300  -> "summon near goo"
                 r.ownGate                                                                   |=> 200  -> "summon at gate"
-                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone keeper chaos gate"
+                threatenedLoneCG.has(r)                                                     |=> 1200 -> "reinforce threatened lone cultist chaos gate"
 
             // ---- AWAKEN GOOs ----
             case AwakenAction(_, AvatarThesis, r, _) =>
                 // Core DS turn-2 strategy: awaken adjacent to an unprotected enemy gate, capture it next action,
                 // and optionally use UndirectedEnergy in the same location to net power.
                 val nearCaptureTarget = r.near.%(n => n.enemyGate && n.foes.goos.none && n.foes.%(_.canControlGate).num == 1)
+                // Gates includes both normal gates and chaos gates DS controls
+                self.gates.num < 2                                                  |=> -3000 -> "build 2 gates before awakening"
                 need(AwakenAvatarThesis)                                            |=> 3000 -> "need thesis"
                 r.allies(LarvaThesis).any                                           |=> 200  -> "larva thesis present"
                 nearCaptureTarget.any                                               |=> 1500 -> "near capture target"
                 // Extra bonus when UndirectedEnergy is available to exploit the same contested area
                 nearCaptureTarget.any && can(UndirectedEnergy) && factionsPresent(r) >= 2 |=> 600 -> "undirected energy synergy at awakening region"
+                can(Consummation) && self.oncePerTurn.has(ChaosGateSB) && DS.chaosGateRegions.num < 3 |=> -4000 -> "consummation gate before thesis"
 
             case AwakenAction(_, AvatarAntithesis, r, _) =>
+                self.gates.num < 2                                        |=> -3000 -> "build 2 gates before awakening"
                 need(AwakenAvatarAntithesis) && !need(AwakenAvatarThesis) |=> 3000 -> "need antithesis"
                 r.allies(LarvaAntithesis).any                             |=> 200  -> "larva antithesis present"
-                // Hold off on Antithesis if chaos gates haven't been established — ChaosGateSBAction (7000)
-                // should already beat this, but guard in case generation is blocked by missing non-gate acolyte
-                have(ChaosGateSB) && DS.chaosGateRegions.num == 0        |=> -1500 -> "chaos gate before antithesis"
+                // Prefer placing a chaos gate (or Consummation → gate) before awakening
+                have(ChaosGateSB) && self.oncePerTurn.has(ChaosGateSB).not && DS.chaosGateRegions.num < 3 |=> -2000 -> "chaos gate first this turn then antithesis"
+                can(Consummation) && self.oncePerTurn.has(ChaosGateSB) && DS.chaosGateRegions.num < 3     |=> -2000 -> "consummation gate second before antithesis"
                 // Prefer protected regions — Antithesis is expensive to re-awaken
                 r.allies.num >= 2             |=> 600  -> "antithesis with allies"
                 r.ownGate                     |=> 300  -> "antithesis at own gate"
@@ -477,9 +509,13 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
                 enemyGooThreat(r)             |=> -800  -> "antithesis avoid goo threat region"
 
             case AwakenAction(_, AvatarSynthesis, r, _) =>
+                self.gates.num < 2                                           |=> -3000 -> "build 2 gates before awakening"
                 need(AwakenAvatarSynthesis) && !need(AwakenAvatarAntithesis) |=> 3000 -> "need synthesis"
                 power >= 14                                                   |=> 500  -> "high power synthesis"
                 power < 8                                                     |=> -2000 -> "too low power for synthesis"
+                // Prefer placing a chaos gate (or Consummation → gate) before awakening
+                have(ChaosGateSB) && self.oncePerTurn.has(ChaosGateSB).not && DS.chaosGateRegions.num < 3 |=> -2000 -> "chaos gate first this turn then synthesis"
+                can(Consummation) && self.oncePerTurn.has(ChaosGateSB) && DS.chaosGateRegions.num < 3     |=> -2000 -> "consummation gate second before synthesis"
                 r.allies(LarvaSynthesis).any                                  |=> 200  -> "larva synthesis present"
                 // Synthesis is the MVP — strongly prefer heavily defended safe regions
                 r.allies.num >= 3             |=> 1200 -> "synthesis big group"
@@ -531,6 +567,30 @@ class GameEvaluationDS(implicit game : Game) extends GameEvaluation(DS)(game) {
 
             case NextPlayerAction(_) =>
                 true |=> 0 -> "cancel"
+
+            // ---- DREAD CURSE OF AZATHOTH: assign Kill or Pain to own units ----
+            // DreadCurseAssignAction is NOT handled by the battle section — must be explicit here.
+            // Higher score = prefer this unit to take this hit.
+            // Kill: sacrifice cheap units; never kill GOOs if anything else is available.
+            // Pain: retreat cheap units; protect GOOs especially Synthesis.
+            case DreadCurseAssignAction(_, _, _, _, _, _, s, uc) =>
+                if (s == Kill) {
+                    uc == Acolyte          |=> 800  -> "dread curse kill acolyte"
+                    uc == LarvaThesis      |=> 600  -> "dread curse kill larva thesis"
+                    uc == LarvaAntithesis  |=> 590  -> "dread curse kill larva antithesis"
+                    uc == LarvaSynthesis   |=> 580  -> "dread curse kill larva synthesis"
+                    uc == AvatarThesis     |=> 100  -> "dread curse kill thesis re-awakens free"
+                    uc == AvatarAntithesis |=> -2000 -> "dread curse keep antithesis"
+                    uc == AvatarSynthesis  |=> -5000 -> "dread curse never kill synthesis"
+                } else {
+                    uc == Acolyte          |=> 800  -> "dread curse pain acolyte"
+                    uc == LarvaThesis      |=> 300  -> "dread curse pain larva thesis"
+                    uc == LarvaAntithesis  |=> 300  -> "dread curse pain larva antithesis"
+                    uc == LarvaSynthesis   |=> 300  -> "dread curse pain larva synthesis"
+                    uc == AvatarThesis     |=> -5000 -> "dread curse dont pain thesis"
+                    uc == AvatarAntithesis |=> -6000 -> "dread curse dont pain antithesis"
+                    uc == AvatarSynthesis  |=> -8000 -> "dread curse never pain synthesis"
+                }
 
             // ---- THOUSAND FORMS NEGOTIATION: same probabilistic decay as all other factions ----
             // Higher offers score progressively lower max values; never overpay past total demand

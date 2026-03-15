@@ -108,7 +108,8 @@ abstract class GameEvaluation[F <: Faction](val self : F)(implicit game : Game) 
         def noGate = !gate
         def ownGate = self.gates.contains(r)
         def enemyGate = others.%(_.gates.contains(r)).any
-        def freeGate = gate && !ownGate && !enemyGate
+        def chaosGate = DS.chaosGateRegions.has(r)
+        def freeGate = gate && !ownGate && !enemyGate && !chaosGate
         def controllers = (ownGate || enemyGate).??(owner.at(r).%(_.canControlGate))
         def gateOf(f : Faction) = f.gates.contains(r)
         def owner = game.factions.%(_.gates.contains(r)).single.get
