@@ -55,7 +55,7 @@ case object Interdimensional extends NeutralSpellbook("Interdimensional")
 case object FromBelow extends NeutralSpellbook("From Below")
 case object NyogthaPrimed extends NeutralSpellbook("Nyogtha Primed")
 case object NyogthaMourning extends NeutralSpellbook("Nyogtha Mourning")
-case object TulzschaRitualBypass extends NeutralSpellbook("Tulzscha Ritual Bypass")
+
 case object NightmareWeb extends NeutralSpellbook("Nightmare Web")
 
 // Tulzscha
@@ -105,10 +105,10 @@ case class YgolonacOrificesAction(self : Faction, target : UnitRef) extends Forc
 
 case class TulzschaGivePowerMainAction(self : Faction) extends OptionFactionAction("Give each enemy 2 Power (Tulzscha SBR)".styled(self)) with MainQuestion with Soft
 case class TulzschaGivePowerAction(self : Faction) extends BaseFactionAction(g => "Give each enemy 2 Power for " + Tulzscha.styled(self) + " Spellbook Requirement", g => "Give 2 Power")
-case class TulzschaBypassRitualAction(self : Faction, cost : Int, k : Int) extends OptionFactionAction(g => "Perform " + "Ritual of Annihilation".styled("doom") + " for " + cost.power) with DoomQuestion
+
 case class CeremonyOfAnnihilationChoiceAction(self : Faction) extends OptionFactionAction(
     g => "Use " + CeremonyOfAnnihilation.styled(self) + " (earn " + g.ritualCost.power + ", no Doom/ES)"
-) with DoomQuestion with Soft
+) with DoomQuestion
 
 
 object IGOOsExpansion extends Expansion {
@@ -373,12 +373,6 @@ object IGOOsExpansion extends Expansion {
 
             BattleProceedAction(EliminatePhase)
 
-        // TULZSCHA - Ceremony of Annihilation ritual intercept
-        case RitualAction(self, cost, k) if self.has(Tulzscha) && self.upgrades.has(CeremonyOfAnnihilation) && self.oncePerAction.has(TulzschaRitualBypass).not =>
-            Ask(self)
-                .add(CeremonyOfAnnihilationChoiceAction(self))
-                .add(TulzschaBypassRitualAction(self, cost, k))
-                .cancel
 
         case CeremonyOfAnnihilationChoiceAction(self) =>
             val earned = game.ritualCost
@@ -391,9 +385,6 @@ object IGOOsExpansion extends Expansion {
             self.log("used", CeremonyOfAnnihilation.styled(self), "and earned", earned.power, "(no Doom or Elder Signs)")
             CheckSpellbooksAction(DoomAction(self))
 
-        case TulzschaBypassRitualAction(self, cost, k) =>
-            self.oncePerAction :+= TulzschaRitualBypass
-            Force(RitualAction(self, cost, k))
 
         // TULZSCHA
         case TulzschaGivePowerMainAction(self) =>

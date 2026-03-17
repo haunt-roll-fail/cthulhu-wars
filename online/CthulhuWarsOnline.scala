@@ -166,6 +166,12 @@ object CthulhuWarsOnline {
                         }
                     }
                 }
+            } ~
+            (post & path("rollback-v2" / Segment / IntNumber)) { (role, index) =>
+                q(roles.filter(_.secret === role).map(_.gameId).result.head.flatMap { id =>
+                    logs.filter(_.gameId === id).filter(_.index >= index).delete
+                })
+                complete(StatusCodes.Accepted)
             }
 
         val bindingFuture = Http().newServerAt("0.0.0.0", port).bind(route)

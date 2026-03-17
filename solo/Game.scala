@@ -785,7 +785,7 @@ case object UseByatis extends LoyaltyCardGameOption(ByatisCard) with IGOOOption
 case object UseAbhoth extends LoyaltyCardGameOption(AbhothCard) with IGOOOption
 case object UseDaoloth extends LoyaltyCardGameOption(DaolothCard) with IGOOOption
 case object UseNyogtha extends LoyaltyCardGameOption(NyogthaCard) with IGOOOption
-case object UseTulzscha extends LoyaltyCardGameOption(TulzschaCard)
+case object UseTulzscha extends LoyaltyCardGameOption(TulzschaCard) with IGOOOption
 case object UseYgolonac extends LoyaltyCardGameOption(YgolonacCard) with IGOOOption
 
 case class PlayerCount(n : Int) extends GameOption
@@ -1186,8 +1186,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
         f.es.exists(_.value > 0).$((outOfTurn && options.has(AsyncActions).not).?(InfoESOutOfTurnAction(f)).|(RevealESOutOfTurnAction(f))) ++
         (options.has(AsyncActions) || outOfTurn.not).??(
             (highPriests && f.all(HighPriest).any).$(SacrificeHighPriestOutOfTurnMainAction(f)) ++
-            f.plans.%(f.commands.has)./(p => Info(p.info)(p.group)) ++
-            f.plans.any.$(CommandsMainAction(f))
+            { val vp = f.plans.%(p => p.is[ShamblerPlan].not || f.at(ShamblerHold(f), DimensionalShamblerUnit).any)
+            vp.%(f.commands.has)./(p => Info(p.info)(p.group)) ++
+            vp.any.$(CommandsMainAction(f)) }
         )
     }
 
@@ -1303,7 +1304,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             }
         }
 
-        if (f.loyaltyCards.has(DimensionalShamblerCard) && f.units.%(_.uclass == DimensionalShamblerUnit).num < DimensionalShamblerCard.quantity && f.power >= f.summonCost(DimensionalShamblerUnit, f.reserve))
+        if (f.loyaltyCards.has(DimensionalShamblerCard) && f.pool(DimensionalShamblerUnit).any && f.power >= f.summonCost(DimensionalShamblerUnit, f.reserve))
             + ShamblerSummonMainAction(f)
     }
 
@@ -1378,6 +1379,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         if (f.power >= cost && f.acted.not)
             + RitualAction(f, cost, 1)
+
+        if (f.upgrades.has(CeremonyOfAnnihilation) && f.acted.not)
+            + CeremonyOfAnnihilationChoiceAction(f)
 
         + SacrificeHighPriestAllowedAction
 
@@ -2045,7 +2049,7 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
                         }
 
                     if (reasons.any)
-                        + ShamblerDeployPromptAction(f, PreMainAction(e)).as(DimensionalShamblerUnit.styled(f), "to Map")(DimensionalShamblerCard, reasons./("<br/>(" + _ + ")").mkString(""))
+                        + ShamblerDeployPromptAction(f, CheckSpellbooksAction(PreMainAction(e))).as(DimensionalShamblerUnit.styled(f), "to Map")(DimensionalShamblerCard, reasons./("<br/>(" + _ + ")").mkString(""))
                 }
 
                 |(asking.ask).%(_.actions.%!(_.isInfo).any)./(_.add(NeedOk).add(OutOfTurnRefresh(PreMainAction(e))).add(SacrificeHighPriestAllowedAction).group(" ").skip(PreActionPromptsAction(e, l.but(f))))
@@ -2473,12 +2477,16 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             Ask(self).each(l)(r => SummonAction(self, uc, r)).cancel
 
         case SummonAction(self, uc, r) =>
-            self.power -= self.summonCost(uc, r)
-            self.payTax(r)
-            self.place(uc, r)
-            self.log("summoned", uc.styled(self), "in", r)
+            if (self.pool(uc).none || self.affords(self.summonCost(uc, r))(r).not)
+                EndAction(self)
+            else {
+                self.power -= self.summonCost(uc, r)
+                self.payTax(r)
+                self.place(uc, r)
+                self.log("summoned", uc.styled(self), "in", r)
 
-            SummonedAction(self, uc, r, $)
+                SummonedAction(self, uc, r, $)
+            }
 
         case SummonedAction(self, uc, r, l) =>
             EndAction(self)
@@ -2488,14 +2496,18 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
             Ask(self).some(locations)(r => self.awakenCost(uc, r)./(cost => AwakenAction(self, uc, r, cost))).cancel
 
         case AwakenAction(self, uc, r, cost) =>
-            self.power -= cost
+            if (self.pool(uc).none || self.affords(cost)(r).not)
+                EndAction(self)
+            else {
+                self.power -= cost
 
-            self.payTax(r)
-            self.place(uc, r)
+                self.payTax(r)
+                self.place(uc, r)
 
-            self.log("awakened", uc.styled(self), "in", r)
+                self.log("awakened", uc.styled(self), "in", r)
 
-            AwakenedAction(self, uc, r, cost)
+                AwakenedAction(self, uc, r, cost)
+            }
 
         // HIGH PRIESTS
         case SacrificeHighPriestDoomAction(self) =>
@@ -2537,8 +2549,9 @@ class Game(val board : Board, val ritualTrack : $[Int], val setup : $[Faction], 
 
         // COMMANDS
         case CommandsMainAction(f) =>
+            val visiblePlans = f.plans.%(p => p.is[ShamblerPlan].not || f.at(ShamblerHold(f), DimensionalShamblerUnit).any)
             Ask(f)
-                .each(f.plans) { p =>
+                .each(visiblePlans) { p =>
                     if (f.commands.has(p))
                         CommandsRemoveAction(f, p)
                     else

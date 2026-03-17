@@ -36,7 +36,7 @@ case object DimensionalShamblerHold extends UnitClass("Dimensional Shambler (Hol
 
 case object GnorriCard extends NeutralMonsterLoyaltyCard(GnorriIcon, Gnorri, cost = 3, quantity = 3, combat = 2)
 case object GnorriIcon extends UnitClass(Gnorri.name + " Icon", Token, 0)
-case object Gnorri extends UnitClass("Gnorri", Monster, 2) with NeutralMonster
+case object Gnorri extends UnitClass("Gnorri", Monster, 3) with NeutralMonster
 
 
 case class LoyaltyCardDoomAction(self : Faction) extends OptionFactionAction("Obtain " + "Loyalty Card".styled("nt")) with DoomQuestion with Soft with PowerNeutral
@@ -76,7 +76,10 @@ object NeutralMonstersExpansion extends Expansion {
             self.log("obtained the", lc.short, "Loyalty Card".styled("nt"), "for", $((lc.doom > 0).??(lc.doom.doom), (lc.power > 0).??(lc.power.power)).but("").mkString("and"))
 
             if (lc.unit == DimensionalShamblerUnit) {
-                self.units :+= new UnitFigure(self, DimensionalShamblerUnit, 1, ShamblerHold(self))
+                lc.quantity.times(DimensionalShamblerUnit).foreach { u =>
+                    self.units :+= new UnitFigure(self, u, self.units.%(_.uclass == u).num + 1, self.reserve)
+                }
+                self.pool(DimensionalShamblerUnit).head.region = ShamblerHold(self)
                 self.log(DimensionalShamblerUnit.styled(self), "placed on Faction Card")
                 ShamblerDeployCommandsAction(self, CheckSpellbooksAction(DoomAction(self)))
             } else {
@@ -135,7 +138,7 @@ object NeutralMonstersExpansion extends Expansion {
 
         case ShamblerSummonAction(self) =>
             self.power -= self.summonCost(DimensionalShamblerUnit, self.reserve)
-            self.units :+= new UnitFigure(self, DimensionalShamblerUnit, self.units.%(_.uclass == DimensionalShamblerUnit).num + 1, ShamblerHold(self))
+            self.pool(DimensionalShamblerUnit).head.region = ShamblerHold(self)
             self.log("summoned", DimensionalShamblerUnit.styled(self), "to Faction Card")
             EndAction(self)
 
@@ -165,14 +168,20 @@ object NeutralMonstersExpansion extends Expansion {
             Ask(f).each(areas.nex)(r => ShamblerDeployAction(f, r, then)).cancel
 
         case ShamblerDeployAction(f, r, then) =>
+            if (f.at(ShamblerHold(f), DimensionalShamblerUnit).none)
+                then
+            else {
             val u = f.at(ShamblerHold(f)).one(DimensionalShamblerUnit)
             u.region = r
             log(DimensionalShamblerUnit.styled(f), "deployed to", r)
 
             if (f.at(ShamblerHold(f), DimensionalShamblerUnit).any)
                 Ask(f).each(areas.nex)(r => ShamblerDeployAction(f, r, then)).add(then.as("Done".styled("power")))
-            else
+            else {
+                game.triggers()
                 then
+            }
+            }
 
         // ...
         case _ => UnknownContinue
@@ -191,8 +200,8 @@ case object ShamblerThreatOfCapture extends ShamblerPlan("...threat of capture")
 case object ShamblerThreatOfAttackOnGate extends ShamblerPlan("...credible threat to a controlled gate") with ShamblerThreat
 case object ShamblerThreatOfAttackOnGOO extends ShamblerPlan("...credible threat of battle against GOO") with ShamblerThreat
 
-case class ShamblerSummonMainAction(self : Faction) extends OptionFactionAction("Summon " + DimensionalShamblerUnit.name.styled("neutral") + " to Faction Card") with MainQuestion with Soft
-case class ShamblerSummonAction(self : Faction) extends BaseFactionAction("Summon " + DimensionalShamblerUnit.name.styled("neutral"), "to Faction Card".styled("neutral"))
+case class ShamblerSummonMainAction(self : Faction) extends OptionFactionAction("Summon " + DimensionalShamblerUnit.styled(self) + " to Faction Card") with MainQuestion with Soft
+case class ShamblerSummonAction(self : Faction) extends BaseFactionAction(implicit g => "Summon " + DimensionalShamblerUnit.styled(self) + g.forNPowerWithTax(self.reserve, self, self.summonCost(DimensionalShamblerUnit, self.reserve)), "to " + "Faction Card".styled(self))
 case class ShamblerDeployCommandsAction(self : Faction, then : ForcedAction) extends ForcedAction
 case class ShamblerDeployPromptAction(self : Faction, then : ForcedAction) extends ForcedAction with Soft
 case class ShamblerDeployMainAction(self : Faction, then : ForcedAction) extends OptionFactionAction("Deploy " + DimensionalShamblerUnit.name.styled("neutral")) with MainQuestion with Soft
