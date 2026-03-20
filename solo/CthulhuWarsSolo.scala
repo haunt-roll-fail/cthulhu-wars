@@ -801,8 +801,8 @@ object CthulhuWarsSolo {
                         case LarvaThesis      => DrawRect("ds-larva-thesis", None, x - 37, y - 46, 73, 52)
                         case LarvaAntithesis  => DrawRect("ds-larva-antithesis", None, x - 46, y - 61, 92, 68)
                         case LarvaSynthesis   => DrawRect("ds-larva-synthesis", None, x - 39, y - 87, 78, 95, rotation = 5.0)
-                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 82, y - 91, 164, 108)
-                        case AvatarAntithesis => DrawRect("ds-avatar-antithesis", None, x - 82, y - 105, 164, 122)
+                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 74, y - 82, 148, 97)
+                        case AvatarAntithesis => DrawRect("ds-avatar-antithesis", None, x - 70, y - 89, 139, 104)
                         case AvatarSynthesis  => DrawRect("ds-avatar-synthesis", None, x - 70, y - 170, 141, 187, rotation = 10.0)
 
                         case DesecrationToken => DrawRect("ys-desecration", None, x - 20, y - 20, 41, 40)
@@ -1214,6 +1214,18 @@ object CthulhuWarsSolo {
                         dd(DrawItem(null, e, SerpentMan, Alive, $, w - 46 + smx, 86).rect)
                         smx -= 20
                     }
+                }
+
+                if (f == DS && DS.unfulfilled.has(AwakenAvatarThesis).not) {
+                    val track = DS.azathothTrack.toString
+                    g.font = "bold 31px \"Bohemian Typewriter\", monospace"
+                    g.textAlign = "center"
+                    g.textBaseline = "middle"
+                    g.lineWidth = 5.0
+                    g.strokeStyle = "rgba(0,0,0,0.85)"
+                    g.strokeText(track, 55, 28)
+                    g.fillStyle = "white"
+                    g.fillText(track, 55, 28)
                 }
 
                 val deep = f.at(GC.deep).any.?? {

@@ -659,7 +659,12 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Killed).not(Harbinged).some.foreach { l =>
                             val u = l.first
-                            val n = u.uclass.cost / 2
+                            val cost = u.uclass match {
+                                case AvatarThesis     => DS.azathothTrack
+                                case AvatarAntithesis => (8 - DS.azathothTrack).max(0)
+                                case _                => u.uclass.cost
+                            }
+                            val n = (cost + 1) / 2
                             return Ask(s)
                                 .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
                                 .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
@@ -688,7 +693,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                 jump(CosmicRulerPhase)
 
             case CosmicRulerPhase =>
-                if (sides.has(DS)) {
+                if (sides.has(DS) && DS.all(AvatarSynthesis).any) {
                     val killedAvatars = DS.forces.%(u => u.goo && u.health == Killed)
                     if (killedAvatars.any) {
                         // Exclude already-killed/eliminated units — a GOO sacrificed in a prior CR trigger
@@ -813,7 +818,12 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Pained).not(Harbinged).some.foreach { l =>
                             val u = l.first
-                            val n = u.uclass.cost / 2
+                            val cost = u.uclass match {
+                                case AvatarThesis     => DS.azathothTrack
+                                case AvatarAntithesis => (8 - DS.azathothTrack).max(0)
+                                case _                => u.uclass.cost
+                            }
+                            val n = (cost + 1) / 2
                             return Ask(s)
                                 .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
                                 .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
@@ -1011,7 +1021,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             Ask(self).each(l)(r => RetreatUnitAction(self, u, r).as(r)("Retreat", u, "to"))
 
         case EliminateNoWayAction(self, u) =>
-            if (self == DS && u.goo) {
+            if (self == DS && u.goo && DS.all(AvatarSynthesis).any) {
                 val sacrificeOptions = DS.goos.%(o => o.ref != u && o.health == Alive)
                 if (sacrificeOptions.any) {
                     val options = sacrificeOptions./(sacrificed =>
