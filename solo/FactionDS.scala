@@ -195,7 +195,7 @@ object DSExpansion extends Expansion {
             if (f.power >= 1 && f.can(Consummation) && f.oncePerTurn.any)
                 + ConsummationAction(f)
 
-            if (f.can(FiendishGrowth) && f.all(AvatarAntithesis).any && (f.pool.monsters ++ f.pool.cultists).any && f.affords(1)(f.all(AvatarAntithesis).head.region))
+            if (f.can(FiendishGrowth) && f.all(AvatarAntithesis).any && (f.pool.monsters ++ f.pool.acolytes).any && f.affords(1)(f.all(AvatarAntithesis).head.region))
                 + FiendishGrowthAction(f)
 
             if (f.can(Traitors) && DS.chaosGateRegions.%(r => DS.gates.has(r) && f.affords(1)(r)).any && f.enemies.%(_.pool.cultists.any).any)
@@ -293,7 +293,7 @@ object DSExpansion extends Expansion {
             Force(FiendishGrowthPlaceAction(self, r, n))
 
         case FiendishGrowthPlaceAction(self, r, n) =>
-            val us = (self.pool.monsters ++ self.pool.cultists)./(_.uclass).distinct
+            val us = (self.pool.monsters ++ self.pool.acolytes)./(_.uclass).distinct
                 .%(uc => self.all(uc).num < self.units./(_.uclass).count(uc))
             if (n > 0 && us.any)
                 Ask(self).each(us)(uc => FiendishGrowthPlaceUnitAction(self, r, uc, n))

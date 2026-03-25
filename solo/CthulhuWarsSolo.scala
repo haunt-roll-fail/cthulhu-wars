@@ -801,7 +801,7 @@ object CthulhuWarsSolo {
                         case LarvaThesis      => DrawRect("ds-larva-thesis", None, x - 37, y - 46, 73, 52)
                         case LarvaAntithesis  => DrawRect("ds-larva-antithesis", None, x - 46, y - 61, 92, 68)
                         case LarvaSynthesis   => DrawRect("ds-larva-synthesis", None, x - 39, y - 87, 78, 95, rotation = 5.0)
-                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 74, y - 82, 148, 97)
+                        case AvatarThesis     => DrawRect("ds-avatar-thesis", None, x - 67, y - 74, 133, 87)
                         case AvatarAntithesis => DrawRect("ds-avatar-antithesis", None, x - 70, y - 89, 139, 104)
                         case AvatarSynthesis  => DrawRect("ds-avatar-synthesis", None, x - 70, y - 170, 141, 187, rotation = 10.0)
 
