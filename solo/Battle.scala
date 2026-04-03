@@ -71,6 +71,7 @@ case object EternalPainPhase extends BattlePhase
 case object MadnessPhase extends BattlePhase
 case object AttackerDefenderRetreats extends BattlePhase
 case object DefenderAttackerRetreats extends BattlePhase
+case object AzathothCombatDiePhase extends BattlePhase
 case object PostBattlePhase extends BattlePhase
 case object BattleEnd extends BattlePhase
 
@@ -194,7 +195,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
     val sides = $(attacker, defender)
 
-    var phase : BattlePhase = BattleStart
+    var phase : BattlePhase = AzathothCombatDiePhase
 
     var exempted : $[UnitFigure] = $
 
@@ -538,6 +539,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
     def proceed() : Continue = {
         phase match {
+            case AzathothCombatDiePhase =>
+                if (sides.has(DS) && sides.exists(_.at(arena).%(_.uclass == AvatarSynthesis).any))
+                    return RollD6(_ => "Roll Azathoth die for " + AvatarSynthesis.styled(DS) + " combat", roll => AzathothCombatDieRollAction(DS, roll))
+                jump(BattleStart)
+
             case BattleStart =>
                 if (attacker.hasAllSB.not)
                     attacker.acted = true

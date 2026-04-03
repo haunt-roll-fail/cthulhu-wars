@@ -84,6 +84,7 @@ case class DSAvatarAntithesisOneESAction(self : Faction, target : Faction)
 
 case class AzathothOffer(f : Faction, p : Int, d : Int) { def n : Int = p + d }
 
+case class AzathothCombatDieRollAction(self : Faction, x : Int) extends ForcedAction
 case class AzathothSynthesisRollAction(self : Faction, x : Int) extends ForcedAction
 case class AzathothSynthesisContinueAction(ds : Faction, x : Int, offers : $[AzathothOffer], forum : $[Faction], time : Int) extends ForcedAction
 
@@ -321,6 +322,13 @@ object DSExpansion extends Expansion {
             self.log("awakened", AvatarSynthesis.styled(self), "in", r)
             self.satisfy(AwakenAvatarSynthesis, "Awaken Avatar Synthesis")
             RollD6("Azathoth Synthesis Roll", roll => AzathothSynthesisRollAction(self, roll))
+
+        // AZATHOTH COMBAT DIE (rolled fresh each battle Avatar Synthesis participates in)
+        case AzathothCombatDieRollAction(self, roll) =>
+            val x = roll + 2
+            DS.azathothDieRoll = x
+            self.log(AvatarSynthesis.styled(self), "rolled the Azathoth die", "[" + x.styled("doom") + "]", "— combat strength", x.max(1).str)
+            game.battle.get.jump(BattleStart)
 
         // AZATHOTH SYNTHESIS AWAKENING
         case AzathothSynthesisRollAction(self, roll) =>
