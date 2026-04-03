@@ -49,12 +49,13 @@ object Host {
                     case WW => BotWW.ask(actions, 0.03)(g)
                     case OW => BotOW.ask(actions, 0.03)(g)
                     case AN => BotAN.ask(actions, 0.03)(g)
+                    case DS => BotDS.ask(actions, 0.03)(g)
                 }
         }
     }
 
     def main(args : Array[String]) {
-        val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN)
+        val allFactions = $(GC, CC, BG, YS, SL, WW, OW, AN, DS)
 
         val numberOfPlayers = 4
 

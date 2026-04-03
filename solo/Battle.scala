@@ -59,6 +59,7 @@ case object AssignAttackerKills extends BattlePhase
 case object AllKillsAssignedPhase extends BattlePhase
 case object HarbingerKillPhase extends BattlePhase
 case object EternalKillPhase extends BattlePhase
+case object CosmicRulerPhase extends BattlePhase
 case object EliminatePhase extends BattlePhase
 case object BerserkergangPhase extends BattlePhase
 case object UnholyGroundPhase extends BattlePhase
@@ -70,6 +71,7 @@ case object EternalPainPhase extends BattlePhase
 case object MadnessPhase extends BattlePhase
 case object AttackerDefenderRetreats extends BattlePhase
 case object DefenderAttackerRetreats extends BattlePhase
+case object AzathothCombatDiePhase extends BattlePhase
 case object PostBattlePhase extends BattlePhase
 case object BattleEnd extends BattlePhase
 
@@ -193,7 +195,7 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
     val sides = $(attacker, defender)
 
-    var phase : BattlePhase = BattleStart
+    var phase : BattlePhase = AzathothCombatDiePhase
 
     var exempted : $[UnitFigure] = $
 
@@ -537,6 +539,11 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
     def proceed() : Continue = {
         phase match {
+            case AzathothCombatDiePhase =>
+                if (sides.has(DS) && sides.exists(_.at(arena).%(_.uclass == AvatarSynthesis).any))
+                    return RollD6(_ => "Roll Azathoth die for " + AvatarSynthesis.styled(DS) + " combat", roll => AzathothCombatDieRollAction(DS, roll))
+                jump(BattleStart)
+
             case BattleStart =>
                 if (attacker.hasAllSB.not)
                     attacker.acted = true
@@ -573,7 +580,13 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     log(u, "had its strength at", 4.str, "while attacking")
                 }
 
+                if (attacker.forces.%(_.uclass == AvatarSynthesis).any)
+                    log(AvatarSynthesis.styled(DS), "Azathoth die", "[" + DS.azathothDieRoll.styled("doom") + "]", "— strength", DS.azathothDieRoll.max(1).str)
+
                 log(defender, "defended with", defender.forces./(_.short).mkString(", "), "" + defender.str.str)
+
+                if (defender.forces.%(_.uclass == AvatarSynthesis).any)
+                    log(AvatarSynthesis.styled(DS), "Azathoth die", "[" + DS.azathothDieRoll.styled("doom") + "]", "— strength", DS.azathothDieRoll.max(1).str)
 
                 jump(AttackerPreBattle)
 
@@ -652,7 +665,12 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Killed).not(Harbinged).some.foreach { l =>
                             val u = l.first
-                            val n = u.uclass.cost / 2
+                            val cost = u.uclass match {
+                                case AvatarThesis     => DS.azathothTrack
+                                case AvatarAntithesis => (8 - DS.azathothTrack).max(0)
+                                case _                => u.uclass.cost
+                            }
+                            val n = (cost + 1) / 2
                             return Ask(s)
                                 .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
                                 .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
@@ -678,6 +696,26 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     }
                 }
 
+                jump(CosmicRulerPhase)
+
+            case CosmicRulerPhase =>
+                if (sides.has(DS) && DS.all(AvatarSynthesis).any) {
+                    val killedAvatars = DS.forces.%(u => u.goo && u.health == Killed)
+                    if (killedAvatars.any) {
+                        // Exclude already-killed/eliminated units — a GOO sacrificed in a prior CR trigger
+                        // this same battle is no longer Alive and must not be offered again
+                        val sacrificeOptions = DS.goos.%(o => killedAvatars.has(o).not && o.health == Alive)
+                        if (sacrificeOptions.any) {
+                            val options = killedAvatars./~(saved =>
+                                sacrificeOptions./(sacrificed =>
+                                    CosmicRulerSacrificeAction(DS, saved, sacrificed)
+                                        .as("Eliminate", sacrificed)(CosmicRuler.styled(DS), "save", saved, "from", "Kill".styled("kill"))
+                                )
+                            )
+                            return Ask(DS).list(options).skip(CosmicRulerDeclineAction(DS))
+                        }
+                    }
+                }
                 jump(EliminatePhase)
 
             case EliminatePhase =>
@@ -786,7 +824,12 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
                     if (s.tag(Harbinger)) {
                         s.opponent.units.goos.%(_.health == Pained).not(Harbinged).some.foreach { l =>
                             val u = l.first
-                            val n = u.uclass.cost / 2
+                            val cost = u.uclass match {
+                                case AvatarThesis     => DS.azathothTrack
+                                case AvatarAntithesis => (8 - DS.azathothTrack).max(0)
+                                case _                => u.uclass.cost
+                            }
+                            val n = (cost + 1) / 2
                             return Ask(s)
                                 .add(HarbingerPowerAction(s, u, n).as("Get", n.power)(Harbinger, "for", u))
                                 .add(HarbingerESAction(s, u, 2).as("Gain", 2.es)(Harbinger, "for", u))
@@ -984,6 +1027,16 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
             Ask(self).each(l)(r => RetreatUnitAction(self, u, r).as(r)("Retreat", u, "to"))
 
         case EliminateNoWayAction(self, u) =>
+            if (self == DS && u.goo && DS.all(AvatarSynthesis).any) {
+                val sacrificeOptions = DS.goos.%(o => o.ref != u && o.health == Alive)
+                if (sacrificeOptions.any) {
+                    val options = sacrificeOptions./(sacrificed =>
+                        CosmicRulerSacrificeAction(DS, u, sacrificed)
+                            .as("Eliminate", sacrificed)(CosmicRuler.styled(DS), "save", u, "from elimination")
+                    )
+                    return Ask(DS).list(options).skip(CosmicRulerDeclineNoWayAction(DS, u))
+                }
+            }
             if (self.tag(Emissary) && u.uclass == Nyarlathotep) {
                 self.log("had nowhere to retreat but", u, "remained as an", Emissary)
             }
@@ -992,6 +1045,15 @@ class Battle(val arena : Region, val attacker : Faction, val defender : Faction,
 
                 self.log("had nowhere to retreat and eliminated", u)
             }
+            self.forces.foreach(_.health = Alive)
+            proceed()
+
+        case CosmicRulerDeclineAction(_) =>
+            jump(EliminatePhase)
+
+        case CosmicRulerDeclineNoWayAction(self, u) =>
+            eliminate(u)
+            self.log("had nowhere to retreat and eliminated", u)
             self.forces.foreach(_.health = Alive)
             proceed()
 

@@ -1,8 +1,8 @@
 <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <base href="/hrf/" />
-        <title id="cws-options" data-server="###SERVER-URL###" data-delay="1" data-menu="222" data-scroll="true" data-online="true">Cthulhu Wars Solo DEV</title>
+        <base href="hrf/" /> <!-- Use empty base for local testing; set back to "hrf/" before deploying -->
+        <title id="cws-options" data-server="http://localhost:9000/" data-delay="1" data-menu="222" data-scroll="true" data-online="true">Cthulhu Wars Solo DEV</title>
         <style>
             html {
                 height: 100%;
@@ -203,6 +203,18 @@
                 color: #30d5c8;
             }
 
+            .ds {
+                color: #8B4513;
+            }
+
+            .ds-background {
+                background-color: #3d2b1b !important;
+            }
+
+            .ds-border {
+                border-color: #3d2b1b !important;
+            }
+
             .gc-background {
                 background-color: #002b00 !important;
             }
@@ -271,7 +283,7 @@
                 outline-color: #3c5c5c !important;
             }
 
-            .p8 {
+.p8 {
                 padding-left: 40px;
                 padding-left: 8ch;
                 text-indent: -40px;
@@ -643,6 +655,10 @@
                 height: 3.6ex;
                 vertical-align: middle;
             }
+            .ds-glyph {
+                width: 3.6ex !important;
+                height: 3.6ex !important;
+            }
 
             .inline-block {
                 display: inline-block;
@@ -815,6 +831,17 @@
         <img class="asset" id="an-yothan"         src="webp/images/an-yothan.webp" />
         <img class="asset" id="an-cathedral"      src="webp/images/an-cathedral.webp" />
 
+        <img class="asset" id="ds-glyph"          src="webp/images/ds-glyph.webp" />
+        <img class="asset" id="ds-acolyte"      src="webp/images/ds-acolyte.webp" />
+        <img class="asset" id="ds-high-priest" src="webp/images/ds-high-priest.webp" />
+        <img class="asset" id="ds-larva-thesis" src="webp/images/ds-larva-thesis.webp" />
+        <img class="asset" id="ds-larva-antithesis" src="webp/images/ds-larva-antithesis.webp" />
+        <img class="asset" id="ds-larva-synthesis" src="webp/images/ds-larva-synthesis.webp" />
+        <img class="asset" id="ds-chaos-gate" src="webp/images/ds-chaos-gate.webp" />
+        <img class="asset" id="ds-avatar-thesis" src="webp/images/ds-avatar-thesis.webp" />
+        <img class="asset" id="ds-avatar-antithesis" src="webp/images/ds-avatar-antithesis.webp" />
+        <img class="asset" id="ds-avatar-synthesis" src="webp/images/ds-avatar-synthesis.webp" />
+
         <img class="asset" id="n-ghast"           src="webp/images/n-ghast.webp" />
         <img class="asset" id="n-gug"             src="webp/images/n-gug.webp" />
         <img class="asset" id="n-shantak"         src="webp/images/n-shantak.webp" />
@@ -886,6 +913,16 @@
         <img class="asset" id="info:cc-hunting-horror" src="webp/info/cc-hunting-horror.svg" />
         <img class="asset" id="info:cc-nightgaunt" src="webp/info/cc-nightgaunt.svg" />
         <img class="asset" id="info:cc-nyarlathotep" src="webp/info/cc-nyarlathotep.svg" />
+
+        <img class="asset" id="info:ds-acolyte" src="webp/info/ds-acolyte.svg" />
+        <img class="asset" id="info:ds-background" src="webp/info/ds-background.webp" />
+        <img class="asset" id="info:ds-larva-thesis" src="webp/info/ds-larva-thesis.svg" />
+        <img class="asset" id="info:ds-larva-antithesis" src="webp/info/ds-larva-antithesis.svg" />
+        <img class="asset" id="info:ds-larva-synthesis" src="webp/info/ds-larva-synthesis.svg" />
+        <img class="asset" id="info:ds-chaos-gate" src="webp/info/ds-chaos-gate.svg" />
+        <img class="asset" id="info:ds-avatar-thesis" src="webp/info/ds-avatar-thesis.svg" />
+        <img class="asset" id="info:ds-avatar-antithesis" src="webp/info/ds-avatar-antithesis.svg" />
+        <img class="asset" id="info:ds-avatar-synthesis" src="webp/info/ds-avatar-synthesis.svg" />        
 
         <img class="asset" id="info:gc-acolyte" src="webp/info/gc-acolyte.svg" />
         <img class="asset" id="info:gc-background" src="webp/info/gc-background.webp" />
@@ -1100,7 +1137,7 @@
         <!-- } | ASSETS | } -->
 
         <!-- { | SCRIPT | { -->
-        <script id="script" type="text/javascript" src="./target/scala-2.13/cthulhu-wars-solo-hrf-fastopt.js"></script>
+        <script id="script" type="text/javascript" src="./target/scala-2.13/cthulhu-wars-solo-hrf-fastopt/main.js"></script>
         <!-- } | SCRIPT | } -->
     </body>
 </html>
